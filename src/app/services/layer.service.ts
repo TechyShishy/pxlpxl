@@ -103,6 +103,15 @@ export class LayerService {
     layer.data[offset + 3] = color.a;
   }
 
+  /**
+   * Notify the layers signal that layer data has been mutated in place.
+   * Call this after a batch of setPixel() calls (e.g., after undo/redo)
+   * so that Angular's signal-based change detection picks up the update.
+   */
+  notifyLayersChanged(): void {
+    this.layers.update((layers) => [...layers]);
+  }
+
   /** Get the raw data of a layer (for undo/redo snapshots) */
   getLayerData(index: number): Uint8ClampedArray | null {
     const layer = this.layers()[index];

@@ -27,6 +27,7 @@ export class FillCommand implements Command {
         pixel.newColor,
       );
     }
+    this.layerService.notifyLayersChanged();
   }
 
   undo(): void {
@@ -39,5 +40,6 @@ export class FillCommand implements Command {
         pixel.oldColor,
       );
     }
+    this.layerService.notifyLayersChanged();
   }
 }
