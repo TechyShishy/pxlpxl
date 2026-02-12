@@ -1,11 +1,15 @@
-import { Injectable, signal, computed } from '@angular/core';
-import { ViewTransform } from '../models';
+import { Injectable, signal, computed, inject } from '@angular/core';
+import { ViewTransform, GridType } from '../models';
+import { GridService } from './grid.service';
 
 @Injectable({ providedIn: 'root' })
 export class CanvasStateService {
+  private readonly gridService = inject(GridService);
+
   readonly canvasWidth = signal<number>(32);
   readonly canvasHeight = signal<number>(32);
   readonly showGrid = signal<boolean>(true);
+  readonly gridType = signal<GridType>('square');
 
   readonly transform = signal<ViewTransform>({
     scale: 10,
@@ -18,6 +22,10 @@ export class CanvasStateService {
   setCanvasSize(width: number, height: number): void {
     this.canvasWidth.set(width);
     this.canvasHeight.set(height);
+  }
+
+  setGridType(type: GridType): void {
+    this.gridType.set(type);
   }
 
   setZoom(scale: number): void {
@@ -60,13 +68,16 @@ export class CanvasStateService {
     canvasRect: DOMRect,
   ): { x: number; y: number } | null {
     const t = this.transform();
-    const x = Math.floor((screenX - canvasRect.left - t.offsetX) / t.scale);
-    const y = Math.floor((screenY - canvasRect.top - t.offsetY) / t.scale);
+    const localX = screenX - canvasRect.left - t.offsetX;
+    const localY = screenY - canvasRect.top - t.offsetY;
 
-    if (x < 0 || x >= this.canvasWidth() || y < 0 || y >= this.canvasHeight()) {
-      return null;
-    }
-
-    return { x, y };
+    return this.gridService.screenToPixel(
+      localX,
+      localY,
+      t.scale,
+      this.canvasWidth(),
+      this.canvasHeight(),
+      this.gridType(),
+    );
   }
 }

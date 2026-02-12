@@ -11,6 +11,20 @@ export class PxlpxlDatabase extends Dexie {
     this.version(1).stores({
       projects: '++id, name, createdAt, updatedAt',
     });
+    this.version(2)
+      .stores({
+        projects: '++id, name, createdAt, updatedAt',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('projects')
+          .toCollection()
+          .modify((project: any) => {
+            if (!project.gridType) {
+              project.gridType = 'square';
+            }
+          }),
+      );
   }
 
   async saveProject(project: Project): Promise<number> {

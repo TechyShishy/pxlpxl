@@ -1,6 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { PxlpxlDatabase } from '../db/pxlpxl.database';
-import { Project, createDefaultProject, serializeLayer, deserializeLayer } from '../models';
+import {
+  Project,
+  GridType,
+  createDefaultProject,
+  serializeLayer,
+  deserializeLayer,
+} from '../models';
 import { CanvasStateService } from './canvas-state.service';
 import { LayerService } from './layer.service';
 import { ColorService } from './color.service';
@@ -17,9 +23,10 @@ export class ProjectService {
   private currentProjectId: number | undefined;
 
   /** Create a new blank project and load it into the editor */
-  newProject(name: string, width: number, height: number): void {
+  newProject(name: string, width: number, height: number, gridType: GridType = 'square'): void {
     this.currentProjectId = undefined;
     this.canvasState.setCanvasSize(width, height);
+    this.canvasState.setGridType(gridType);
     this.layerService.initLayers(width, height);
     this.colorService.setPalette([...this.colorService.palette()]);
     this.historyService.clear();
@@ -33,6 +40,7 @@ export class ProjectService {
       name: name ?? 'Untitled',
       width: this.canvasState.canvasWidth(),
       height: this.canvasState.canvasHeight(),
+      gridType: this.canvasState.gridType(),
       layers: this.layerService.layers().map(serializeLayer),
       palette: this.colorService.palette(),
       createdAt: this.currentProjectId
@@ -53,6 +61,7 @@ export class ProjectService {
 
     this.currentProjectId = project.id;
     this.canvasState.setCanvasSize(project.width, project.height);
+    this.canvasState.setGridType(project.gridType ?? 'square');
     this.layerService.setLayers(project.layers.map(deserializeLayer));
     this.colorService.setPalette(project.palette);
     this.historyService.clear();

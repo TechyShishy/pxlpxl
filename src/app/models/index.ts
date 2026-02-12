@@ -11,7 +11,7 @@ export {
 } from './color.model';
 export type { Layer } from './layer.model';
 export { createLayer, cloneLayerData } from './layer.model';
-export type { Project, SerializedLayer } from './project.model';
+export type { Project, SerializedLayer, GridType } from './project.model';
 export { serializeLayer, deserializeLayer, createDefaultProject } from './project.model';
 export type { Tool, ToolContext, ToolResult, ModifiedPixel, PixelCoord } from './tool.interface';
 export { ToolType } from './tool.interface';

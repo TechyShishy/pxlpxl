@@ -7,6 +7,9 @@ import {
   PixelCoord,
   Color,
 } from '../models';
+import { GridService } from '../services/grid.service';
+
+const gridService = new GridService();
 
 export class LineTool implements Tool {
   readonly type = ToolType.Line;
@@ -25,7 +28,7 @@ export class LineTool implements Tool {
 
   onPointerMove(ctx: ToolContext, _layerData: Uint8ClampedArray): ToolResult | null {
     if (!this.startCoord) return null;
-    this.previewPixels = this.bresenhamLine(this.startCoord, ctx.coord);
+    this.previewPixels = this.computeLinePixels(this.startCoord, ctx.coord, ctx);
     return null;
   }
 
@@ -33,7 +36,7 @@ export class LineTool implements Tool {
     if (!this.startCoord) return null;
 
     const color = ctx.isSecondary ? ctx.secondaryColor : ctx.primaryColor;
-    const pixels = this.bresenhamLine(this.startCoord, ctx.coord);
+    const pixels = this.computeLinePixels(this.startCoord, ctx.coord, ctx);
     const modifiedPixels: ModifiedPixel[] = [];
 
     for (const coord of pixels) {
@@ -60,6 +63,44 @@ export class LineTool implements Tool {
 
   getPreview(): PixelCoord[] {
     return this.previewPixels;
+  }
+
+  private computeLinePixels(from: PixelCoord, to: PixelCoord, ctx: ToolContext): PixelCoord[] {
+    if (!gridService.isPeyote(ctx.gridType)) {
+      return this.bresenhamLine(from, to);
+    }
+    // Map logical coords to visual center positions, run Bresenham there, map back
+    const scale = 100; // arbitrary unit scale for visual-space computation
+    const fromV = gridService.pixelToScreen(from.x, from.y, scale, ctx.gridType);
+    const toV = gridService.pixelToScreen(to.x, to.y, scale, ctx.gridType);
+    // Offset to bead center
+    const fromCenter = { x: fromV.sx + scale / 2, y: fromV.sy + scale / 2 };
+    const toCenter = { x: toV.sx + scale / 2, y: toV.sy + scale / 2 };
+
+    const visualPoints = this.bresenhamLine(
+      { x: Math.round(fromCenter.x), y: Math.round(fromCenter.y) },
+      { x: Math.round(toCenter.x), y: Math.round(toCenter.y) },
+    );
+
+    // Map back to logical pixels, dedup
+    const seen = new Set<string>();
+    const result: PixelCoord[] = [];
+    for (const vp of visualPoints) {
+      const lp = gridService.screenToPixel(
+        vp.x,
+        vp.y,
+        scale,
+        ctx.canvasWidth,
+        ctx.canvasHeight,
+        ctx.gridType,
+      );
+      if (!lp) continue;
+      const key = `${lp.x},${lp.y}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(lp);
+    }
+    return result;
   }
 
   private bresenhamLine(from: PixelCoord, to: PixelCoord): PixelCoord[] {

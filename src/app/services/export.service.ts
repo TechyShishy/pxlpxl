@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { RenderService } from './render.service';
 import { CanvasStateService } from './canvas-state.service';
+import { GridService } from './grid.service';
 
 export type ExportFormat = 'png' | 'gif' | 'spritesheet';
 
@@ -14,11 +15,18 @@ export interface ExportOptions {
 export class ExportService {
   private readonly renderService = inject(RenderService);
   private readonly canvasState = inject(CanvasStateService);
+  private readonly gridService = inject(GridService);
 
   /**
    * Export the current canvas as a Blob in the specified format.
    */
   async exportAsBlob(options: ExportOptions): Promise<Blob> {
+    const gridType = this.canvasState.gridType();
+
+    if (this.gridService.isPeyote(gridType)) {
+      return this.exportPeyote(options);
+    }
+
     const imageData = this.renderService.compositeToImageData();
     const width = this.canvasState.canvasWidth();
     const height = this.canvasState.canvasHeight();
@@ -46,14 +54,30 @@ export class ExportService {
       case 'png':
         return canvas.convertToBlob({ type: 'image/png' });
       case 'gif':
-        // GIF export would require a library; for now, fall back to PNG
         return canvas.convertToBlob({ type: 'image/png' });
       case 'spritesheet':
-        // Spritesheet export will be implemented with animation support
         return canvas.convertToBlob({ type: 'image/png' });
       default:
         return canvas.convertToBlob({ type: 'image/png' });
     }
+  }
+
+  private async exportPeyote(options: ExportOptions): Promise<Blob> {
+    const composited = this.renderService.compositeToCanvas(options.scale);
+    const w = composited.width;
+    const h = composited.height;
+
+    if (!options.transparent) {
+      // Draw white background behind composited content
+      const canvas = new OffscreenCanvas(w, h);
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(composited, 0, 0);
+      return canvas.convertToBlob({ type: 'image/png' });
+    }
+
+    return composited.convertToBlob({ type: 'image/png' });
   }
 
   /**

@@ -198,6 +198,7 @@ export class CanvasViewportComponent {
       primaryColor: this.colorService.primaryColor(),
       secondaryColor: this.colorService.secondaryColor(),
       isSecondary: false,
+      gridType: this.canvasState.gridType(),
     };
 
     let result;

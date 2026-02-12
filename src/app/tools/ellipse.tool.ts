@@ -7,6 +7,9 @@ import {
   PixelCoord,
   Color,
 } from '../models';
+import { GridService } from '../services/grid.service';
+
+const gridService = new GridService();
 
 export class EllipseTool implements Tool {
   readonly type = ToolType.Ellipse;
@@ -25,7 +28,7 @@ export class EllipseTool implements Tool {
 
   onPointerMove(ctx: ToolContext, _layerData: Uint8ClampedArray): ToolResult | null {
     if (!this.startCoord) return null;
-    this.previewPixels = this.getEllipseOutline(this.startCoord, ctx.coord);
+    this.previewPixels = this.computeEllipsePixels(this.startCoord, ctx.coord, ctx);
     return null;
   }
 
@@ -33,11 +36,11 @@ export class EllipseTool implements Tool {
     if (!this.startCoord) return null;
 
     const color = ctx.isSecondary ? ctx.secondaryColor : ctx.primaryColor;
-    const pixels = this.getEllipseOutline(this.startCoord, ctx.coord);
+    const pixels = this.computeEllipsePixels(this.startCoord, ctx.coord, ctx);
     const modifiedPixels: ModifiedPixel[] = [];
 
     for (const coord of pixels) {
-      if (coord.x < 0 || coord.x >= ctx.canvasWidth || coord.y < 0 || coord.y >= ctx.canvasHeight)
+      if (!gridService.isValidPixel(coord.x, coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType))
         continue;
 
       const offset = (coord.y * ctx.canvasWidth + coord.x) * 4;
@@ -63,6 +66,35 @@ export class EllipseTool implements Tool {
 
   getPreview(): PixelCoord[] {
     return this.previewPixels;
+  }
+
+  private computeEllipsePixels(from: PixelCoord, to: PixelCoord, ctx: ToolContext): PixelCoord[] {
+    if (!gridService.isPeyote(ctx.gridType)) {
+      return this.getEllipseOutline(from, to);
+    }
+    // Map to visual space, compute ellipse there, map back
+    const scale = 100;
+    const fromV = gridService.pixelToScreen(from.x, from.y, scale, ctx.gridType);
+    const toV = gridService.pixelToScreen(to.x, to.y, scale, ctx.gridType);
+    const fromCenter = { x: fromV.sx + scale / 2, y: fromV.sy + scale / 2 };
+    const toCenter = { x: toV.sx + scale / 2, y: toV.sy + scale / 2 };
+
+    const visualPoints = this.getEllipseOutline(
+      { x: Math.round(fromCenter.x), y: Math.round(fromCenter.y) },
+      { x: Math.round(toCenter.x), y: Math.round(toCenter.y) },
+    );
+
+    const seen = new Set<string>();
+    const result: PixelCoord[] = [];
+    for (const vp of visualPoints) {
+      const lp = gridService.screenToPixel(vp.x, vp.y, scale, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType);
+      if (!lp) continue;
+      const key = `${lp.x},${lp.y}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(lp);
+    }
+    return result;
   }
 
   /** Midpoint ellipse algorithm */

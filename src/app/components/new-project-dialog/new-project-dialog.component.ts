@@ -3,18 +3,28 @@ import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
+import { GridType } from '../../models';
 
 export interface NewProjectDialogResult {
   name: string;
   width: number;
   height: number;
+  gridType: GridType;
 }
 
 @Component({
   selector: 'app-new-project-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatDialogModule, MatButtonModule, MatInputModule, MatFormFieldModule, FormsModule],
+  imports: [
+    MatDialogModule,
+    MatButtonModule,
+    MatInputModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    FormsModule,
+  ],
   template: `
     <h2 mat-dialog-title>New Project</h2>
     <mat-dialog-content>
@@ -49,6 +59,15 @@ export interface NewProjectDialogResult {
             <span matSuffix>px</span>
           </mat-form-field>
         </div>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Grid Type</mat-label>
+          <mat-select [(ngModel)]="gridType" aria-label="Grid type">
+            <mat-option value="square">Square</mat-option>
+            <mat-option value="peyote-even">Peyote Even</mat-option>
+            <mat-option value="peyote-odd">Peyote Odd</mat-option>
+          </mat-select>
+        </mat-form-field>
 
         <div class="presets">
           <button mat-stroked-button (click)="setPreset(16, 16)">16×16</button>
@@ -97,6 +116,7 @@ export class NewProjectDialogComponent {
   name = 'Untitled';
   width = 32;
   height = 32;
+  gridType: GridType = 'square';
 
   setPreset(w: number, h: number): void {
     this.width = w;
@@ -108,6 +128,7 @@ export class NewProjectDialogComponent {
       name: this.name,
       width: this.width,
       height: this.height,
+      gridType: this.gridType,
     };
     this.dialogRef.close(result);
   }

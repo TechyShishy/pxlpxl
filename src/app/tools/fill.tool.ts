@@ -6,7 +6,11 @@ import {
   ModifiedPixel,
   Color,
   colorsEqual,
+  GridType,
 } from '../models';
+import { GridService } from '../services/grid.service';
+
+const gridService = new GridService();
 
 export class FillTool implements Tool {
   readonly type = ToolType.Fill;
@@ -34,6 +38,7 @@ export class FillTool implements Tool {
       ctx.coord.y,
       targetColor,
       fillColor,
+      ctx.gridType,
     );
 
     return modifiedPixels.length > 0 ? { modifiedPixels } : null;
@@ -55,6 +60,7 @@ export class FillTool implements Tool {
     startY: number,
     targetColor: Color,
     fillColor: Color,
+    gridTypeValue: GridType,
   ): ModifiedPixel[] {
     const modified: ModifiedPixel[] = [];
     const stack: [number, number][] = [[startX, startY]];
@@ -65,7 +71,7 @@ export class FillTool implements Tool {
       const key = `${x},${y}`;
 
       if (visited.has(key)) continue;
-      if (x < 0 || x >= width || y < 0 || y >= height) continue;
+      if (!gridService.isValidPixel(x, y, width, height, gridTypeValue)) continue;
 
       const offset = (y * width + x) * 4;
       const pixelColor: Color = {
@@ -90,7 +96,10 @@ export class FillTool implements Tool {
       data[offset + 2] = fillColor.b;
       data[offset + 3] = fillColor.a;
 
-      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+      const neighbors = gridService.getNeighbors(x, y, gridTypeValue, width, height);
+      for (const n of neighbors) {
+        stack.push([n.x, n.y]);
+      }
     }
 
     return modified;

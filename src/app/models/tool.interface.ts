@@ -1,4 +1,5 @@
 import { Color } from './color.model';
+import { GridType } from './project.model';
 
 /** Coordinate on the canvas in pixel space */
 export interface PixelCoord {
@@ -22,6 +23,8 @@ export interface ToolContext {
   secondaryColor: Color;
   /** Whether the secondary button was used (right-click or long-press secondary) */
   isSecondary: boolean;
+  /** Grid type for coordinate mapping */
+  gridType: GridType;
 }
 
 export enum ToolType {

@@ -1,11 +1,14 @@
 import { Color, DEFAULT_PALETTE } from './color.model';
 import { Layer } from './layer.model';
 
+export type GridType = 'square' | 'peyote-even' | 'peyote-odd';
+
 export interface Project {
   id?: number;
   name: string;
   width: number;
   height: number;
+  gridType: GridType;
   layers: SerializedLayer[];
   palette: Color[];
   createdAt: Date;
@@ -41,11 +44,17 @@ export function deserializeLayer(serialized: SerializedLayer): Layer {
   };
 }
 
-export function createDefaultProject(name: string, width: number, height: number): Project {
+export function createDefaultProject(
+  name: string,
+  width: number,
+  height: number,
+  gridType: GridType = 'square',
+): Project {
   return {
     name,
     width,
     height,
+    gridType,
     layers: [
       {
         id: crypto.randomUUID(),
