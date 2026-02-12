@@ -1,0 +1,165 @@
+import { TestBed } from '@angular/core/testing';
+import { ColorService } from './color.service';
+import { BLACK, WHITE, DEFAULT_PALETTE, Color, colorsEqual, colorToHex } from '../models';
+
+describe('ColorService', () => {
+  let service: ColorService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    service = TestBed.inject(ColorService);
+  });
+
+  describe('initial state', () => {
+    it('should have primary color as BLACK', () => {
+      expect(colorsEqual(service.primaryColor(), BLACK)).toBe(true);
+    });
+
+    it('should have secondary color as WHITE', () => {
+      expect(colorsEqual(service.secondaryColor(), WHITE)).toBe(true);
+    });
+
+    it('should have DEFAULT_PALETTE with 16 colors', () => {
+      expect(service.palette().length).toBe(DEFAULT_PALETTE.length);
+    });
+  });
+
+  describe('setPrimaryColor', () => {
+    it('should update the primary color signal', () => {
+      const red: Color = { r: 255, g: 0, b: 0, a: 255 };
+      service.setPrimaryColor(red);
+      expect(colorsEqual(service.primaryColor(), red)).toBe(true);
+    });
+
+    it('should defensively copy the input', () => {
+      const color: Color = { r: 100, g: 100, b: 100, a: 255 };
+      service.setPrimaryColor(color);
+      color.r = 200; // mutate the original
+      expect(service.primaryColor().r).toBe(100);
+    });
+  });
+
+  describe('setSecondaryColor', () => {
+    it('should update the secondary color signal', () => {
+      const blue: Color = { r: 0, g: 0, b: 255, a: 255 };
+      service.setSecondaryColor(blue);
+      expect(colorsEqual(service.secondaryColor(), blue)).toBe(true);
+    });
+
+    it('should defensively copy the input', () => {
+      const color: Color = { r: 50, g: 50, b: 50, a: 255 };
+      service.setSecondaryColor(color);
+      color.g = 200;
+      expect(service.secondaryColor().g).toBe(50);
+    });
+  });
+
+  describe('swapColors', () => {
+    it('should swap primary and secondary colors', () => {
+      const red: Color = { r: 255, g: 0, b: 0, a: 255 };
+      const blue: Color = { r: 0, g: 0, b: 255, a: 255 };
+      service.setPrimaryColor(red);
+      service.setSecondaryColor(blue);
+
+      service.swapColors();
+
+      expect(colorsEqual(service.primaryColor(), blue)).toBe(true);
+      expect(colorsEqual(service.secondaryColor(), red)).toBe(true);
+    });
+
+    it('should return to original state after swapping twice', () => {
+      const originalPrimary = { ...service.primaryColor() };
+      const originalSecondary = { ...service.secondaryColor() };
+
+      service.swapColors();
+      service.swapColors();
+
+      expect(colorsEqual(service.primaryColor(), originalPrimary)).toBe(true);
+      expect(colorsEqual(service.secondaryColor(), originalSecondary)).toBe(true);
+    });
+  });
+
+  describe('primaryColorHex / secondaryColorHex', () => {
+    it('should return 6-char hex for primary color (no alpha)', () => {
+      const hex = service.primaryColorHex();
+      expect(hex).toBe('#000000');
+      expect(hex.length).toBe(7); // # + 6 hex chars
+    });
+
+    it('should return 6-char hex for secondary color (no alpha)', () => {
+      expect(service.secondaryColorHex()).toBe('#ffffff');
+    });
+
+    it('should update when primary color changes', () => {
+      service.setPrimaryColor({ r: 255, g: 0, b: 0, a: 255 });
+      expect(service.primaryColorHex()).toBe('#ff0000');
+    });
+
+    it('should differ from colorToHex which includes alpha', () => {
+      // ColorService.toHex produces 6-char, colorToHex produces 8-char
+      service.setPrimaryColor({ r: 255, g: 0, b: 0, a: 128 });
+      const serviceHex = service.primaryColorHex();
+      const modelHex = colorToHex(service.primaryColor());
+      expect(serviceHex).toBe('#ff0000'); // no alpha
+      expect(modelHex).toBe('#ff000080'); // with alpha
+    });
+  });
+
+  describe('palette management', () => {
+    it('addToPalette should append a color', () => {
+      const initialLength = service.palette().length;
+      const newColor: Color = { r: 1, g: 2, b: 3, a: 255 };
+      service.addToPalette(newColor);
+      expect(service.palette().length).toBe(initialLength + 1);
+      expect(colorsEqual(service.palette()[initialLength], newColor)).toBe(true);
+    });
+
+    it('addToPalette should defensively copy the color', () => {
+      const color: Color = { r: 10, g: 20, b: 30, a: 255 };
+      service.addToPalette(color);
+      color.r = 99;
+      const lastColor = service.palette()[service.palette().length - 1];
+      expect(lastColor.r).toBe(10);
+    });
+
+    it('removeFromPalette should remove color at given index', () => {
+      const initialLength = service.palette().length;
+      const removedColor = { ...service.palette()[2] };
+      service.removeFromPalette(2);
+      expect(service.palette().length).toBe(initialLength - 1);
+      // The color at index 2 should now be the former index 3
+      expect(colorsEqual(service.palette()[2], removedColor)).toBe(false);
+    });
+
+    it('removeFromPalette should handle removing last element', () => {
+      const initialLength = service.palette().length;
+      service.removeFromPalette(initialLength - 1);
+      expect(service.palette().length).toBe(initialLength - 1);
+    });
+
+    it('updatePaletteColor should change only the target index', () => {
+      const newColor: Color = { r: 99, g: 99, b: 99, a: 255 };
+      const oldColor1 = { ...service.palette()[1] };
+      service.updatePaletteColor(0, newColor);
+      expect(colorsEqual(service.palette()[0], newColor)).toBe(true);
+      expect(colorsEqual(service.palette()[1], oldColor1)).toBe(true);
+    });
+
+    it('setPalette should replace the entire palette', () => {
+      const newPalette: Color[] = [
+        { r: 1, g: 1, b: 1, a: 255 },
+        { r: 2, g: 2, b: 2, a: 255 },
+      ];
+      service.setPalette(newPalette);
+      expect(service.palette().length).toBe(2);
+      expect(colorsEqual(service.palette()[0], newPalette[0])).toBe(true);
+    });
+
+    it('setPalette should defensively copy each color', () => {
+      const colors: Color[] = [{ r: 10, g: 20, b: 30, a: 255 }];
+      service.setPalette(colors);
+      colors[0].r = 99;
+      expect(service.palette()[0].r).toBe(10);
+    });
+  });
+});
