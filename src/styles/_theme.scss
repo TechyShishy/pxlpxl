@@ -1,0 +1,20 @@
+@use '@angular/material' as mat;
+
+// Dark theme for pixel editor
+html {
+  color-scheme: dark;
+
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$violet-palette,
+        tertiary: mat.$cyan-palette,
+        theme-type: dark,
+      ),
+      density: (
+        scale: 0,
+      ),
+      typography: Roboto,
+    )
+  );
+}

@@ -1,0 +1,25 @@
+// Pxlpxl design tokens
+
+// Touch targets
+$touch-target-min: 48px;
+$touch-target-spacing: 8px;
+
+// Layout dimensions
+$toolbar-height: 56px;
+$tool-palette-width: 64px;
+$right-sidebar-width: 240px;
+$status-bar-height: 32px;
+
+// Breakpoints
+$landscape-min: 768px;
+
+// Z-indices
+$z-toolbar: 100;
+$z-sidebar: 90;
+$z-context-menu: 200;
+$z-status-bar: 80;
+$z-overlay: 150;
+
+// Animation
+$transition-fast: 150ms ease;
+$transition-normal: 250ms ease;
