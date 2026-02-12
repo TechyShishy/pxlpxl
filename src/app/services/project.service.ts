@@ -6,6 +6,7 @@ import {
   createDefaultProject,
   serializeLayer,
   deserializeLayer,
+  DEFAULT_PALETTE,
 } from '../models';
 import { CanvasStateService } from './canvas-state.service';
 import { LayerService } from './layer.service';
@@ -28,7 +29,7 @@ export class ProjectService {
     this.canvasState.setCanvasSize(width, height);
     this.canvasState.setGridType(gridType);
     this.layerService.initLayers(width, height);
-    this.colorService.setPalette([...this.colorService.palette()]);
+    this.colorService.setPalette([...DEFAULT_PALETTE]);
     this.historyService.clear();
     this.canvasState.resetZoom();
   }

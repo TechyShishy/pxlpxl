@@ -68,9 +68,14 @@ export class LayerService {
       result.splice(toIndex, 0, moved);
       return result;
     });
-    // Adjust active index to follow the moved layer if it was active
-    if (this.activeLayerIndex() === fromIndex) {
+    // Adjust active index to follow the same layer identity
+    const active = this.activeLayerIndex();
+    if (active === fromIndex) {
       this.activeLayerIndex.set(toIndex);
+    } else if (fromIndex < active && active <= toIndex) {
+      this.activeLayerIndex.set(active - 1);
+    } else if (toIndex <= active && active < fromIndex) {
+      this.activeLayerIndex.set(active + 1);
     }
   }
 
