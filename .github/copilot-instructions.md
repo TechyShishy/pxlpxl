@@ -3,9 +3,11 @@ Pxlpxl is a pixel-art editor built with Angular 21+, Angular Material, and Capac
 
 ## Development
 
-- `yarn start` / `ng serve` — dev server at `http://localhost:4200/`
-- `yarn test` / `ng test` — unit tests (Vitest, not Jasmine/Karma)
+- **Always use `yarn` scripts** — only invoke `ng`, `npx`, or other binaries directly if there's no corresponding `yarn` script.
+- `yarn start` — dev server at `http://localhost:4200/`
+- `yarn test` — unit tests (Vitest, not Jasmine/Karma)
 - `yarn build` — production build to `dist/pxlpxl/browser/`
+- `yarn e2e` — Playwright end-to-end tests
 - Uses SCSS with Angular Material theme tokens (`var(--mat-sys-*)`)
 
 ## Architecture Overview
