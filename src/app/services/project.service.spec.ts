@@ -144,11 +144,11 @@ describe('ProjectService', () => {
       expect(service.currentId).toBe(id);
     });
 
-    it('should use "Untitled" when no name is given', async () => {
+    it('should use current project name when no name is given', async () => {
       service.newProject('X', 8, 8);
       const id = await service.saveProject();
       const saved = await db.getProject(id);
-      expect(saved?.name).toBe('Untitled');
+      expect(saved?.name).toBe('X');
     });
 
     it('should preserve createdAt on subsequent saves', async () => {
@@ -288,6 +288,44 @@ describe('ProjectService', () => {
 
       const all = await service.listProjects();
       expect(all.length).toBe(2);
+    });
+  });
+
+  /* ====== savedProjects signal ====== */
+
+  describe('savedProjects', () => {
+    it('should start empty', () => {
+      expect(service.savedProjects()).toEqual([]);
+    });
+
+    it('should update after saveProject', async () => {
+      service.newProject('Reactive', 4, 4);
+      await service.saveProject('Reactive');
+
+      expect(service.savedProjects().length).toBe(1);
+      expect(service.savedProjects()[0].name).toBe('Reactive');
+    });
+
+    it('should update after deleteProject', async () => {
+      service.newProject('ToDelete', 4, 4);
+      const id = await service.saveProject('ToDelete');
+
+      expect(service.savedProjects().length).toBe(1);
+
+      await service.deleteProject(id);
+      expect(service.savedProjects().length).toBe(0);
+    });
+
+    it('should update after refreshSavedProjects', async () => {
+      service.newProject('Manual', 4, 4);
+      await service.saveProject('Manual');
+
+      // Reset signal to empty to simulate stale state
+      service.savedProjects.set([]);
+      expect(service.savedProjects().length).toBe(0);
+
+      await service.refreshSavedProjects();
+      expect(service.savedProjects().length).toBe(1);
     });
   });
 });

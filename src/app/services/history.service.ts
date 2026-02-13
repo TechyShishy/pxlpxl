@@ -59,4 +59,20 @@ export class HistoryService {
     this.undoStack.set([]);
     this.redoStack.set([]);
   }
+
+  /** Read-only access to the undo stack (for serialization) */
+  getUndoStack(): readonly Command[] {
+    return this.undoStack();
+  }
+
+  /** Read-only access to the redo stack (for serialization) */
+  getRedoStack(): readonly Command[] {
+    return this.redoStack();
+  }
+
+  /** Replace both stacks with pre-built commands (for import/restore) */
+  setStacks(undo: Command[], redo: Command[]): void {
+    this.undoStack.set(undo);
+    this.redoStack.set(redo);
+  }
 }

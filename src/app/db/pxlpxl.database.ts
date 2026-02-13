@@ -25,6 +25,9 @@ export class PxlpxlDatabase extends Dexie {
             }
           }),
       );
+    this.version(3).stores({
+      projects: '++id, name, createdAt, updatedAt',
+    });
   }
 
   async saveProject(project: Project): Promise<number> {

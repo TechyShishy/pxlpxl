@@ -8,6 +8,7 @@ export class LayoutService {
 
   readonly leftSidebarOpen = signal<boolean>(true);
   readonly rightSidebarOpen = signal<boolean>(true);
+  readonly loadPanelOpen = signal<boolean>(false);
   readonly orientation = signal<Orientation>(this.detectOrientation());
 
   readonly isLandscape = computed(() => this.orientation() === 'landscape');
@@ -49,6 +50,14 @@ export class LayoutService {
   openAllSidebars(): void {
     this.leftSidebarOpen.set(true);
     this.rightSidebarOpen.set(true);
+  }
+
+  openLoadPanel(): void {
+    this.loadPanelOpen.set(true);
+  }
+
+  closeLoadPanel(): void {
+    this.loadPanelOpen.set(false);
   }
 
   private detectOrientation(): Orientation {

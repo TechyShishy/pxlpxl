@@ -9,10 +9,10 @@ export class FillCommand implements Command {
   readonly description: string;
 
   constructor(
-    private readonly layerService: LayerService,
-    private readonly layerIndex: number,
-    private readonly canvasWidth: number,
-    private readonly modifiedPixels: ModifiedPixel[],
+    readonly layerService: LayerService,
+    readonly layerIdx: number,
+    readonly width: number,
+    readonly modifiedPixels: ModifiedPixel[],
   ) {
     this.description = `Fill ${modifiedPixels.length} pixel(s)`;
   }
@@ -20,10 +20,10 @@ export class FillCommand implements Command {
   execute(): void {
     for (const pixel of this.modifiedPixels) {
       this.layerService.setPixel(
-        this.layerIndex,
+        this.layerIdx,
         pixel.coord.x,
         pixel.coord.y,
-        this.canvasWidth,
+        this.width,
         pixel.newColor,
       );
     }
@@ -33,10 +33,10 @@ export class FillCommand implements Command {
   undo(): void {
     for (const pixel of this.modifiedPixels) {
       this.layerService.setPixel(
-        this.layerIndex,
+        this.layerIdx,
         pixel.coord.x,
         pixel.coord.y,
-        this.canvasWidth,
+        this.width,
         pixel.oldColor,
       );
     }

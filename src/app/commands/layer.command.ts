@@ -9,20 +9,20 @@ export class LayerCommand implements Command {
   readonly description: string;
 
   constructor(
-    private readonly layerService: LayerService,
-    private readonly layerIndex: number,
-    private readonly previousData: Uint8ClampedArray,
-    private readonly newData: Uint8ClampedArray,
+    readonly layerService: LayerService,
+    readonly layerIdx: number,
+    readonly previousData: Uint8ClampedArray,
+    readonly newData: Uint8ClampedArray,
     description?: string,
   ) {
     this.description = description ?? 'Layer operation';
   }
 
   execute(): void {
-    this.layerService.setLayerData(this.layerIndex, this.newData);
+    this.layerService.setLayerData(this.layerIdx, this.newData);
   }
 
   undo(): void {
-    this.layerService.setLayerData(this.layerIndex, this.previousData);
+    this.layerService.setLayerData(this.layerIdx, this.previousData);
   }
 }

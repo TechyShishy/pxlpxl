@@ -16,5 +16,14 @@ export { serializeLayer, deserializeLayer, createDefaultProject } from './projec
 export type { Tool, ToolContext, ToolResult, ModifiedPixel, PixelCoord } from './tool.interface';
 export { ToolType } from './tool.interface';
 export type { Command } from './command.interface';
+export type {
+  PxlFile,
+  PxlLayer,
+  PxlHistory,
+  HistoryEntryType,
+  SerializedHistoryEntry,
+  SerializedModifiedPixel,
+} from './pxl-file.model';
+export { PXL_FORMAT_VERSION, uint8ArrayToBase64, base64ToUint8Array } from './pxl-file.model';
 export { GestureState } from './gesture.model';
 export type { ViewTransform, GestureEvent } from './gesture.model';

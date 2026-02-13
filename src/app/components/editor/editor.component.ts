@@ -5,6 +5,7 @@ import { CanvasViewportComponent } from '../canvas-viewport/canvas-viewport.comp
 import { ColorPaletteComponent } from '../color-palette/color-palette.component';
 import { LayersPanelComponent } from '../layers-panel/layers-panel.component';
 import { StatusBarComponent } from '../status-bar/status-bar.component';
+import { LoadProjectPanelComponent } from '../load-project-panel/load-project-panel.component';
 import { LayoutService } from '../../services/layout.service';
 import { ToolService } from '../../services/tool.service';
 import { ProjectService } from '../../services/project.service';
@@ -27,12 +28,20 @@ import { EyedropperTool } from '../../tools/eyedropper.tool';
     ColorPaletteComponent,
     LayersPanelComponent,
     StatusBarComponent,
+    LoadProjectPanelComponent,
   ],
   template: `
     <div class="editor-layout" [class.portrait]="layout.isPortrait()">
       <app-toolbar />
 
       <div class="editor-body">
+        @if (layout.loadPanelOpen()) {
+          <app-load-project-panel
+            (projectSelected)="onProjectSelected($event)"
+            (closed)="layout.closeLoadPanel()"
+          />
+        }
+
         @if (layout.leftSidebarOpen()) {
           <app-tool-palette />
         }
@@ -104,6 +113,11 @@ export class EditorComponent implements OnInit {
   ngOnInit(): void {
     this.registerTools();
     this.projectService.newProject('Untitled', 32, 32);
+  }
+
+  async onProjectSelected(id: number): Promise<void> {
+    await this.projectService.loadProject(id);
+    this.layout.closeLoadPanel();
   }
 
   private registerTools(): void {

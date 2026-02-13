@@ -1,5 +1,6 @@
 import { Color, DEFAULT_PALETTE } from './color.model';
 import { Layer } from './layer.model';
+import { SerializedHistoryEntry } from './pxl-file.model';
 
 export type GridType = 'square' | 'peyote-even' | 'peyote-odd';
 
@@ -11,6 +12,11 @@ export interface Project {
   gridType: GridType;
   layers: SerializedLayer[];
   palette: Color[];
+  /** Serialized undo/redo history (optional for backward compatibility) */
+  history?: {
+    undoStack: SerializedHistoryEntry[];
+    redoStack: SerializedHistoryEntry[];
+  };
   createdAt: Date;
   updatedAt: Date;
 }

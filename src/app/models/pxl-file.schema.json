@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://pxlpxl.app/schemas/pxl-file-v1.json",
+  "title": "PXL File Format",
+  "description": "Schema for the .pxl project file format used by pxlpxl. Files are gzip-compressed JSON conforming to this schema.",
+  "type": "object",
+  "required": ["version", "name", "width", "height", "gridType", "palette", "layers", "createdAt", "updatedAt"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Format version. Currently always 1."
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable project name."
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Canvas width in pixels."
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Canvas height in pixels."
+    },
+    "gridType": {
+      "type": "string",
+      "enum": ["square", "peyote-even", "peyote-odd"],
+      "description": "Grid layout type."
+    },
+    "palette": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Color" },
+      "description": "Color palette used by the project."
+    },
+    "layers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/PxlLayer" },
+      "description": "Ordered list of layers (bottom to top)."
+    },
+    "history": {
+      "$ref": "#/$defs/PxlHistory",
+      "description": "Optional undo/redo history. Omitted if there is no history to preserve."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp of project creation."
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp of last modification."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "Color": {
+      "type": "object",
+      "required": ["r", "g", "b", "a"],
+      "properties": {
+        "r": { "type": "integer", "minimum": 0, "maximum": 255, "description": "Red channel (0–255)." },
+        "g": { "type": "integer", "minimum": 0, "maximum": 255, "description": "Green channel (0–255)." },
+        "b": { "type": "integer", "minimum": 0, "maximum": 255, "description": "Blue channel (0–255)." },
+        "a": { "type": "integer", "minimum": 0, "maximum": 255, "description": "Alpha channel (0–255)." }
+      },
+      "additionalProperties": false
+    },
+    "PxlLayer": {
+      "type": "object",
+      "required": ["id", "name", "visible", "opacity", "data"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique layer identifier (UUID)." },
+        "name": { "type": "string", "description": "Human-readable layer name." },
+        "visible": { "type": "boolean", "description": "Whether the layer is visible." },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1, "description": "Layer opacity (0.0–1.0)." },
+        "data": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "description": "Base64-encoded RGBA pixel data (Uint8ClampedArray of length width × height × 4)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "PxlHistory": {
+      "type": "object",
+      "required": ["undoStack", "redoStack"],
+      "properties": {
+        "undoStack": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SerializedHistoryEntry" },
+          "description": "Commands available for undo, oldest first."
+        },
+        "redoStack": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SerializedHistoryEntry" },
+          "description": "Commands available for redo, oldest first."
+        }
+      },
+      "additionalProperties": false
+    },
+    "SerializedHistoryEntry": {
+      "type": "object",
+      "required": ["type", "description", "layerIndex", "canvasWidth"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["draw", "fill", "layer"],
+          "description": "Command type discriminator."
+        },
+        "description": { "type": "string", "description": "Human-readable description of the operation." },
+        "layerIndex": { "type": "integer", "minimum": 0, "description": "Index of the layer this command targets." },
+        "canvasWidth": { "type": "integer", "minimum": 1, "description": "Canvas width at time of command (needed for pixel offset calculation)." },
+        "modifiedPixels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SerializedModifiedPixel" },
+          "description": "For 'draw' and 'fill' commands: list of individual pixel changes."
+        },
+        "previousData": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "description": "For 'layer' commands: base64-encoded previous layer data."
+        },
+        "newData": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "description": "For 'layer' commands: base64-encoded new layer data."
+        }
+      },
+      "additionalProperties": false
+    },
+    "SerializedModifiedPixel": {
+      "type": "object",
+      "required": ["coord", "oldColor", "newColor"],
+      "properties": {
+        "coord": {
+          "type": "object",
+          "required": ["x", "y"],
+          "properties": {
+            "x": { "type": "integer", "minimum": 0 },
+            "y": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        },
+        "oldColor": { "$ref": "#/$defs/Color" },
+        "newColor": { "$ref": "#/$defs/Color" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

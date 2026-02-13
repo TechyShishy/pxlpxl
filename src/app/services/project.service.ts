@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { PxlpxlDatabase } from '../db/pxlpxl.database';
 import {
   Project,
@@ -12,6 +12,7 @@ import { CanvasStateService } from './canvas-state.service';
 import { LayerService } from './layer.service';
 import { ColorService } from './color.service';
 import { HistoryService } from './history.service';
+import { serializeCommand, deserializeCommand } from '../commands/command-serialization';
 
 @Injectable({ providedIn: 'root' })
 export class ProjectService {
@@ -23,9 +24,16 @@ export class ProjectService {
 
   private currentProjectId: number | undefined;
 
+  /** Reactive name of the current project */
+  readonly currentProjectName = signal<string>('Untitled');
+
+  /** Reactive list of all saved projects, sorted by updatedAt descending */
+  readonly savedProjects = signal<Project[]>([]);
+
   /** Create a new blank project and load it into the editor */
   newProject(name: string, width: number, height: number, gridType: GridType = 'square'): void {
     this.currentProjectId = undefined;
+    this.currentProjectName.set(name);
     this.canvasState.setCanvasSize(width, height);
     this.canvasState.setGridType(gridType);
     this.layerService.initLayers(width, height);
@@ -36,14 +44,24 @@ export class ProjectService {
 
   /** Save the current editor state to IndexedDB */
   async saveProject(name?: string): Promise<number> {
+    const projectName = name ?? this.currentProjectName();
+    this.currentProjectName.set(projectName);
     const project: Project = {
       id: this.currentProjectId,
-      name: name ?? 'Untitled',
+      name: projectName,
       width: this.canvasState.canvasWidth(),
       height: this.canvasState.canvasHeight(),
       gridType: this.canvasState.gridType(),
       layers: this.layerService.layers().map(serializeLayer),
       palette: this.colorService.palette(),
+      history: {
+        undoStack: this.historyService.getUndoStack()
+          .map(serializeCommand)
+          .filter((e): e is NonNullable<typeof e> => e !== null),
+        redoStack: this.historyService.getRedoStack()
+          .map(serializeCommand)
+          .filter((e): e is NonNullable<typeof e> => e !== null),
+      },
       createdAt: this.currentProjectId
         ? ((await this.db.getProject(this.currentProjectId))?.createdAt ?? new Date())
         : new Date(),
@@ -52,6 +70,7 @@ export class ProjectService {
 
     const id = await this.db.saveProject(project);
     this.currentProjectId = id;
+    await this.refreshSavedProjects();
     return id;
   }
 
@@ -61,11 +80,22 @@ export class ProjectService {
     if (!project) return false;
 
     this.currentProjectId = project.id;
+    this.currentProjectName.set(project.name);
     this.canvasState.setCanvasSize(project.width, project.height);
     this.canvasState.setGridType(project.gridType ?? 'square');
     this.layerService.setLayers(project.layers.map(deserializeLayer));
     this.colorService.setPalette(project.palette);
-    this.historyService.clear();
+    if (project.history) {
+      const undoStack = project.history.undoStack.map((e) =>
+        deserializeCommand(e, this.layerService),
+      );
+      const redoStack = project.history.redoStack.map((e) =>
+        deserializeCommand(e, this.layerService),
+      );
+      this.historyService.setStacks(undoStack, redoStack);
+    } else {
+      this.historyService.clear();
+    }
     this.canvasState.resetZoom();
     return true;
   }
@@ -80,10 +110,18 @@ export class ProjectService {
     await this.db.deleteProject(id);
     if (this.currentProjectId === id) {
       this.currentProjectId = undefined;
+      this.currentProjectName.set('Untitled');
     }
+    await this.refreshSavedProjects();
   }
 
   get currentId(): number | undefined {
     return this.currentProjectId;
+  }
+
+  /** Refresh the savedProjects signal from IndexedDB */
+  async refreshSavedProjects(): Promise<void> {
+    const projects = await this.db.getAllProjects();
+    this.savedProjects.set(projects);
   }
 }

@@ -242,4 +242,74 @@ describe('HistoryService', () => {
       expect(service.redoDescription()).toBe('c');
     });
   });
+
+  describe('getUndoStack / getRedoStack', () => {
+    it('should return empty arrays initially', () => {
+      expect(service.getUndoStack()).toEqual([]);
+      expect(service.getRedoStack()).toEqual([]);
+    });
+
+    it('should return the current undo stack', () => {
+      const a = createMockCommand('a');
+      const b = createMockCommand('b');
+      service.execute(a);
+      service.execute(b);
+
+      const stack = service.getUndoStack();
+      expect(stack.length).toBe(2);
+      expect(stack[0].description).toBe('a');
+      expect(stack[1].description).toBe('b');
+    });
+
+    it('should return the current redo stack', () => {
+      service.execute(createMockCommand('a'));
+      service.execute(createMockCommand('b'));
+      service.undo();
+
+      const redo = service.getRedoStack();
+      expect(redo.length).toBe(1);
+      expect(redo[0].description).toBe('b');
+    });
+
+    it('should return the live signal value', () => {
+      service.execute(createMockCommand('a'));
+      const stack = service.getUndoStack();
+      expect(stack.length).toBe(1);
+    });
+  });
+
+  describe('setStacks', () => {
+    it('should replace both undo and redo stacks', () => {
+      service.execute(createMockCommand('old'));
+
+      const newUndo = [createMockCommand('u1'), createMockCommand('u2')];
+      const newRedo = [createMockCommand('r1')];
+      service.setStacks(newUndo, newRedo);
+
+      expect(service.getUndoStack().length).toBe(2);
+      expect(service.getRedoStack().length).toBe(1);
+      expect(service.undoDescription()).toBe('u2');
+      expect(service.redoDescription()).toBe('r1');
+    });
+
+    it('should allow undo after setStacks', () => {
+      const cmd = createMockCommand('x');
+      service.setStacks([cmd], []);
+
+      expect(service.canUndo()).toBe(true);
+      service.undo();
+      expect(cmd.undoCalls).toBe(1);
+      expect(service.canUndo()).toBe(false);
+    });
+
+    it('should allow redo after setStacks', () => {
+      const cmd = createMockCommand('y');
+      service.setStacks([], [cmd]);
+
+      expect(service.canRedo()).toBe(true);
+      service.redo();
+      expect(cmd.executeCalls).toBe(1);
+      expect(service.canRedo()).toBe(false);
+    });
+  });
 });

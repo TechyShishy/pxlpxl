@@ -4,12 +4,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog } from '@angular/material/dialog';
 import { HistoryService } from '../../services/history.service';
 import { LayoutService } from '../../services/layout.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { ProjectService } from '../../services/project.service';
 import { ExportService } from '../../services/export.service';
+import { ImportService } from '../../services/import.service';
 import {
   NewProjectDialogComponent,
   NewProjectDialogResult,
@@ -18,7 +20,7 @@ import {
 @Component({
   selector: 'app-toolbar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatToolbarModule, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule],
+  imports: [MatToolbarModule, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule, MatDividerModule],
   template: `
     <mat-toolbar class="toolbar safe-area-top">
       <button
@@ -48,13 +50,27 @@ import {
           <mat-icon>add</mat-icon>
           <span>New Project</span>
         </button>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="onLoadProject()">
+          <mat-icon>folder_open</mat-icon>
+          <span>Open Project</span>
+        </button>
+        <button mat-menu-item (click)="onImportFile()">
+          <mat-icon>upload_file</mat-icon>
+          <span>Import File</span>
+        </button>
+        <mat-divider></mat-divider>
         <button mat-menu-item (click)="onSaveProject()">
           <mat-icon>save</mat-icon>
           <span>Save</span>
         </button>
-        <button mat-menu-item (click)="onExportProject()">
+        <button mat-menu-item (click)="onExportPxl()">
           <mat-icon>download</mat-icon>
           <span>Export</span>
+        </button>
+        <button mat-menu-item (click)="onExportProject()">
+          <mat-icon>image</mat-icon>
+          <span>Export PNG</span>
         </button>
       </mat-menu>
 
@@ -144,6 +160,7 @@ export class ToolbarComponent {
   protected readonly canvasState = inject(CanvasStateService);
   private readonly projectService = inject(ProjectService);
   private readonly exportService = inject(ExportService);
+  private readonly importService = inject(ImportService);
   private readonly dialog = inject(MatDialog);
 
   onNewProject(): void {
@@ -155,15 +172,35 @@ export class ToolbarComponent {
     });
   }
 
+  onLoadProject(): void {
+    this.layout.openLoadPanel();
+  }
+
+  async onImportFile(): Promise<void> {
+    const file = await this.importService.openFilePicker();
+    if (file) {
+      await this.importService.importFile(file);
+    }
+  }
+
   async onSaveProject(): Promise<void> {
-    await this.projectService.saveProject('Untitled');
+    await this.projectService.saveProject();
   }
 
   async onExportProject(): Promise<void> {
-    // TODO: Open ExportDialog
+    const name = this.sanitizeFilename(this.projectService.currentProjectName());
     await this.exportService.downloadExport(
       { format: 'png', scale: 1, transparent: true },
-      'pxlpxl-export.png',
+      `${name}.png`,
     );
+  }
+
+  async onExportPxl(): Promise<void> {
+    const name = this.sanitizeFilename(this.projectService.currentProjectName());
+    await this.exportService.downloadPxl(`${name}.pxl`);
+  }
+
+  private sanitizeFilename(name: string): string {
+    return name.replace(/[^a-zA-Z0-9_-]/g, '_') || 'untitled';
   }
 }
