@@ -7,7 +7,11 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "build:android": "ng build && npx cap sync android",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "cap:run": "npx cap run android"
   },
   "prettier": {
     "printWidth": 100,
