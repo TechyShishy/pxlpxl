@@ -1,4 +1,4 @@
-package com.pxlpxl.app;
+package com.techyshishy.pxlpxl;
 
 import com.getcapacitor.BridgeActivity;
 

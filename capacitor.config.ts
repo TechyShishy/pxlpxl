@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.pxlpxl.app',
+  appId: 'com.techyshishy.pxlpxl',
   appName: 'Pxlpxl',
   webDir: 'dist/pxlpxl/browser',
   plugins: {
