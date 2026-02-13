@@ -569,6 +569,11 @@
   resolved "https://registry.yarnpkg.com/@capacitor/keyboard/-/keyboard-8.0.0.tgz#d8706953dadbe7cac9e274da2fb8acfcd75e5e03"
   integrity sha512-ycPW6iQyFwzDK95jihesj5EGiyyGSfbBqNek11iNp9tBOB7zDeYkUA2S/vPpOETt3dhP6pWr7a9gNVGuEfj11g==
 
+"@capacitor/share@^8.0.1":
+  version "8.0.1"
+  resolved "https://registry.yarnpkg.com/@capacitor/share/-/share-8.0.1.tgz#8941ce371a6239685db010098a5e60d0795666da"
+  integrity sha512-3cSBKBCJVon54rKDROP2rqGyeGks4pBh9TbaEk9S375Kbek/ZHe72N50zIa0Vn9Eac/SuhwgehO/mmA4CsUOiw==
+
 "@capacitor/status-bar@^8.0.1":
   version "8.0.1"
   resolved "https://registry.yarnpkg.com/@capacitor/status-bar/-/status-bar-8.0.1.tgz#a20642b4563c827e8b0f520468ec44b077af6fea"

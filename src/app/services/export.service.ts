@@ -1,4 +1,7 @@
 import { Injectable, inject } from '@angular/core';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { RenderService } from './render.service';
 import { CanvasStateService } from './canvas-state.service';
 import { GridService } from './grid.service';
@@ -95,16 +98,16 @@ export class ExportService {
   }
 
   /**
-   * Trigger a download in the browser.
+   * Trigger a download in the browser or share via native on mobile.
    */
   async downloadExport(options: ExportOptions, filename: string): Promise<void> {
     const blob = await this.exportAsBlob(options);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+
+    if (Capacitor.isNativePlatform()) {
+      await this.shareFileNative(blob, filename, this.mimeTypeForFormat(options.format));
+    } else {
+      this.downloadBlobInBrowser(blob, filename);
+    }
   }
 
   /**
@@ -150,12 +153,73 @@ export class ExportService {
    */
   async downloadPxl(filename: string): Promise<void> {
     const blob = await this.exportAsPxl();
+
+    if (Capacitor.isNativePlatform()) {
+      await this.shareFileNative(blob, filename, 'application/gzip');
+    } else {
+      this.downloadBlobInBrowser(blob, filename);
+    }
+  }
+
+  /**
+   * Download a blob via an anchor element (browser-only).
+   */
+  private downloadBlobInBrowser(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Write a blob to the Capacitor cache directory, then trigger the native
+   * share sheet so the user can save, send, or otherwise export the file.
+   */
+  private async shareFileNative(blob: Blob, filename: string, mimeType: string): Promise<void> {
+    const base64 = await this.blobToBase64(blob);
+
+    const writeResult = await Filesystem.writeFile({
+      path: filename,
+      data: base64,
+      directory: Directory.Cache,
+    });
+
+    await Share.share({
+      title: filename,
+      url: writeResult.uri,
+      dialogTitle: `Share ${filename}`,
+    });
+  }
+
+  /**
+   * Convert a Blob to a base64 string (without data-URI prefix).
+   */
+  private blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        // Strip the "data:...;base64," prefix
+        resolve(dataUrl.split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  private mimeTypeForFormat(format: ExportFormat): string {
+    switch (format) {
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'spritesheet':
+        return 'image/png';
+      default:
+        return 'application/octet-stream';
+    }
   }
 }
 
