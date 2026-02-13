@@ -1,20 +1,30 @@
 apply plugin: 'com.android.application'
 
+import groovy.json.JsonSlurper
+
 def keystorePropertiesFile = rootProject.file("key.properties")
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+def packageJson = new JsonSlurper().parseText(rootProject.file("../package.json").text)
+def appVersionName = packageJson.version
+
+def appVersionCode = 1
+try {
+    appVersionCode = ['git', 'rev-list', '--count', 'HEAD'].execute(null, rootProject.file("..")).text.trim().toInteger()
+} catch (Exception ignored) {}
+
 android {
-    namespace = "com.pxlpxl.app"
+    namespace = "com.techyshishy.pxlpxl"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.pxlpxl.app"
+        applicationId "com.techyshishy.pxlpxl"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
