@@ -16,7 +16,12 @@
       <div
         class="layer-item"
         [class.active]="i === layerService.activeLayerIndex()"
-        (click)="layerService.setActiveLayer(i)"
+        (click)="onSelect(i)"
+        (pointerdown)="onPointerDown($event, layer)"
+        (pointermove)="onPointerMove($event)"
+        (pointerup)="onPointerUp()"
+        (pointercancel)="onPointerUp()"
+        (keydown.enter)="onEnterKey($event, layer)"
         role="option"
         [attr.aria-selected]="i === layerService.activeLayerIndex()"
         [attr.aria-label]="layer.name"
@@ -30,7 +35,19 @@
           <mat-icon>{{ layer.visible ? 'visibility' : 'visibility_off' }}</mat-icon>
         </button>
 
-        <span class="layer-name">{{ layer.name }}</span>
+        @if (editingLayerId() === layer.id) {
+          <input
+            #editInput
+            class="edit-input"
+            [formControl]="editControl"
+            (keydown.enter)="commitEdit(layer, i); $event.stopPropagation()"
+            (keydown.escape)="cancelEdit(); $event.stopPropagation()"
+            (blur)="commitEdit(layer, i)"
+            [attr.aria-label]="'Rename ' + layer.name"
+          />
+        } @else {
+          <span class="layer-name">{{ layer.name }}</span>
+        }
 
         <button
           mat-icon-button

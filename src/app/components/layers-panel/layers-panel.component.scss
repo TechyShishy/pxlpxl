@@ -68,3 +68,17 @@
 .opacity-slider {
   flex: 1;
 }
+
+.edit-input {
+  background: transparent;
+  border: 1px solid var(--mat-sys-primary);
+  border-radius: 4px;
+  color: inherit;
+  font: inherit;
+  padding: 2px 4px;
+  width: 100%;
+  flex: 1;
+  outline: none;
+  min-height: 24px;
+  font-size: 13px;
+}
