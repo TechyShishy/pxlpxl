@@ -30,79 +30,8 @@ import { EyedropperTool } from '../../tools/eyedropper.tool';
     StatusBarComponent,
     LoadProjectPanelComponent,
   ],
-  template: `
-    <div class="editor-layout" [class.portrait]="layout.isPortrait()">
-      <app-toolbar />
-
-      <div class="editor-body">
-        @if (layout.loadPanelOpen()) {
-          <app-load-project-panel
-            (projectSelected)="onProjectSelected($event)"
-            (closed)="layout.closeLoadPanel()"
-          />
-        }
-
-        @if (layout.leftSidebarOpen()) {
-          <app-tool-palette />
-        }
-
-        <app-canvas-viewport />
-
-        @if (layout.rightSidebarOpen() && layout.isLandscape()) {
-          <aside class="right-sidebar panel-touch">
-            <app-color-palette />
-            <div class="sidebar-divider"></div>
-            <app-layers-panel />
-          </aside>
-        }
-      </div>
-
-      <app-status-bar />
-    </div>
-  `,
-  styles: [
-    `
-      :host {
-        display: block;
-        height: 100%;
-        width: 100%;
-      }
-
-      .editor-layout {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        width: 100%;
-      }
-
-      .editor-body {
-        display: flex;
-        flex: 1;
-        overflow: hidden;
-      }
-
-      .right-sidebar {
-        width: 240px;
-        min-width: 240px;
-        background: var(--mat-sys-surface-container);
-        border-left: 1px solid var(--mat-sys-outline-variant);
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .sidebar-divider {
-        height: 1px;
-        background: var(--mat-sys-outline-variant);
-        margin: 8px 0;
-      }
-
-      /* Portrait: sidebars would become bottom sheets (future) */
-      .editor-layout.portrait .right-sidebar {
-        display: none;
-      }
-    `,
-  ],
+  templateUrl: './editor.component.html',
+  styleUrl: './editor.component.scss',
 })
 export class EditorComponent implements OnInit {
   protected readonly layout = inject(LayoutService);

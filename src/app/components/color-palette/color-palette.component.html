@@ -1,0 +1,39 @@
+<div class="color-palette panel-touch">
+  <div class="active-colors">
+    <button
+      class="color-preview primary"
+      [style.background]="primaryColorRgba()"
+      matTooltip="Primary color"
+      aria-label="Primary color"
+    ></button>
+    <button
+      class="color-preview secondary"
+      [style.background]="secondaryColorRgba()"
+      matTooltip="Secondary color"
+      aria-label="Secondary color"
+    ></button>
+    <button
+      mat-icon-button
+      matTooltip="Swap colors"
+      (click)="colorService.swapColors()"
+      aria-label="Swap primary and secondary colors"
+    >
+      <mat-icon>swap_horiz</mat-icon>
+    </button>
+  </div>
+
+  <div class="swatches" role="listbox" aria-label="Color palette">
+    @for (color of colorService.palette(); track $index) {
+      <button
+        class="swatch"
+        [style.background]="toRgba(color)"
+        [class.selected]="isSelected(color)"
+        (click)="colorService.setPrimaryColor(color)"
+        (dblclick)="colorService.setSecondaryColor(color)"
+        [attr.aria-label]="'Color ' + ($index + 1)"
+        role="option"
+        [attr.aria-selected]="isSelected(color)"
+      ></button>
+    }
+  </div>
+</div>

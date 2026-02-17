@@ -1,0 +1,10 @@
+<div
+  class="viewport canvas-touch-none"
+  (pointerdown)="onPointerDown($event)"
+  (pointermove)="onPointerMove($event)"
+  (pointerup)="onPointerUp($event)"
+  (pointercancel)="onPointerCancel($event)"
+  (wheel)="onWheel($event)"
+>
+  <canvas #canvas></canvas>
+</div>

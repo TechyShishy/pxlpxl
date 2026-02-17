@@ -1,0 +1,58 @@
+:host {
+  display: block;
+}
+
+.color-palette {
+  padding: 8px;
+}
+
+.active-colors {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.color-preview {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 8px;
+  border: 2px solid var(--mat-sys-outline);
+  cursor: pointer;
+}
+
+.color-preview.primary {
+  border-color: var(--mat-sys-primary);
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 40px);
+  gap: 4px;
+  justify-content: start;
+}
+
+.swatch {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  /* Padding around swatch provides the 48px touch target */
+  margin: 0;
+  box-sizing: content-box;
+}
+
+.swatch.selected {
+  border-color: var(--mat-sys-primary);
+}
+
+.swatch:focus-visible {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+}

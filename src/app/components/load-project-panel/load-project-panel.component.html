@@ -1,0 +1,57 @@
+<div class="panel-header">
+  <h2>Projects</h2>
+  <button mat-icon-button (click)="closed.emit()" aria-label="Close projects panel">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
+<div class="panel-body">
+  @if (projectService.savedProjects().length === 0) {
+    <div class="empty-state">
+      <mat-icon class="empty-icon">folder_off</mat-icon>
+      <p>No saved projects</p>
+    </div>
+  } @else {
+    <mat-nav-list>
+      @for (project of projectService.savedProjects(); track project.id) {
+        <mat-list-item
+          class="project-item"
+          (click)="onSelect(project)"
+          (pointerdown)="onPointerDown($event, project)"
+          (pointermove)="onPointerMove($event)"
+          (pointerup)="onPointerUp()"
+          (pointercancel)="onPointerUp()"
+          (keydown.enter)="onEnterKey($event, project)"
+        >
+          <mat-icon matListItemIcon>image</mat-icon>
+          @if (editingProjectId() === project.id) {
+            <span matListItemTitle>
+              <input
+                #editInput
+                class="edit-input"
+                [formControl]="editControl"
+                (keydown.enter)="commitEdit(project)"
+                (keydown.escape)="cancelEdit()"
+                (blur)="commitEdit(project)"
+                aria-label="Project name"
+              />
+            </span>
+          } @else {
+            <span matListItemTitle>{{ project.name }}</span>
+          }
+          <span matListItemLine class="project-meta">
+            {{ project.width }}×{{ project.height }} · {{ project.updatedAt | date: 'short' }}
+          </span>
+          <button
+            mat-icon-button
+            matListItemMeta
+            (click)="onDelete($event, project)"
+            aria-label="Delete project"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </mat-list-item>
+      }
+    </mat-nav-list>
+  }
+</div>

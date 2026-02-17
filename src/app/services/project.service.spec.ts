@@ -41,6 +41,13 @@ class MockDatabase {
   async deleteProject(id: number): Promise<void> {
     this.store.delete(id);
   }
+
+  async renameProject(id: number, name: string): Promise<void> {
+    const project = this.store.get(id);
+    if (project) {
+      this.store.set(id, { ...project, name, updatedAt: new Date() });
+    }
+  }
 }
 
 describe('ProjectService', () => {
@@ -274,6 +281,52 @@ describe('ProjectService', () => {
 
       await service.deleteProject(idA);
       expect(service.currentId).toBe(idB);
+    });
+  });
+
+  /* ====== renameProject ====== */
+
+  describe('renameProject', () => {
+    it('should rename a project in the database', async () => {
+      service.newProject('Original', 4, 4);
+      const id = await service.saveProject('Original');
+
+      await service.renameProject(id, 'Renamed');
+
+      const project = await db.getProject(id);
+      expect(project?.name).toBe('Renamed');
+    });
+
+    it('should update currentProjectName when renaming the active project', async () => {
+      service.newProject('Active', 4, 4);
+      const id = await service.saveProject('Active');
+      expect(service.currentProjectName()).toBe('Active');
+
+      await service.renameProject(id, 'Active Renamed');
+
+      expect(service.currentProjectName()).toBe('Active Renamed');
+    });
+
+    it('should not update currentProjectName when renaming a different project', async () => {
+      service.newProject('First', 4, 4);
+      const idFirst = await service.saveProject('First');
+
+      service.newProject('Second', 4, 4);
+      await service.saveProject('Second');
+
+      await service.renameProject(idFirst, 'First Renamed');
+
+      expect(service.currentProjectName()).toBe('Second');
+    });
+
+    it('should refresh savedProjects signal after rename', async () => {
+      service.newProject('Before', 4, 4);
+      const id = await service.saveProject('Before');
+      expect(service.savedProjects()[0].name).toBe('Before');
+
+      await service.renameProject(id, 'After');
+
+      expect(service.savedProjects()[0].name).toBe('After');
     });
   });
 

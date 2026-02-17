@@ -1,0 +1,15 @@
+<nav class="tool-palette panel-touch" aria-label="Drawing tools">
+  @for (tool of tools(); track tool.type) {
+    <button
+      mat-icon-button
+      [class.active]="tool.type === activeToolType()"
+      [matTooltip]="tool.label"
+      matTooltipPosition="right"
+      (click)="selectTool(tool.type)"
+      [attr.aria-label]="tool.label"
+      [attr.aria-pressed]="tool.type === activeToolType()"
+    >
+      <mat-icon>{{ tool.icon }}</mat-icon>
+    </button>
+  }
+</nav>

@@ -55,10 +55,12 @@ export class ProjectService {
       layers: this.layerService.layers().map(serializeLayer),
       palette: this.colorService.palette(),
       history: {
-        undoStack: this.historyService.getUndoStack()
+        undoStack: this.historyService
+          .getUndoStack()
           .map(serializeCommand)
           .filter((e): e is NonNullable<typeof e> => e !== null),
-        redoStack: this.historyService.getRedoStack()
+        redoStack: this.historyService
+          .getRedoStack()
           .map(serializeCommand)
           .filter((e): e is NonNullable<typeof e> => e !== null),
       },
@@ -111,6 +113,15 @@ export class ProjectService {
     if (this.currentProjectId === id) {
       this.currentProjectId = undefined;
       this.currentProjectName.set('Untitled');
+    }
+    await this.refreshSavedProjects();
+  }
+
+  /** Rename a project in IndexedDB */
+  async renameProject(id: number, name: string): Promise<void> {
+    await this.db.renameProject(id, name);
+    if (this.currentProjectId === id) {
+      this.currentProjectName.set(name);
     }
     await this.refreshSavedProjects();
   }

@@ -46,6 +46,10 @@ export class PxlpxlDatabase extends Dexie {
     return this.projects.orderBy('updatedAt').reverse().toArray();
   }
 
+  async renameProject(id: number, name: string): Promise<void> {
+    await this.projects.update(id, { name, updatedAt: new Date() });
+  }
+
   async deleteProject(id: number): Promise<void> {
     await this.projects.delete(id);
   }

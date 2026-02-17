@@ -1,0 +1,57 @@
+<h2 mat-dialog-title>New Project</h2>
+<mat-dialog-content>
+  <div class="new-project-form">
+    <mat-form-field appearance="outline">
+      <mat-label>Project Name</mat-label>
+      <input matInput [(ngModel)]="name" placeholder="Untitled" aria-label="Project name" />
+    </mat-form-field>
+
+    <div class="dimensions">
+      <mat-form-field appearance="outline">
+        <mat-label>Width</mat-label>
+        <input
+          matInput
+          type="number"
+          [(ngModel)]="width"
+          [min]="1"
+          aria-label="Canvas width in pixels"
+        />
+        <span matSuffix>px</span>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Height</mat-label>
+        <input
+          matInput
+          type="number"
+          [(ngModel)]="height"
+          [min]="1"
+          aria-label="Canvas height in pixels"
+        />
+        <span matSuffix>px</span>
+      </mat-form-field>
+    </div>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Grid Type</mat-label>
+      <mat-select [(ngModel)]="gridType" aria-label="Grid type">
+        <mat-option value="square">Square</mat-option>
+        <mat-option value="peyote-even">Peyote Even</mat-option>
+        <mat-option value="peyote-odd">Peyote Odd</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <div class="presets">
+      <button mat-stroked-button (click)="setPreset(16, 16)">16×16</button>
+      <button mat-stroked-button (click)="setPreset(32, 32)">32×32</button>
+      <button mat-stroked-button (click)="setPreset(64, 64)">64×64</button>
+      <button mat-stroked-button (click)="setPreset(128, 128)">128×128</button>
+    </div>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button mat-flat-button [disabled]="width < 1 || height < 1" (click)="onCreate()">
+    Create
+  </button>
+</mat-dialog-actions>

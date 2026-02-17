@@ -69,8 +69,8 @@ Three grid types: `'square'` (standard), `'peyote-even'`, `'peyote-odd'` (bead p
 - Signals for state (`signal`, `computed`); use `update` or `set`, never `mutate`
 - Native control flow (`@if`, `@for`, `@switch`), not structural directives
 - `host` object in decorator for host bindings, not `@HostBinding`/`@HostListener`
-- Prefer inline templates for small components
-- When using external templates/styles, use paths relative to the component TS file
+- Use external template and style files for all components (`templateUrl` / `styleUrl`)
+- External template/style paths must be relative to the component TS file
 - Prefer Reactive forms over Template-driven
 - Use `class` bindings, not `ngClass`; `style` bindings, not `ngStyle`
 - Use `NgOptimizedImage` for all static images (does not work for inline base64 images)

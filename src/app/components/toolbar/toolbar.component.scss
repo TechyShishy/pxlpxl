@@ -1,0 +1,19 @@
+:host {
+  display: block;
+  z-index: 100;
+}
+
+.toolbar {
+  gap: 4px;
+  padding: 0 8px;
+}
+
+.app-title {
+  font-weight: 500;
+  font-size: 18px;
+  margin-left: 8px;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}

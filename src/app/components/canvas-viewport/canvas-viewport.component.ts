@@ -25,39 +25,8 @@ import { EyedropperTool } from '../../tools/eyedropper.tool';
   selector: 'app-canvas-viewport',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [],
-  template: `
-    <div
-      class="viewport canvas-touch-none"
-      (pointerdown)="onPointerDown($event)"
-      (pointermove)="onPointerMove($event)"
-      (pointerup)="onPointerUp($event)"
-      (pointercancel)="onPointerCancel($event)"
-      (wheel)="onWheel($event)"
-    >
-      <canvas #canvas></canvas>
-    </div>
-  `,
-  styles: [
-    `
-      :host {
-        display: block;
-        flex: 1;
-        overflow: hidden;
-        position: relative;
-      }
-
-      .viewport {
-        width: 100%;
-        height: 100%;
-        cursor: crosshair;
-        background: var(--mat-sys-surface-dim);
-      }
-
-      canvas {
-        display: block;
-      }
-    `,
-  ],
+  templateUrl: './canvas-viewport.component.html',
+  styleUrl: './canvas-viewport.component.scss',
 })
 export class CanvasViewportComponent {
   private readonly canvasState = inject(CanvasStateService);

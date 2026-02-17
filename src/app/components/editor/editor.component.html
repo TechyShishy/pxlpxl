@@ -1,0 +1,28 @@
+<div class="editor-layout" [class.portrait]="layout.isPortrait()">
+  <app-toolbar />
+
+  <div class="editor-body">
+    @if (layout.loadPanelOpen()) {
+      <app-load-project-panel
+        (projectSelected)="onProjectSelected($event)"
+        (closed)="layout.closeLoadPanel()"
+      />
+    }
+
+    @if (layout.leftSidebarOpen()) {
+      <app-tool-palette />
+    }
+
+    <app-canvas-viewport />
+
+    @if (layout.rightSidebarOpen() && layout.isLandscape()) {
+      <aside class="right-sidebar panel-touch">
+        <app-color-palette />
+        <div class="sidebar-divider"></div>
+        <app-layers-panel />
+      </aside>
+    }
+  </div>
+
+  <app-status-bar />
+</div>

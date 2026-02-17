@@ -1,0 +1,21 @@
+.new-project-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 280px;
+}
+
+.dimensions {
+  display: flex;
+  gap: 16px;
+}
+
+.dimensions mat-form-field {
+  flex: 1;
+}
+
+.presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

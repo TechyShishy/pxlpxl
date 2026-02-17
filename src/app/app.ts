@@ -5,16 +5,8 @@ import { BackButtonService } from './services/back-button.service';
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet],
-  template: `<router-outlet />`,
-  styles: [
-    `
-      :host {
-        display: block;
-        height: 100%;
-        width: 100%;
-      }
-    `,
-  ],
+  templateUrl: './app.html',
+  styleUrl: './app.scss',
 })
 export class App implements OnInit {
   private readonly backButtonService = inject(BackButtonService);

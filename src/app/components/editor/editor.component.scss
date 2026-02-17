@@ -1,0 +1,39 @@
+:host {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.editor-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.editor-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.right-sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: var(--mat-sys-surface-container);
+  border-left: 1px solid var(--mat-sys-outline-variant);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--mat-sys-outline-variant);
+  margin: 8px 0;
+}
+
+/* Portrait: sidebars would become bottom sheets (future) */
+.editor-layout.portrait .right-sidebar {
+  display: none;
+}

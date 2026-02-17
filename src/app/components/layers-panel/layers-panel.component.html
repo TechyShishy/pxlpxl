@@ -1,0 +1,59 @@
+<div class="layers-panel panel-touch">
+  <div class="layers-header">
+    <span class="layers-title">Layers</span>
+    <button
+      mat-icon-button
+      matTooltip="Add layer"
+      (click)="addLayer()"
+      aria-label="Add new layer"
+    >
+      <mat-icon>add</mat-icon>
+    </button>
+  </div>
+
+  <div class="layers-list" role="listbox" aria-label="Layers">
+    @for (layer of layerService.layers(); track layer.id; let i = $index) {
+      <div
+        class="layer-item"
+        [class.active]="i === layerService.activeLayerIndex()"
+        (click)="layerService.setActiveLayer(i)"
+        role="option"
+        [attr.aria-selected]="i === layerService.activeLayerIndex()"
+        [attr.aria-label]="layer.name"
+      >
+        <button
+          mat-icon-button
+          (click)="layerService.toggleVisibility(i); $event.stopPropagation()"
+          [matTooltip]="layer.visible ? 'Hide layer' : 'Show layer'"
+          [attr.aria-label]="layer.visible ? 'Hide ' + layer.name : 'Show ' + layer.name"
+        >
+          <mat-icon>{{ layer.visible ? 'visibility' : 'visibility_off' }}</mat-icon>
+        </button>
+
+        <span class="layer-name">{{ layer.name }}</span>
+
+        <button
+          mat-icon-button
+          [disabled]="layerService.layerCount() <= 1"
+          (click)="layerService.removeLayer(i); $event.stopPropagation()"
+          matTooltip="Delete layer"
+          [attr.aria-label]="'Delete ' + layer.name"
+        >
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+
+      <div class="layer-opacity">
+        <mat-icon class="opacity-icon">opacity</mat-icon>
+        <mat-slider [min]="0" [max]="100" [step]="1" class="opacity-slider">
+          <input
+            matSliderThumb
+            [value]="layer.opacity * 100"
+            (valueChange)="layerService.setOpacity(i, $event / 100)"
+            [attr.aria-label]="layer.name + ' opacity'"
+          />
+        </mat-slider>
+      </div>
+    }
+  </div>
+</div>
