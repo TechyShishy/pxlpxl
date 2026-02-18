@@ -36,6 +36,16 @@ export class LayerService {
     }
   }
 
+  /** Insert a fully-formed layer at the given index, shifting existing layers down. */
+  insertLayer(atIndex: number, layer: Layer): void {
+    this.layers.update((layers) => {
+      const result = [...layers];
+      result.splice(atIndex, 0, layer);
+      return result;
+    });
+    this.activeLayerIndex.set(atIndex);
+  }
+
   setActiveLayer(index: number): void {
     if (index >= 0 && index < this.layerCount()) {
       this.activeLayerIndex.set(index);

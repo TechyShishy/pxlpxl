@@ -2,6 +2,7 @@ import { Command, SerializedHistoryEntry, uint8ArrayToBase64, base64ToUint8Array
 import { DrawCommand } from './draw.command';
 import { FillCommand } from './fill.command';
 import { LayerCommand } from './layer.command';
+import { DuplicateLayerCommand } from './duplicate-layer.command';
 import { LayerService } from '../services/layer.service';
 
 /**
@@ -45,6 +46,23 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
       canvasWidth: 0, // not used by LayerCommand but required by schema
       previousData: uint8ArrayToBase64(command.previousData),
       newData: uint8ArrayToBase64(command.newData),
+    };
+  }
+
+  if (command instanceof DuplicateLayerCommand) {
+    return {
+      type: 'duplicate-layer',
+      description: command.description,
+      layerIndex: command.insertIndex,
+      canvasWidth: 0,
+      insertIndex: command.insertIndex,
+      duplicatedLayer: {
+        id: command.layer.id,
+        name: command.layer.name,
+        visible: command.layer.visible,
+        opacity: command.layer.opacity,
+        data: uint8ArrayToBase64(command.layer.data),
+      },
     };
   }
 
@@ -93,6 +111,19 @@ export function deserializeCommand(
         base64ToUint8Array(entry.newData ?? ''),
         entry.description,
       );
+
+    case 'duplicate-layer': {
+      const dl = entry.duplicatedLayer;
+      if (!dl) throw new Error('duplicate-layer entry is missing duplicatedLayer');
+      const layer = {
+        id: dl.id,
+        name: dl.name,
+        visible: dl.visible,
+        opacity: dl.opacity,
+        data: base64ToUint8Array(dl.data),
+      };
+      return new DuplicateLayerCommand(layerService, entry.insertIndex ?? entry.layerIndex, layer);
+    }
 
     default:
       throw new Error(`Unknown history entry type: ${entry.type}`);

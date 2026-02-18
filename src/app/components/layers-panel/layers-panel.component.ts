@@ -14,6 +14,8 @@ import { MatSliderModule } from '@angular/material/slider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { LayerService } from '../../services/layer.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
+import { HistoryService } from '../../services/history.service';
+import { DuplicateLayerCommand } from '../../commands/duplicate-layer.command';
 import { Layer } from '../../models';
 
 const LONG_PRESS_DELAY = 500;
@@ -29,6 +31,7 @@ const MOVE_THRESHOLD = 5;
 export class LayersPanelComponent implements OnDestroy {
   protected readonly layerService = inject(LayerService);
   private readonly canvasState = inject(CanvasStateService);
+  private readonly historyService = inject(HistoryService);
 
   readonly editingLayerId = signal<string | null>(null);
   readonly editControl = new FormControl('', { nonNullable: true });
@@ -46,6 +49,20 @@ export class LayersPanelComponent implements OnDestroy {
 
   addLayer(): void {
     this.layerService.addLayer(this.canvasState.canvasWidth(), this.canvasState.canvasHeight());
+  }
+
+  duplicateLayer(index: number): void {
+    const source = this.layerService.layers()[index];
+    if (!source) return;
+    const clonedLayer: Layer = {
+      id: crypto.randomUUID(),
+      name: `Copy of ${source.name}`,
+      visible: source.visible,
+      opacity: source.opacity,
+      data: new Uint8ClampedArray(source.data),
+    };
+    const command = new DuplicateLayerCommand(this.layerService, index + 1, clonedLayer);
+    this.historyService.execute(command);
   }
 
   onPointerDown(event: PointerEvent, layer: Layer): void {

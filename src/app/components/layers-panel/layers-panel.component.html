@@ -51,6 +51,15 @@
 
         <button
           mat-icon-button
+          (click)="duplicateLayer(i); $event.stopPropagation()"
+          matTooltip="Duplicate layer"
+          [attr.aria-label]="'Duplicate ' + layer.name"
+        >
+          <mat-icon>content_copy</mat-icon>
+        </button>
+
+        <button
+          mat-icon-button
           [disabled]="layerService.layerCount() <= 1"
           (click)="layerService.removeLayer(i); $event.stopPropagation()"
           matTooltip="Delete layer"
