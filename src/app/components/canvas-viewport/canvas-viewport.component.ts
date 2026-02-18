@@ -16,7 +16,7 @@ import { HistoryService } from '../../services/history.service';
 import { GestureService } from '../../services/gesture.service';
 import { RenderService } from '../../services/render.service';
 import { LayoutService } from '../../services/layout.service';
-import { ToolContext, GestureState } from '../../models';
+import { Color, ToolContext, GestureState, PixelCoord } from '../../models';
 import { DrawCommand } from '../../commands/draw.command';
 import { FillCommand } from '../../commands/fill.command';
 import { EyedropperTool } from '../../tools/eyedropper.tool';
@@ -44,6 +44,8 @@ export class CanvasViewportComponent {
 
   private ctx: CanvasRenderingContext2D | null = null;
   private animFrameId = 0;
+  private previewPixels: PixelCoord[] = [];
+  private previewColor: Color | undefined;
 
   constructor() {
     // Set up gesture callbacks
@@ -112,7 +114,13 @@ export class CanvasViewportComponent {
   private render(): void {
     if (!this.ctx) return;
     const canvas = this.canvasRef().nativeElement;
-    this.renderService.render(this.ctx, canvas.width, canvas.height);
+    this.renderService.render(
+      this.ctx,
+      canvas.width,
+      canvas.height,
+      this.previewPixels,
+      this.previewColor,
+    );
   }
 
   // --- Pointer event handlers ---
@@ -174,12 +182,18 @@ export class CanvasViewportComponent {
     switch (phase) {
       case 'start':
         result = tool.onPointerDown(ctx, activeLayer.data);
+        this.previewPixels = tool.getPreview?.() ?? [];
+        this.previewColor = ctx.isSecondary ? ctx.secondaryColor : ctx.primaryColor;
         break;
       case 'move':
         result = tool.onPointerMove(ctx, activeLayer.data);
+        this.previewPixels = tool.getPreview?.() ?? [];
+        this.previewColor = ctx.isSecondary ? ctx.secondaryColor : ctx.primaryColor;
         break;
       case 'end':
         result = tool.onPointerUp(ctx, activeLayer.data);
+        this.previewPixels = [];
+        this.previewColor = undefined;
         // On end, create a command for undo/redo
         if (result && result.modifiedPixels.length > 0) {
           const command =

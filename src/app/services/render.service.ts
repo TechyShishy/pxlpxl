@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { LayerService } from './layer.service';
 import { CanvasStateService } from './canvas-state.service';
 import { GridService } from './grid.service';
-import { GridType } from '../models';
+import { Color, GridType, PixelCoord } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class RenderService {
@@ -13,8 +13,17 @@ export class RenderService {
   /**
    * Composites all visible layers onto a destination canvas context.
    * Applies zoom/pan transform and optionally draws the pixel grid.
+   *
+   * @param previewPixels Optional pixels to render as a preview overlay (e.g. line/rect preview).
+   * @param previewColor  Color to use for the preview pixels.
    */
-  render(ctx: CanvasRenderingContext2D, viewportWidth: number, viewportHeight: number): void {
+  render(
+    ctx: CanvasRenderingContext2D,
+    viewportWidth: number,
+    viewportHeight: number,
+    previewPixels?: PixelCoord[],
+    previewColor?: Color,
+  ): void {
     const width = this.canvasState.canvasWidth();
     const height = this.canvasState.canvasHeight();
     const transform = this.canvasState.transform();
@@ -50,6 +59,11 @@ export class RenderService {
         ctx.drawImage(tempCanvas, 0, 0);
         ctx.restore();
       }
+    }
+
+    // Draw preview overlay (e.g. line/rect preview while dragging)
+    if (previewPixels && previewPixels.length > 0 && previewColor) {
+      this.drawPreview(ctx, previewPixels, previewColor, transform, gridType);
     }
 
     // Draw pixel grid
@@ -125,6 +139,28 @@ export class RenderService {
     }
     ctx.globalAlpha = 1;
     return canvas;
+  }
+
+  /** Render preview pixels on top of all layers using the active preview color. */
+  private drawPreview(
+    ctx: CanvasRenderingContext2D,
+    pixels: PixelCoord[],
+    color: Color,
+    transform: { scale: number; offsetX: number; offsetY: number },
+    gridType: GridType,
+  ): void {
+    ctx.save();
+    ctx.translate(transform.offsetX, transform.offsetY);
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle = `rgb(${color.r},${color.g},${color.b})`;
+
+    for (const { x, y } of pixels) {
+      const { sx, sy } = this.gridService.pixelToScreen(x, y, transform.scale, gridType);
+      ctx.fillRect(sx, sy, transform.scale, transform.scale);
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   /** Render peyote layers bead-by-bead onto the viewport canvas. */
