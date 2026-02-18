@@ -18,6 +18,7 @@ import { LayerService } from '../../services/layer.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { HistoryService } from '../../services/history.service';
 import { DuplicateLayerCommand } from '../../commands/duplicate-layer.command';
+import { FlattenLayerCommand } from '../../commands/flatten-layer.command';
 import { MoveLayerCommand } from '../../commands/move-layer.command';
 import { Layer } from '../../models';
 
@@ -75,6 +76,18 @@ export class LayersPanelComponent implements OnDestroy {
       data: new Uint8ClampedArray(source.data),
     };
     const command = new DuplicateLayerCommand(this.layerService, index + 1, clonedLayer);
+    this.historyService.execute(command);
+  }
+
+  flattenToAbove(index: number): void {
+    const layers = this.layerService.layers();
+    if (index <= 0) return; // No layer above in the panel (index 0 is the topmost panel row)
+    const command = new FlattenLayerCommand(
+      this.layerService,
+      index,
+      this.canvasState.canvasWidth(),
+      this.canvasState.canvasHeight(),
+    );
     this.historyService.execute(command);
   }
 

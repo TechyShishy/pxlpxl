@@ -94,6 +94,14 @@
           </button>
           <button
             mat-menu-item
+            [disabled]="i <= 0"
+            (click)="flattenToAbove(i)"
+          >
+            <mat-icon>merge</mat-icon>
+            Flatten to above
+          </button>
+          <button
+            mat-menu-item
             [disabled]="layerService.layerCount() <= 1"
             (click)="layerService.removeLayer(i)"
           >
