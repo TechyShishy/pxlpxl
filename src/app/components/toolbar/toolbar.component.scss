@@ -27,6 +27,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: default;
+  user-select: none;
+}
+
+.project-name-input {
+  font-weight: 400;
+  font-size: 16px;
+  max-width: 160px;
+  width: 160px;
+  background: transparent;
+  color: inherit;
+  border: none;
+  border-bottom: 1px solid currentColor;
+  outline: none;
+  padding: 0;
 }
 
 .spacer {

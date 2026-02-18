@@ -10,7 +10,27 @@
 
   <span class="app-title">Pxlpxl</span>
   <span class="title-separator" aria-hidden="true">/</span>
-  <span class="project-name" aria-label="Project name">{{ projectService.currentProjectName() }}</span>
+  @if (editingTitle()) {
+    <input
+      #titleEditInput
+      class="project-name-input"
+      [formControl]="editControl"
+      (keydown.enter)="commitTitleEdit(); $event.stopPropagation()"
+      (keydown.escape)="cancelTitleEdit(); $event.stopPropagation()"
+      (blur)="commitTitleEdit()"
+      aria-label="Rename project"
+    />
+  } @else {
+    <span
+      class="project-name"
+      aria-label="Project name"
+      matTooltip="Long-press to rename"
+      (pointerdown)="onTitlePointerDown($event)"
+      (pointermove)="onTitlePointerMove($event)"
+      (pointerup)="onTitlePointerUp()"
+      (pointercancel)="onTitlePointerUp()"
+    >{{ projectService.currentProjectName() }}</span>
+  }
 
   <span class="spacer"></span>
 
