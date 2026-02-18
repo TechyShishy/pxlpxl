@@ -1,0 +1,41 @@
+<!-- logo-10-echo-white-dim.svg
+     Base    : logo-7 (layout, gradient, typography, offset all identical)
+     Echo    : #FFFFFF at opacity 0.20 (very dim white — almost ghost)
+     Primary : #FFFFFF
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg10" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#9B59FF"/>
+      <stop offset="30%"  stop-color="#8B3FFF"/>
+      <stop offset="38%"  stop-color="#6C25E3"/>
+      <stop offset="52%"  stop-color="#3A0090"/>
+      <stop offset="65%"  stop-color="#1A0040"/>
+      <stop offset="100%" stop-color="#0A0020"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg10)"/>
+
+  <!-- Echo -->
+  <text
+    x="255" y="680"
+    font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+    font-size="300"
+    font-weight="900"
+    letter-spacing="-8"
+    fill="#FFFFFF"
+    opacity="0.20"
+  >PXL</text>
+
+  <!-- Primary -->
+  <text
+    x="85" y="440"
+    font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+    font-size="300"
+    font-weight="900"
+    letter-spacing="-8"
+    fill="#FFFFFF"
+  >PXL</text>
+</svg>

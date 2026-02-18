@@ -1,0 +1,56 @@
+<!-- logo-6-split-tone.svg
+     Background : top half #270057 (deep indigo), bottom half #6C25E3 (brand purple)
+                  — a hard two-tone split at y=512 for maximum visual contrast
+     Typography : bold geometric sans-serif, italic-skewed (skewX(-8)) for dynamic lean
+     Echo offset: +300px right, +300px down (maximum — echo nearly fills its own quadrant)
+     Primary    : #FFFFFF  (anchors upper-left quadrant)
+     Echo       : #FFB347  (warm orange, maximum legibility contrast against both halves)
+     NOTE       : Primary anchors at (60, 340); echo sits at (360, 640).
+                  Both remain fully within the 1024×1024 canvas:
+                    - Primary top edge  ≈ 340 − 300 =  40 px from top      ✓
+                    - Echo baseline     ≈ 640 px,  text block bottom ≈ 700  ✓
+                    - Primary right est ≈ 60  + 570 =  630 px              ✓
+                    - Echo   right est  ≈ 360 + 570 =  930 px (< 1024)     ✓
+     To regenerate PNG: inkscape --export-type=png --export-width=512 logo-6-split-tone.svg -o logo-6-split-tone.png
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Soft edge highlight along the split line to make it feel painted not pasted -->
+    <linearGradient id="splitglow6" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"    stop-color="#270057"/>
+      <stop offset="46%"   stop-color="#270057"/>
+      <stop offset="49%"   stop-color="#5500BB"/>
+      <stop offset="51%"   stop-color="#8040FF"/>
+      <stop offset="54%"   stop-color="#6C25E3"/>
+      <stop offset="100%"  stop-color="#6C25E3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background: two-tone split with soft blended seam -->
+  <rect width="1024" height="1024" fill="url(#splitglow6)"/>
+
+  <!-- Text group: italic lean via skewX(-8) applied around canvas centre -->
+  <g transform="skewX(-8)">
+    <!-- Echo (rendered first, behind primary) -->
+    <text
+      x="360" y="640"
+      font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+      font-size="300"
+      font-weight="900"
+      letter-spacing="-8"
+      fill="#FFB347"
+      opacity="0.85"
+    >PXL</text>
+
+    <!-- Primary -->
+    <text
+      x="60" y="340"
+      font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+      font-size="300"
+      font-weight="900"
+      letter-spacing="-8"
+      fill="#FFFFFF"
+    >PXL</text>
+  </g>
+</svg>

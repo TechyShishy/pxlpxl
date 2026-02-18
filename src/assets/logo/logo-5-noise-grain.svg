@@ -1,0 +1,71 @@
+<!-- logo-5-noise-grain.svg
+     Background : solid #6C25E3 base, overlaid with feTurbulence fractal noise tinted purple
+                  to break the flatness with organic grain/texture
+     Typography : extra-bold, wide display caps (tracked out)
+     Echo offset: +240px right, +240px down (very exaggerated — echo reads as a co-equal element)
+     Primary    : #FFFFFF
+     Echo       : rgba(0,229,255,0.50) (cyan)
+     To regenerate PNG: inkscape --export-type=png --export-width=512 logo-5-noise-grain.svg -o logo-5-noise-grain.png
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Grain filter: fractal noise composited over the background -->
+    <filter id="grain5" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence
+        type="fractalNoise"
+        baseFrequency="0.68"
+        numOctaves="4"
+        seed="42"
+        result="noise"/>
+      <!-- Shift noise to mid-range then scale contrast down — produces subtle grain -->
+      <feColorMatrix
+        type="saturate"
+        values="0"
+        in="noise"
+        result="grayNoise"/>
+      <feComponentTransfer in="grayNoise" result="scaledNoise">
+        <feFuncA type="linear" slope="0.12" intercept="0"/>
+      </feComponentTransfer>
+      <!-- Tint grain toward lighter purple and composite over source graphic -->
+      <feFlood flood-color="#9B59FF" result="tint"/>
+      <feComposite in="tint" in2="scaledNoise" operator="in" result="tintedNoise"/>
+      <feComposite in="tintedNoise" in2="SourceGraphic" operator="over"/>
+    </filter>
+
+    <!-- Subtle vignette to further break up the flat field -->
+    <radialGradient id="vignette5" cx="50%" cy="50%" r="72%">
+      <stop offset="0%"   stop-color="#6C25E3" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#1A0040" stop-opacity="0.55"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Base background -->
+  <rect width="1024" height="1024" fill="#6C25E3"/>
+
+  <!-- Grain overlay (filter applied to a rect covering full canvas) -->
+  <rect width="1024" height="1024" fill="#6C25E3" filter="url(#grain5)"/>
+
+  <!-- Vignette -->
+  <rect width="1024" height="1024" fill="url(#vignette5)"/>
+
+  <!-- Echo (rendered first, behind primary) -->
+  <text
+    x="310" y="620"
+    font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+    font-size="300"
+    font-weight="900"
+    letter-spacing="-8"
+    fill="rgba(0,229,255,0.50)"
+  >PXL</text>
+
+  <!-- Primary -->
+  <text
+    x="70" y="380"
+    font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+    font-size="300"
+    font-weight="900"
+    letter-spacing="-8"
+    fill="#FFFFFF"
+  >PXL</text>
+</svg>

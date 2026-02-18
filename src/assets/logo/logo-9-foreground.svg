@@ -1,0 +1,31 @@
+<!-- logo-9-foreground.svg
+     Foreground layer only — transparent background, composites over logo-9-background.svg
+     Primary PXL : #FFFFFF
+     Echo PXL    : #FFB347 (warm orange) at 100% opacity
+     Offset      : +170 right, +240 down (X columns visually aligned)
+     Canvas      : 1024×1024 (matches background canvas exactly)
+     Android use : 108dp×108dp adaptive icon foreground safe zone is the centre 72dp (66%)
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024">
+
+  <!-- Echo (behind primary) -->
+  <text
+    x="255" y="680"
+    font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+    font-size="300"
+    font-weight="900"
+    letter-spacing="-8"
+    fill="#FFB347"
+  >PXL</text>
+
+  <!-- Primary -->
+  <text
+    x="85" y="440"
+    font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+    font-size="300"
+    font-weight="900"
+    letter-spacing="-8"
+    fill="#FFFFFF"
+  >PXL</text>
+</svg>

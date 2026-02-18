@@ -1,0 +1,50 @@
+<!-- logo-4-lavender-glow.svg
+     Background : deep radial gradient #9B59FF → #42008a, plus a soft spotlight bloom
+                  (second, smaller radial) centred behind the primary text
+     Typography : bold geometric sans-serif
+     Echo offset: +180px right, +180px down (dramatic — echo is clearly its own element)
+     Primary    : #d5baff (lavender, the app's --mat-sys-primary token)
+     Echo       : rgba(213,186,255,0.35)
+     To regenerate PNG: inkscape --export-type=png --export-width=512 logo-4-lavender-glow.svg -o logo-4-lavender-glow.png
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Deep background gradient -->
+    <radialGradient id="bg4" cx="50%" cy="50%" r="70%">
+      <stop offset="0%"   stop-color="#9B59FF"/>
+      <stop offset="55%"  stop-color="#6C25E3"/>
+      <stop offset="100%" stop-color="#2A0060"/>
+    </radialGradient>
+
+    <!-- Soft spotlight bloom centred slightly above-left (behind primary text) -->
+    <radialGradient id="bloom4" cx="22%" cy="36%" r="38%">
+      <stop offset="0%"   stop-color="#C49AFF" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#6C25E3" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background layers -->
+  <rect width="1024" height="1024" fill="url(#bg4)"/>
+  <rect width="1024" height="1024" fill="url(#bloom4)"/>
+
+  <!-- Echo (rendered first, behind primary) -->
+  <text
+    x="255" y="590"
+    font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+    font-size="300"
+    font-weight="900"
+    letter-spacing="-8"
+    fill="rgba(213,186,255,0.35)"
+  >PXL</text>
+
+  <!-- Primary -->
+  <text
+    x="75" y="410"
+    font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+    font-size="300"
+    font-weight="900"
+    letter-spacing="-8"
+    fill="#d5baff"
+  >PXL</text>
+</svg>

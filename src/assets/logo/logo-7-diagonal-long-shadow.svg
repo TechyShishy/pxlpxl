@@ -1,0 +1,49 @@
+<!-- logo-7-diagonal-long-shadow.svg
+     Base design : logo-2 (diagonal-vivid) — 135° linear gradient, geometric sans, white/cyan
+     Echo offset : +190px right, +240px down (asymmetric — more square visual gap)
+     Background  : 135° linear gradient, transition concentrated at split zone between PXLs
+     Typography  : bold geometric sans-serif
+     Primary     : #FFFFFF
+     Echo        : #00e5ff at opacity 0.60 (cyan)
+     To regenerate PNG: inkscape --export-type=png --export-width=512 logo-7-diagonal-long-shadow.svg -o logo-7-diagonal-long-shadow.png
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg7" x1="0%" y1="0%" x2="100%" y2="100%">
+      <!-- Hold bright purple across the top-left (primary text lives here) -->
+      <stop offset="0%"   stop-color="#9B59FF"/>
+      <stop offset="30%"  stop-color="#8B3FFF"/>
+      <!-- Rapid dramatic shift right at the split zone between the two PXLs (~35–55%) -->
+      <stop offset="38%"  stop-color="#6C25E3"/>
+      <stop offset="52%"  stop-color="#3A0090"/>
+      <!-- Hold deep indigo over the echo text area -->
+      <stop offset="65%"  stop-color="#1A0040"/>
+      <stop offset="100%" stop-color="#0A0020"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="url(#bg7)"/>
+
+  <!-- Echo (rendered first, behind primary) — +170 right, +240 down (X columns aligned) -->
+  <text
+    x="255" y="680"
+    font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+    font-size="300"
+    font-weight="900"
+    letter-spacing="-8"
+    fill="#00e5ff"
+    opacity="0.60"
+  >PXL</text>
+
+  <!-- Primary -->
+  <text
+    x="85" y="440"
+    font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+    font-size="300"
+    font-weight="900"
+    letter-spacing="-8"
+    fill="#FFFFFF"
+  >PXL</text>
+</svg>

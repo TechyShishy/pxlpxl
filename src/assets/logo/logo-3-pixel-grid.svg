@@ -1,0 +1,43 @@
+<!-- logo-3-pixel-grid.svg
+     Background : solid #6C25E3 + 32×32 pixel grid lines (lighter purple #8040EE, 1px)
+     Typography : monospaced / pixel-style font (Courier New fallback)
+     Echo offset: +120px right, +120px down (clearly separated)
+     Primary    : #FFFFFF
+     Echo       : rgba(255,255,255,0.30)
+     To regenerate PNG: inkscape --export-type=png --export-width=512 logo-3-pixel-grid.svg -o logo-3-pixel-grid.png
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- 32×32 pixel grid tile -->
+    <pattern id="pixelgrid" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+      <rect width="32" height="32" fill="#6C25E3"/>
+      <line x1="32" y1="0" x2="32" y2="32" stroke="#7A35EE" stroke-width="1" opacity="0.6"/>
+      <line x1="0"  y1="32" x2="32" y2="32" stroke="#7A35EE" stroke-width="1" opacity="0.6"/>
+    </pattern>
+  </defs>
+
+  <!-- Background: base colour then grid overlay -->
+  <rect width="1024" height="1024" fill="#6C25E3"/>
+  <rect width="1024" height="1024" fill="url(#pixelgrid)"/>
+
+  <!-- Echo (rendered first, behind primary) -->
+  <text
+    x="200" y="540"
+    font-family="'Courier New', 'Lucida Console', monospace"
+    font-size="260"
+    font-weight="700"
+    letter-spacing="4"
+    fill="rgba(255,255,255,0.30)"
+  >PXL</text>
+
+  <!-- Primary -->
+  <text
+    x="80" y="420"
+    font-family="'Courier New', 'Lucida Console', monospace"
+    font-size="260"
+    font-weight="700"
+    letter-spacing="4"
+    fill="#FFFFFF"
+  >PXL</text>
+</svg>

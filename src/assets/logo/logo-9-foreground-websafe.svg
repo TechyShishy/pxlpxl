@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- logo-9-foreground.svg
+     Foreground layer only — transparent background, composites over logo-9-background.svg
+     Primary PXL : #FFFFFF
+     Echo PXL    : #FFB347 (warm orange) at opacity 0.80
+     Offset      : +170 right, +240 down (X columns visually aligned)
+     Canvas      : 1024×1024 (matches background canvas exactly)
+     Android use : 108dp×108dp adaptive icon foreground safe zone is the centre 72dp (66%)
+-->
+
+<svg
+   viewBox="0 0 1024 1024"
+   width="1024"
+   height="1024"
+   version="1.1"
+   id="svg2"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs2" />
+  <!-- Echo (behind primary) -->
+  <path
+     d="m 282.53906,461.29883 h 93.60352 q 41.74804,0 64.01367,18.60351 22.41211,18.45703 22.41211,52.73438 0,34.42383 -22.41211,53.02734 -22.26563,18.45703 -64.01367,18.45703 H 338.93555 V 680 h -56.39649 z m 56.39649,40.86914 v 61.08398 h 31.20117 q 16.40625,0 25.3418,-7.91015 8.93554,-8.05664 8.93554,-22.70508 0,-14.64844 -8.93554,-22.5586 -8.93555,-7.91015 -25.3418,-7.91015 z M 616.28711,568.37891 692.16602,680 H 633.42578 L 582.30273,605.29297 531.61914,680 h -59.0332 l 75.8789,-111.62109 -72.94922,-107.08008 h 58.88672 l 47.90039,70.45898 47.75391,-70.45898 h 59.17969 z M 717.71094,461.29883 h 56.39648 v 176.07422 h 99.02344 V 680 H 717.71094 Z"
+     id="text1"
+     style="font-weight:900;font-size:300px;font-family:Futura, Nunito, Montserrat, 'Arial Black', sans-serif;letter-spacing:-8;fill:#ffb347"
+     aria-label="PXL" />
+  <!-- Primary -->
+  <path
+     d="m 112.53906,221.29883 h 93.60352 q 41.74804,0 64.01367,18.60351 22.41211,18.45703 22.41211,52.73438 0,34.42383 -22.41211,53.02734 -22.26563,18.45703 -64.01367,18.45703 H 168.93555 V 440 h -56.39649 z m 56.39649,40.86914 v 61.08398 h 31.20117 q 16.40625,0 25.3418,-7.91015 8.93554,-8.05664 8.93554,-22.70508 0,-14.64844 -8.93554,-22.5586 -8.93555,-7.91015 -25.3418,-7.91015 z M 446.28711,328.37891 522.16602,440 H 463.42578 L 412.30273,365.29297 361.61914,440 h -59.0332 l 75.8789,-111.62109 -72.94922,-107.08008 h 58.88672 l 47.90039,70.45898 47.75391,-70.45898 h 59.17969 z M 547.71094,221.29883 h 56.39648 v 176.07422 h 99.02344 V 440 H 547.71094 Z"
+     id="text2"
+     style="font-weight:900;font-size:300px;font-family:Futura, Nunito, Montserrat, 'Arial Black', sans-serif;letter-spacing:-8;fill:#ffffff"
+     aria-label="PXL" />
+</svg>

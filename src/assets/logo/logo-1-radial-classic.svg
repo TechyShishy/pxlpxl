@@ -1,0 +1,41 @@
+<!-- logo-1-radial-classic.svg
+     Background : radial gradient, bright purple centre (#8B3FFF) → deep indigo edges (#270057)
+     Typography : bold geometric sans-serif (Futura / Montserrat / system fallback)
+     Echo offset: +40px right, +40px down (subtle; anchor point for the range)
+     Primary    : #FFFFFF
+     Echo       : rgba(255,255,255,0.25)
+     To regenerate PNG: inkscape --export-type=png --export-width=512 logo-1-radial-classic.svg -o logo-1-radial-classic.png
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg1" cx="50%" cy="50%" r="65%" fx="50%" fy="45%">
+      <stop offset="0%"   stop-color="#9B59FF"/>
+      <stop offset="45%"  stop-color="#6C25E3"/>
+      <stop offset="100%" stop-color="#270057"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="url(#bg1)"/>
+
+  <!-- Echo (rendered first, behind primary) -->
+  <text
+    x="130" y="500"
+    font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+    font-size="300"
+    font-weight="900"
+    letter-spacing="-8"
+    fill="rgba(255,255,255,0.25)"
+  >PXL</text>
+
+  <!-- Primary -->
+  <text
+    x="90" y="460"
+    font-family="'Futura', 'Nunito', 'Montserrat', 'Arial Black', sans-serif"
+    font-size="300"
+    font-weight="900"
+    letter-spacing="-8"
+    fill="#FFFFFF"
+  >PXL</text>
+</svg>

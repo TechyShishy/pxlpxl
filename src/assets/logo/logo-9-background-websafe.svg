@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- logo-9-background.svg
+     Background layer only — the diagonal gradient field for logo-9-echo-orange.svg
+     Composites under logo-9-foreground.svg to produce the full logo.
+     Canvas: 1024×1024 (matches foreground canvas exactly)
+-->
+
+<svg
+   viewBox="0 0 1024 1024"
+   width="1024"
+   height="1024"
+   version="1.1"
+   id="svg6"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs6">
+    <linearGradient
+       id="bg9"
+       x1="0"
+       y1="0"
+       x2="1024"
+       y2="1024"
+       gradientUnits="userSpaceOnUse">
+      <!-- Hold bright purple across top-left (primary text zone) -->
+      <stop
+         offset="0%"
+         stop-color="#9B59FF"
+         id="stop1" />
+      <stop
+         offset="30%"
+         stop-color="#8B3FFF"
+         id="stop2" />
+      <!-- Rapid dramatic shift at the split zone between the two PXLs (~38–52%) -->
+      <stop
+         offset="38%"
+         stop-color="#6C25E3"
+         id="stop3" />
+      <stop
+         offset="52%"
+         stop-color="#3A0090"
+         id="stop4" />
+      <!-- Hold deep indigo over the echo text zone -->
+      <stop
+         offset="65%"
+         stop-color="#1A0040"
+         id="stop5" />
+      <stop
+         offset="100%"
+         stop-color="#0A0020"
+         id="stop6" />
+    </linearGradient>
+  </defs>
+  <rect
+     width="1024"
+     height="1024"
+     fill="url(#bg9)"
+     id="rect6"
+     x="0"
+     y="0"
+     style="fill:url(#bg9)" />
+</svg>
