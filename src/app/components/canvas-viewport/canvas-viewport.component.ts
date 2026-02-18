@@ -19,7 +19,10 @@ import { LayoutService } from '../../services/layout.service';
 import { Color, ToolContext, GestureState, PixelCoord } from '../../models';
 import { DrawCommand } from '../../commands/draw.command';
 import { FillCommand } from '../../commands/fill.command';
+import { LayerCommand } from '../../commands/layer.command';
 import { EyedropperTool } from '../../tools/eyedropper.tool';
+import { MoveTool } from '../../tools/move.tool';
+import { ToolType } from '../../models';
 
 @Component({
   selector: 'app-canvas-viewport',
@@ -195,7 +198,24 @@ export class CanvasViewportComponent {
         this.previewPixels = [];
         this.previewColor = undefined;
         // On end, create a command for undo/redo
-        if (result && result.modifiedPixels.length > 0) {
+        if (tool.type === ToolType.Move) {
+          const moveTool = tool as MoveTool;
+          const previousData = moveTool.getOriginalData();
+          if (previousData) {
+            const nextData = new Uint8ClampedArray(activeLayer.data);
+            const command = new LayerCommand(
+              this.layerService,
+              ctx.layerIndex,
+              previousData,
+              nextData,
+              'Move layer',
+            );
+            // Don't execute — pixels already applied by the tool
+            this.historyService['undoStack'].update((s) => [...s, command]);
+            this.historyService['redoStack'].set([]);
+          }
+          moveTool.resetSnapshot();
+        } else if (result && result.modifiedPixels.length > 0) {
           const command =
             tool.type === 'fill'
               ? new FillCommand(

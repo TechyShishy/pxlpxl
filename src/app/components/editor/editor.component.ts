@@ -17,6 +17,7 @@ import { RectangleTool } from '../../tools/rectangle.tool';
 import { EllipseTool } from '../../tools/ellipse.tool';
 import { FillTool } from '../../tools/fill.tool';
 import { EyedropperTool } from '../../tools/eyedropper.tool';
+import { MoveTool } from '../../tools/move.tool';
 
 @Component({
   selector: 'app-editor',
@@ -66,5 +67,6 @@ export class EditorComponent implements OnInit {
     this.toolService.registerTool(new EllipseTool());
     this.toolService.registerTool(new FillTool());
     this.toolService.registerTool(eyedropper);
+    this.toolService.registerTool(new MoveTool());
   }
 }

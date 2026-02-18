@@ -35,6 +35,7 @@ export enum ToolType {
   Ellipse = 'ellipse',
   Fill = 'fill',
   Eyedropper = 'eyedropper',
+  Move = 'move',
 }
 
 export interface Tool {
