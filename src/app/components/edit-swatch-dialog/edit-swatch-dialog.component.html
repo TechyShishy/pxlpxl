@@ -1,0 +1,43 @@
+<h2 mat-dialog-title>Edit Swatch Color</h2>
+
+<mat-dialog-content>
+  <div class="preview-swatch" [style.background]="previewRgba()"></div>
+
+  <div class="field-group">
+    <label class="field-label" for="color-input">Color</label>
+    <input
+      id="color-input"
+      class="color-input"
+      type="color"
+      [value]="hexValue()"
+      (input)="onHexChange($any($event.target).value)"
+      aria-label="Select color"
+    />
+  </div>
+
+  <div class="field-group">
+    <div class="alpha-header">
+      <label class="field-label" for="alpha-slider">Opacity</label>
+      <span class="alpha-value" aria-live="polite">{{ alphaPercent() }}%</span>
+    </div>
+    <mat-slider
+      id="alpha-slider"
+      class="alpha-slider"
+      min="0"
+      max="255"
+      step="1"
+      aria-label="Opacity"
+    >
+      <input
+        matSliderThumb
+        [value]="alphaValue()"
+        (valueChange)="onAlphaChange($event)"
+      />
+    </mat-slider>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button mat-flat-button (click)="onConfirm()">Apply</button>
+</mat-dialog-actions>

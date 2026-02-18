@@ -1,0 +1,89 @@
+:host {
+  display: block;
+}
+
+mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 280px;
+  padding-top: 8px;
+}
+
+.preview-swatch {
+  width: 100%;
+  height: 56px;
+  border-radius: 8px;
+  border: 1px solid var(--mat-sys-outline);
+  /* Checkerboard background shows transparency */
+  background-image:
+    linear-gradient(45deg, #888 25%, transparent 25%),
+    linear-gradient(-45deg, #888 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #888 75%),
+    linear-gradient(-45deg, transparent 75%, #888 75%);
+  background-size: 12px 12px;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0;
+  background-color: #444;
+  position: relative;
+}
+
+.preview-swatch::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+}
+
+/* Override background on the pseudo-element so the color sits above checkerboard */
+.preview-swatch {
+  background-image:
+    linear-gradient(45deg, #888 25%, transparent 25%),
+    linear-gradient(-45deg, #888 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #888 75%),
+    linear-gradient(-45deg, transparent 75%, #888 75%);
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 0.875rem;
+  color: var(--mat-sys-on-surface-variant, var(--mat-sys-on-surface));
+  font-weight: 500;
+}
+
+.color-input {
+  width: 100%;
+  height: 48px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 2px 4px;
+  background: var(--mat-sys-surface-container);
+  box-sizing: border-box;
+}
+
+.alpha-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.alpha-value {
+  font-size: 0.875rem;
+  color: var(--mat-sys-on-surface);
+  min-width: 3ch;
+  text-align: right;
+}
+
+.alpha-slider {
+  width: 100%;
+}
