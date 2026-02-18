@@ -212,19 +212,18 @@ export class RenderService {
       for (let x = 0; x < width; x++) {
         const ch = this.gridService.colHeight(x, height, gridType);
         for (let y = 0; y < ch; y++) {
-          const isLight = (x + y) % 2 === 0;
+          const isLight = x % 2 === 0;
           ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
           const { sx, sy } = this.gridService.pixelToScreen(x, y, transform.scale, gridType);
           ctx.fillRect(sx, sy, transform.scale, transform.scale);
         }
       }
     } else {
-      const checkSize = Math.max(1, Math.floor(transform.scale / 2));
-      for (let y = 0; y < height * transform.scale; y += checkSize) {
-        for (let x = 0; x < width * transform.scale; x += checkSize) {
-          const isLight = (Math.floor(x / checkSize) + Math.floor(y / checkSize)) % 2 === 0;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const isLight = (x + y) % 2 === 0;
           ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
-          ctx.fillRect(x, y, checkSize, checkSize);
+          ctx.fillRect(x * transform.scale, y * transform.scale, transform.scale, transform.scale);
         }
       }
     }
