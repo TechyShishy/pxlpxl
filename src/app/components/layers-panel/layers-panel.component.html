@@ -11,7 +11,13 @@
     </button>
   </div>
 
-  <div class="layers-list" role="listbox" aria-label="Layers">
+  <div
+    class="layers-list"
+    role="listbox"
+    aria-label="Layers"
+    cdkDropList
+    (cdkDropListDropped)="drop($event)"
+  >
     @for (layer of layerService.layers(); track layer.id; let i = $index) {
       <div
         class="layer-item"
@@ -22,17 +28,21 @@
         (pointerup)="onPointerUp()"
         (pointercancel)="onPointerUp()"
         (keydown.enter)="onEnterKey($event, layer)"
+        (keydown)="onLayerKeydown($event, i)"
+        cdkDrag
         role="option"
         [attr.aria-selected]="i === layerService.activeLayerIndex()"
         [attr.aria-label]="layer.name"
       >
         <button
           mat-icon-button
-          (click)="layerService.toggleVisibility(i); $event.stopPropagation()"
-          [matTooltip]="layer.visible ? 'Hide layer' : 'Show layer'"
-          [attr.aria-label]="layer.visible ? 'Hide ' + layer.name : 'Show ' + layer.name"
+          cdkDragHandle
+          matTooltip="Drag to reorder"
+          aria-label="Drag to reorder"
+          class="drag-handle"
+          (click)="$event.stopPropagation()"
         >
-          <mat-icon>{{ layer.visible ? 'visibility' : 'visibility_off' }}</mat-icon>
+          <mat-icon>drag_indicator</mat-icon>
         </button>
 
         @if (editingLayerId() === layer.id) {
@@ -51,22 +61,46 @@
 
         <button
           mat-icon-button
-          (click)="duplicateLayer(i); $event.stopPropagation()"
-          matTooltip="Duplicate layer"
-          [attr.aria-label]="'Duplicate ' + layer.name"
+          class="layer-menu-trigger"
+          [matMenuTriggerFor]="layerMenu"
+          [attr.aria-label]="'Layer options for ' + layer.name"
+          matTooltip="Layer options"
+          (click)="$event.stopPropagation()"
         >
-          <mat-icon>content_copy</mat-icon>
+          <mat-icon>more_vert</mat-icon>
         </button>
 
-        <button
-          mat-icon-button
-          [disabled]="layerService.layerCount() <= 1"
-          (click)="layerService.removeLayer(i); $event.stopPropagation()"
-          matTooltip="Delete layer"
-          [attr.aria-label]="'Delete ' + layer.name"
-        >
-          <mat-icon>delete</mat-icon>
-        </button>
+        <mat-menu #layerMenu="matMenu">
+          <button
+            mat-menu-item
+            (click)="layerService.toggleVisibility(i)"
+          >
+            <mat-icon>{{ layer.visible ? 'visibility_off' : 'visibility' }}</mat-icon>
+            {{ layer.visible ? 'Hide layer' : 'Show layer' }}
+          </button>
+          <button
+            mat-menu-item
+            (click)="startEdit(layer)"
+          >
+            <mat-icon>edit</mat-icon>
+            Rename layer
+          </button>
+          <button
+            mat-menu-item
+            (click)="duplicateLayer(i)"
+          >
+            <mat-icon>content_copy</mat-icon>
+            Duplicate layer
+          </button>
+          <button
+            mat-menu-item
+            [disabled]="layerService.layerCount() <= 1"
+            (click)="layerService.removeLayer(i)"
+          >
+            <mat-icon>delete</mat-icon>
+            Delete layer
+          </button>
+        </mat-menu>
       </div>
 
       <div class="layer-opacity">

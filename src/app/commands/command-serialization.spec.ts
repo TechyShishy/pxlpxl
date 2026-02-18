@@ -4,6 +4,7 @@ import { DrawCommand } from './draw.command';
 import { FillCommand } from './fill.command';
 import { LayerCommand } from './layer.command';
 import { DuplicateLayerCommand } from './duplicate-layer.command';
+import { MoveLayerCommand } from './move-layer.command';
 import { LayerService } from '../services/layer.service';
 import {
   ModifiedPixel,
@@ -198,6 +199,45 @@ describe('Command Serialization', () => {
 
       restored.undo();
       expect(layerService.layerCount()).toBe(1);
+    });
+  });
+
+  describe('MoveLayerCommand round-trip', () => {
+    beforeEach(() => {
+      // Start with two layers so a move is meaningful
+      layerService.addLayer(4, 4);
+    });
+
+    it('should serialize and deserialize a move-layer command', () => {
+      const cmd = new MoveLayerCommand(layerService, 0, 1);
+      const serialized = serializeCommand(cmd)!;
+
+      expect(serialized.type).toBe('move-layer');
+      expect(serialized.description).toBe('Move layer');
+      expect(serialized.fromIndex).toBe(0);
+      expect(serialized.toIndex).toBe(1);
+
+      const restored = deserializeCommand(serialized, layerService) as MoveLayerCommand;
+      expect(restored.description).toBe('Move layer');
+      expect(restored.fromIndex).toBe(0);
+      expect(restored.toIndex).toBe(1);
+    });
+
+    it('should produce a working command after deserialization', () => {
+      const nameAtZero = layerService.layers()[0].name;
+      const nameAtOne = layerService.layers()[1].name;
+
+      const cmd = new MoveLayerCommand(layerService, 0, 1);
+      const serialized = serializeCommand(cmd)!;
+      const restored = deserializeCommand(serialized, layerService);
+
+      restored.execute();
+      expect(layerService.layers()[1].name).toBe(nameAtZero);
+      expect(layerService.layers()[0].name).toBe(nameAtOne);
+
+      restored.undo();
+      expect(layerService.layers()[0].name).toBe(nameAtZero);
+      expect(layerService.layers()[1].name).toBe(nameAtOne);
     });
   });
 });

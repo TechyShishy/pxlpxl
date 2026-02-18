@@ -108,7 +108,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["draw", "fill", "layer"],
+          "enum": ["draw", "fill", "layer", "duplicate-layer", "move-layer"],
           "description": "Command type discriminator."
         },
         "description": { "type": "string", "description": "Human-readable description of the operation." },
@@ -128,6 +128,25 @@
           "type": "string",
           "contentEncoding": "base64",
           "description": "For 'layer' commands: base64-encoded new layer data."
+        },
+        "insertIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "For 'duplicate-layer' commands: index at which the layer was inserted."
+        },
+        "duplicatedLayer": {
+          "$ref": "#/$defs/PxlLayer",
+          "description": "For 'duplicate-layer' commands: full layer snapshot."
+        },
+        "fromIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "For 'move-layer' commands: original index of the moved layer."
+        },
+        "toIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "For 'move-layer' commands: destination index of the moved layer."
         }
       },
       "additionalProperties": false

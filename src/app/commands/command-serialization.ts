@@ -3,6 +3,7 @@ import { DrawCommand } from './draw.command';
 import { FillCommand } from './fill.command';
 import { LayerCommand } from './layer.command';
 import { DuplicateLayerCommand } from './duplicate-layer.command';
+import { MoveLayerCommand } from './move-layer.command';
 import { LayerService } from '../services/layer.service';
 
 /**
@@ -66,6 +67,17 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
     };
   }
 
+  if (command instanceof MoveLayerCommand) {
+    return {
+      type: 'move-layer',
+      description: command.description,
+      layerIndex: command.fromIndex,
+      canvasWidth: 0,
+      fromIndex: command.fromIndex,
+      toIndex: command.toIndex,
+    };
+  }
+
   return null;
 }
 
@@ -124,6 +136,12 @@ export function deserializeCommand(
       };
       return new DuplicateLayerCommand(layerService, entry.insertIndex ?? entry.layerIndex, layer);
     }
+
+    case 'move-layer':
+      if (entry.fromIndex == null || entry.toIndex == null) {
+        throw new Error('move-layer entry is missing fromIndex or toIndex');
+      }
+      return new MoveLayerCommand(layerService, entry.fromIndex, entry.toIndex);
 
     default:
       throw new Error(`Unknown history entry type: ${entry.type}`);

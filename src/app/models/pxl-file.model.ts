@@ -31,7 +31,7 @@ export interface PxlHistory {
   redoStack: SerializedHistoryEntry[];
 }
 
-export type HistoryEntryType = 'draw' | 'fill' | 'layer' | 'duplicate-layer';
+export type HistoryEntryType = 'draw' | 'fill' | 'layer' | 'duplicate-layer' | 'move-layer';
 
 export interface SerializedHistoryEntry {
   type: HistoryEntryType;
@@ -48,6 +48,10 @@ export interface SerializedHistoryEntry {
   insertIndex?: number;
   /** For 'duplicate-layer' commands — the full layer snapshot */
   duplicatedLayer?: PxlLayer;
+  /** For 'move-layer' commands */
+  fromIndex?: number;
+  /** For 'move-layer' commands */
+  toIndex?: number;
 }
 
 export interface SerializedModifiedPixel {

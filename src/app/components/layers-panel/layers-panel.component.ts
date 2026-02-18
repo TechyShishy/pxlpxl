@@ -10,12 +10,15 @@ import {
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatSliderModule } from '@angular/material/slider';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { CdkDragDrop, CdkDropList, CdkDrag, CdkDragHandle } from '@angular/cdk/drag-drop';
 import { LayerService } from '../../services/layer.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { HistoryService } from '../../services/history.service';
 import { DuplicateLayerCommand } from '../../commands/duplicate-layer.command';
+import { MoveLayerCommand } from '../../commands/move-layer.command';
 import { Layer } from '../../models';
 
 const LONG_PRESS_DELAY = 500;
@@ -24,7 +27,17 @@ const MOVE_THRESHOLD = 5;
 @Component({
   selector: 'app-layers-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, MatButtonModule, MatIconModule, MatSliderModule, MatTooltipModule],
+  imports: [
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatIconModule,
+    MatMenuModule,
+    MatSliderModule,
+    MatTooltipModule,
+    CdkDropList,
+    CdkDrag,
+    CdkDragHandle,
+  ],
   templateUrl: './layers-panel.component.html',
   styleUrl: './layers-panel.component.scss',
 })
@@ -62,6 +75,32 @@ export class LayersPanelComponent implements OnDestroy {
       data: new Uint8ClampedArray(source.data),
     };
     const command = new DuplicateLayerCommand(this.layerService, index + 1, clonedLayer);
+    this.historyService.execute(command);
+  }
+
+  drop(event: CdkDragDrop<Layer[]>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    const command = new MoveLayerCommand(
+      this.layerService,
+      event.previousIndex,
+      event.currentIndex,
+    );
+    this.historyService.execute(command);
+  }
+
+  onLayerKeydown(event: KeyboardEvent, index: number): void {
+    const count = this.layerService.layerCount();
+    let targetIndex: number | null = null;
+
+    if (event.altKey && event.key === 'ArrowUp' && index < count - 1) {
+      targetIndex = index + 1;
+    } else if (event.altKey && event.key === 'ArrowDown' && index > 0) {
+      targetIndex = index - 1;
+    }
+
+    if (targetIndex === null) return;
+    event.preventDefault();
+    const command = new MoveLayerCommand(this.layerService, index, targetIndex);
     this.historyService.execute(command);
   }
 
