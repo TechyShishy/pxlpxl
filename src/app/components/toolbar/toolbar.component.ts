@@ -28,7 +28,7 @@ export class ToolbarComponent {
   protected readonly history = inject(HistoryService);
   protected readonly layout = inject(LayoutService);
   protected readonly canvasState = inject(CanvasStateService);
-  private readonly projectService = inject(ProjectService);
+  protected readonly projectService = inject(ProjectService);
   private readonly exportService = inject(ExportService);
   private readonly importService = inject(ImportService);
   private readonly dialog = inject(MatDialog);

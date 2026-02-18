@@ -30,14 +30,14 @@
                 #editInput
                 class="edit-input"
                 [formControl]="editControl"
-                (keydown.enter)="commitEdit(project)"
+                (keydown.enter)="$event.stopPropagation(); commitEdit(project)"
                 (keydown.escape)="cancelEdit()"
                 (blur)="commitEdit(project)"
                 aria-label="Project name"
               />
             </span>
           } @else {
-            <span matListItemTitle>{{ project.name }}</span>
+            <span matListItemTitle class="project-name">{{ project.name }}</span>
           }
           <span matListItemLine class="project-meta">
             {{ project.width }}×{{ project.height }} · {{ project.updatedAt | date: 'short' }}
