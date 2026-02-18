@@ -190,14 +190,14 @@ describe('FillTool', () => {
 
   describe('peyote grid', () => {
     it('should use 6-connected fill on peyote grid', () => {
-      // 4x4 peyote-even canvas, all transparent
+      // 4x4 peyote-even canvas, all transparent — odd columns shifted down
       const ctx = makeContext({
         coord: { x: 0, y: 0 },
         gridType: 'peyote-even',
       });
       const result = tool.onPointerDown(ctx, layerData);
       expect(result).not.toBeNull();
-      // All pixels should be filled via 6-connected traversal
+      // All pixels should be filled via 6-connected (up/down + diagonal) traversal
       expect(result!.modifiedPixels.length).toBe(16);
     });
   });

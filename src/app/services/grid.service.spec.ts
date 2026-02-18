@@ -8,56 +8,56 @@ describe('GridService', () => {
     service = new GridService();
   });
 
-  describe('isOddRow', () => {
-    it('should return false for row 0', () => {
-      expect(service.isOddRow(0)).toBe(false);
+  describe('isOddColumn', () => {
+    it('should return false for column 0', () => {
+      expect(service.isOddColumn(0)).toBe(false);
     });
 
-    it('should return true for row 1', () => {
-      expect(service.isOddRow(1)).toBe(true);
+    it('should return true for column 1', () => {
+      expect(service.isOddColumn(1)).toBe(true);
     });
 
-    it('should return false for row 2', () => {
-      expect(service.isOddRow(2)).toBe(false);
+    it('should return false for column 2', () => {
+      expect(service.isOddColumn(2)).toBe(false);
     });
 
-    it('should return true for row 3', () => {
-      expect(service.isOddRow(3)).toBe(true);
+    it('should return true for column 3', () => {
+      expect(service.isOddColumn(3)).toBe(true);
     });
 
-    it('should handle large even row numbers', () => {
-      expect(service.isOddRow(100)).toBe(false);
+    it('should handle large even column numbers', () => {
+      expect(service.isOddColumn(100)).toBe(false);
     });
 
-    it('should handle large odd row numbers', () => {
-      expect(service.isOddRow(101)).toBe(true);
+    it('should handle large odd column numbers', () => {
+      expect(service.isOddColumn(101)).toBe(true);
     });
   });
 
-  describe('rowWidth', () => {
-    it('should return baseWidth for square grid regardless of row', () => {
-      expect(service.rowWidth(0, 10, 'square')).toBe(10);
-      expect(service.rowWidth(1, 10, 'square')).toBe(10);
-      expect(service.rowWidth(5, 10, 'square')).toBe(10);
+  describe('colHeight', () => {
+    it('should return baseHeight for square grid regardless of column', () => {
+      expect(service.colHeight(0, 10, 'square')).toBe(10);
+      expect(service.colHeight(1, 10, 'square')).toBe(10);
+      expect(service.colHeight(5, 10, 'square')).toBe(10);
     });
 
-    it('should return baseWidth for peyote-even on any row', () => {
-      expect(service.rowWidth(0, 10, 'peyote-even')).toBe(10);
-      expect(service.rowWidth(1, 10, 'peyote-even')).toBe(10);
+    it('should return baseHeight for peyote-even on any column', () => {
+      expect(service.colHeight(0, 10, 'peyote-even')).toBe(10);
+      expect(service.colHeight(1, 10, 'peyote-even')).toBe(10);
     });
 
-    it('should return baseWidth for peyote-odd on even rows', () => {
-      expect(service.rowWidth(0, 10, 'peyote-odd')).toBe(10);
-      expect(service.rowWidth(2, 10, 'peyote-odd')).toBe(10);
+    it('should return baseHeight for peyote-odd on even columns', () => {
+      expect(service.colHeight(0, 10, 'peyote-odd')).toBe(10);
+      expect(service.colHeight(2, 10, 'peyote-odd')).toBe(10);
     });
 
-    it('should return baseWidth - 1 for peyote-odd on odd rows', () => {
-      expect(service.rowWidth(1, 10, 'peyote-odd')).toBe(9);
-      expect(service.rowWidth(3, 10, 'peyote-odd')).toBe(9);
+    it('should return baseHeight - 1 for peyote-odd on odd columns', () => {
+      expect(service.colHeight(1, 10, 'peyote-odd')).toBe(9);
+      expect(service.colHeight(3, 10, 'peyote-odd')).toBe(9);
     });
 
-    it('should handle baseWidth of 1 in peyote-odd on odd row', () => {
-      expect(service.rowWidth(1, 1, 'peyote-odd')).toBe(0);
+    it('should handle baseHeight of 1 in peyote-odd on odd column', () => {
+      expect(service.colHeight(1, 1, 'peyote-odd')).toBe(0);
     });
   });
 
@@ -83,17 +83,17 @@ describe('GridService', () => {
       expect(service.isValidPixel(0, 8, 8, 8, 'square')).toBe(false);
     });
 
-    it('should return false for peyote-odd odd-row at x = baseWidth-1', () => {
-      // baseWidth=8, odd row has width 7, so x=7 is out of bounds
-      expect(service.isValidPixel(7, 1, 8, 8, 'peyote-odd')).toBe(false);
+    it('should return false for peyote-odd odd-column at y = baseHeight-1', () => {
+      // baseHeight=8, odd column has height 7, so y=7 is out of bounds
+      expect(service.isValidPixel(1, 7, 8, 8, 'peyote-odd')).toBe(false);
     });
 
-    it('should return true for peyote-odd odd-row at x = baseWidth-2', () => {
-      expect(service.isValidPixel(6, 1, 8, 8, 'peyote-odd')).toBe(true);
+    it('should return true for peyote-odd odd-column at y = baseHeight-2', () => {
+      expect(service.isValidPixel(1, 6, 8, 8, 'peyote-odd')).toBe(true);
     });
 
     it('should return true for peyote-even on any valid coordinate', () => {
-      expect(service.isValidPixel(7, 1, 8, 8, 'peyote-even')).toBe(true);
+      expect(service.isValidPixel(1, 7, 8, 8, 'peyote-even')).toBe(true);
     });
   });
 
@@ -103,24 +103,24 @@ describe('GridService', () => {
       expect(result).toEqual({ sx: 30, sy: 50 });
     });
 
-    it('should return x*scale, y*scale for peyote on even row', () => {
-      const result = service.pixelToScreen(3, 0, 10, 'peyote-even');
-      expect(result).toEqual({ sx: 30, sy: 0 });
+    it('should return x*scale, y*scale for peyote on even column', () => {
+      const result = service.pixelToScreen(0, 3, 10, 'peyote-even');
+      expect(result).toEqual({ sx: 0, sy: 30 });
     });
 
-    it('should add half-scale offset for peyote on odd row', () => {
-      const result = service.pixelToScreen(3, 1, 10, 'peyote-even');
-      expect(result).toEqual({ sx: 35, sy: 10 });
+    it('should add half-scale offset to sy for peyote on odd column', () => {
+      const result = service.pixelToScreen(1, 3, 10, 'peyote-even');
+      expect(result).toEqual({ sx: 10, sy: 35 });
     });
 
-    it('should add half-scale offset for peyote-odd on odd row', () => {
-      const result = service.pixelToScreen(0, 1, 20, 'peyote-odd');
-      expect(result).toEqual({ sx: 10, sy: 20 });
+    it('should add half-scale offset to sy for peyote-odd on odd column', () => {
+      const result = service.pixelToScreen(1, 0, 20, 'peyote-odd');
+      expect(result).toEqual({ sx: 20, sy: 10 });
     });
 
     it('should handle scale of 1', () => {
-      const result = service.pixelToScreen(5, 3, 1, 'peyote-odd');
-      expect(result).toEqual({ sx: 5.5, sy: 3 });
+      const result = service.pixelToScreen(3, 5, 1, 'peyote-odd');
+      expect(result).toEqual({ sx: 3, sy: 5.5 });
     });
   });
 
@@ -137,16 +137,16 @@ describe('GridService', () => {
       expect(service.screenToPixel(0, 80, 10, 8, 8, 'square')).toBeNull();
     });
 
-    it('should account for peyote odd-row offset', () => {
-      // On odd row 1, peyote shifts right by half a scale unit
-      // localX=15, scale=10 → row 1 (odd), effectiveX = 15 - 5 = 10, x = 1
-      const result = service.screenToPixel(15, 10, 10, 8, 8, 'peyote-even');
+    it('should account for peyote odd-column offset', () => {
+      // On odd column 1, peyote shifts down by half a scale unit
+      // localY=15, scale=10 → column 1 (odd), effectiveY = 15 - 5 = 10, y = 1
+      const result = service.screenToPixel(10, 15, 10, 8, 8, 'peyote-even');
       expect(result).toEqual({ x: 1, y: 1 });
     });
 
-    it('should return null for peyote-odd odd-row at shortened width', () => {
-      // baseWidth=4, odd row has width 3, clicking at x=3 should be null
-      const result = service.screenToPixel(35, 10, 10, 4, 4, 'peyote-odd');
+    it('should return null for peyote-odd odd-column at shortened height', () => {
+      // baseHeight=4, odd column has height 3, clicking at y=3 should be null
+      const result = service.screenToPixel(10, 35, 10, 4, 4, 'peyote-odd');
       expect(result).toBeNull();
     });
 
@@ -193,47 +193,46 @@ describe('GridService', () => {
     });
 
     describe('peyote grid', () => {
-      it('should return 6 neighbors for center even-row pixel', () => {
-        const neighbors = service.getNeighbors(3, 2, 'peyote-even', 8, 8);
+      it('should return 6 neighbors for center even-column pixel', () => {
+        const neighbors = service.getNeighbors(2, 3, 'peyote-even', 8, 8);
         expect(neighbors.length).toBe(6);
-        // Same-row: left and right
+        // Same-column: up and down
         expect(neighbors).toContainEqual({ x: 2, y: 2 });
-        expect(neighbors).toContainEqual({ x: 4, y: 2 });
-        // Row above (odd, shifted right): upper-left = x-1, upper-right = x
-        expect(neighbors).toContainEqual({ x: 2, y: 1 });
-        expect(neighbors).toContainEqual({ x: 3, y: 1 });
-        // Row below (odd, shifted right): lower-left = x-1, lower-right = x
-        expect(neighbors).toContainEqual({ x: 2, y: 3 });
+        expect(neighbors).toContainEqual({ x: 2, y: 4 });
+        // Column to the left (odd, shifted down): upper-left = (x-1,y-1), lower-left = (x-1,y)
+        expect(neighbors).toContainEqual({ x: 1, y: 2 });
+        expect(neighbors).toContainEqual({ x: 1, y: 3 });
+        // Column to the right (odd, shifted down): upper-right = (x+1,y-1), lower-right = (x+1,y)
+        expect(neighbors).toContainEqual({ x: 3, y: 2 });
         expect(neighbors).toContainEqual({ x: 3, y: 3 });
       });
 
-      it('should return 6 neighbors for center odd-row pixel', () => {
-        const neighbors = service.getNeighbors(3, 1, 'peyote-even', 8, 8);
+      it('should return 6 neighbors for center odd-column pixel', () => {
+        const neighbors = service.getNeighbors(1, 3, 'peyote-even', 8, 8);
         expect(neighbors.length).toBe(6);
-        // Same-row: left and right
-        expect(neighbors).toContainEqual({ x: 2, y: 1 });
-        expect(neighbors).toContainEqual({ x: 4, y: 1 });
-        // Row above (even, not shifted): upper-left = x, upper-right = x+1
-        expect(neighbors).toContainEqual({ x: 3, y: 0 });
-        expect(neighbors).toContainEqual({ x: 4, y: 0 });
-        // Row below (even, not shifted): lower-left = x, lower-right = x+1
-        expect(neighbors).toContainEqual({ x: 3, y: 2 });
-        expect(neighbors).toContainEqual({ x: 4, y: 2 });
+        // Same-column: up and down
+        expect(neighbors).toContainEqual({ x: 1, y: 2 });
+        expect(neighbors).toContainEqual({ x: 1, y: 4 });
+        // Column to the left (even, not shifted): upper-left = (x-1,y), lower-left = (x-1,y+1)
+        expect(neighbors).toContainEqual({ x: 0, y: 3 });
+        expect(neighbors).toContainEqual({ x: 0, y: 4 });
+        // Column to the right (even, not shifted): upper-right = (x+1,y), lower-right = (x+1,y+1)
+        expect(neighbors).toContainEqual({ x: 2, y: 3 });
+        expect(neighbors).toContainEqual({ x: 2, y: 4 });
       });
 
       it('should filter invalid neighbors at peyote corner (0,0)', () => {
         const neighbors = service.getNeighbors(0, 0, 'peyote-even', 8, 8);
-        // Left is invalid (-1), upper-left and upper-right invalid (y=-1)
-        // Valid: right (1,0), lower-left (-1,1)=invalid, lower-right (0,1)
+        // Up is invalid (y=-1), left column is invalid (x=-1)
         for (const n of neighbors) {
           expect(service.isValidPixel(n.x, n.y, 8, 8, 'peyote-even')).toBe(true);
         }
       });
 
-      it('should handle peyote-odd odd-row shortened width', () => {
-        // baseWidth=4, odd row 1 has width 3
-        // Pixel at (2,1) — rightmost valid pixel on odd row
-        const neighbors = service.getNeighbors(2, 1, 'peyote-odd', 4, 4);
+      it('should handle peyote-odd odd-column shortened height', () => {
+        // baseHeight=4, odd column 1 has height 3
+        // Pixel at (1,2) — bottommost valid pixel in odd column
+        const neighbors = service.getNeighbors(1, 2, 'peyote-odd', 4, 4);
         for (const n of neighbors) {
           expect(service.isValidPixel(n.x, n.y, 4, 4, 'peyote-odd')).toBe(true);
         }

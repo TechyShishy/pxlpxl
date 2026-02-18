@@ -112,10 +112,10 @@ export class RenderService {
     const height = this.canvasState.canvasHeight();
     const gridType = this.canvasState.gridType();
 
-    // Canvas needs extra half-bead width for odd-row offset in peyote-even
-    const extraX = gridType === 'peyote-even' ? Math.ceil(scale / 2) : 0;
-    const canvasW = width * scale + extraX;
-    const canvasH = height * scale;
+    // Canvas needs extra half-bead height for odd-column offset in peyote-even
+    const extraY = gridType === 'peyote-even' ? Math.ceil(scale / 2) : 0;
+    const canvasW = width * scale;
+    const canvasH = height * scale + extraY;
     const canvas = new OffscreenCanvas(canvasW, canvasH);
     const ctx = canvas.getContext('2d')!;
 
@@ -124,9 +124,9 @@ export class RenderService {
       if (!layer.visible || layer.opacity === 0) continue;
       ctx.globalAlpha = layer.opacity;
 
-      for (let y = 0; y < height; y++) {
-        const rw = this.gridService.rowWidth(y, width, gridType);
-        for (let x = 0; x < rw; x++) {
+      for (let x = 0; x < width; x++) {
+        const ch = this.gridService.colHeight(x, height, gridType);
+        for (let y = 0; y < ch; y++) {
           const offset = (y * width + x) * 4;
           const a = layer.data[offset + 3];
           if (a === 0) continue;
@@ -179,9 +179,9 @@ export class RenderService {
       if (!layer.visible || layer.opacity === 0) continue;
       ctx.globalAlpha = layer.opacity;
 
-      for (let y = 0; y < height; y++) {
-        const rw = this.gridService.rowWidth(y, width, gridType);
-        for (let x = 0; x < rw; x++) {
+      for (let x = 0; x < width; x++) {
+        const ch = this.gridService.colHeight(x, height, gridType);
+        for (let y = 0; y < ch; y++) {
           const offset = (y * width + x) * 4;
           const a = layer.data[offset + 3];
           if (a === 0) continue;
@@ -209,9 +209,9 @@ export class RenderService {
 
     if (this.gridService.isPeyote(gridType)) {
       // Draw checkerboard bead-by-bead for peyote
-      for (let y = 0; y < height; y++) {
-        const rw = this.gridService.rowWidth(y, width, gridType);
-        for (let x = 0; x < rw; x++) {
+      for (let x = 0; x < width; x++) {
+        const ch = this.gridService.colHeight(x, height, gridType);
+        for (let y = 0; y < ch; y++) {
           const isLight = (x + y) % 2 === 0;
           ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
           const { sx, sy } = this.gridService.pixelToScreen(x, y, transform.scale, gridType);
@@ -245,32 +245,32 @@ export class RenderService {
     ctx.lineWidth = 0.5;
 
     if (this.gridService.isPeyote(gridType)) {
-      // Draw per-row grid for peyote
-      for (let y = 0; y <= height; y++) {
-        // Horizontal line spanning full width including offset
-        const maxRw = y < height ? this.gridService.rowWidth(y, width, gridType) : width;
-        const offsetX = y < height && this.gridService.isOddRow(y) ? transform.scale / 2 : 0;
-        const lineEndX = offsetX + maxRw * transform.scale;
+      // Draw per-column grid for peyote
+      for (let x = 0; x <= width; x++) {
+        // Vertical line spanning full height including offset
+        const maxCh = x < width ? this.gridService.colHeight(x, height, gridType) : height;
+        const offsetY = x < width && this.gridService.isOddColumn(x) ? transform.scale / 2 : 0;
+        const lineEndY = offsetY + maxCh * transform.scale;
 
         ctx.beginPath();
-        ctx.moveTo(0, y * transform.scale);
+        ctx.moveTo(x * transform.scale, 0);
         ctx.lineTo(
-          Math.max(lineEndX, width * transform.scale + transform.scale / 2),
-          y * transform.scale,
+          x * transform.scale,
+          Math.max(lineEndY, height * transform.scale + transform.scale / 2),
         );
         ctx.stroke();
       }
 
-      // Vertical lines per row
-      for (let y = 0; y < height; y++) {
-        const rw = this.gridService.rowWidth(y, width, gridType);
-        const offsetX = this.gridService.isOddRow(y) ? transform.scale / 2 : 0;
+      // Horizontal lines per column
+      for (let x = 0; x < width; x++) {
+        const ch = this.gridService.colHeight(x, height, gridType);
+        const offsetY = this.gridService.isOddColumn(x) ? transform.scale / 2 : 0;
 
-        for (let x = 0; x <= rw; x++) {
-          const sx = x * transform.scale + offsetX;
+        for (let y = 0; y <= ch; y++) {
+          const sy = y * transform.scale + offsetY;
           ctx.beginPath();
-          ctx.moveTo(sx, y * transform.scale);
-          ctx.lineTo(sx, (y + 1) * transform.scale);
+          ctx.moveTo(x * transform.scale, sy);
+          ctx.lineTo((x + 1) * transform.scale, sy);
           ctx.stroke();
         }
       }
