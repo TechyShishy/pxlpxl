@@ -20,6 +20,14 @@
     >
       <mat-icon>swap_horiz</mat-icon>
     </button>
+    <button
+      mat-icon-button
+      matTooltip="Add current primary color to palette"
+      (click)="addSwatch()"
+      aria-label="Add current primary color to palette"
+    >
+      <mat-icon>add</mat-icon>
+    </button>
   </div>
 
   <div class="swatches" role="listbox" aria-label="Color palette">

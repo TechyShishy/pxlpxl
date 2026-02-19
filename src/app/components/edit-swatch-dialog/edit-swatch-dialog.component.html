@@ -37,7 +37,17 @@
   </div>
 </mat-dialog-content>
 
-<mat-dialog-actions align="end">
+<mat-dialog-actions>
+  <button
+    mat-button
+    color="warn"
+    [disabled]="!canRemove()"
+    (click)="onRemove()"
+    aria-label="Remove swatch from palette"
+  >
+    Remove
+  </button>
+  <span class="spacer"></span>
   <button mat-button mat-dialog-close>Cancel</button>
   <button mat-flat-button (click)="onConfirm()">Apply</button>
 </mat-dialog-actions>

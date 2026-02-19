@@ -2,6 +2,14 @@
   display: block;
 }
 
+mat-dialog-actions {
+  display: flex;
+  align-items: center;
+
+  .spacer {
+    flex: 1;
+  }
+}
 mat-dialog-content {
   display: flex;
   flex-direction: column;

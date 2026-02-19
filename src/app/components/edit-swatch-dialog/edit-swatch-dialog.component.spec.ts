@@ -8,12 +8,12 @@ describe('EditSwatchDialogComponent', () => {
   const RED: Color = { r: 255, g: 0, b: 0, a: 255 };
   const SEMI_TRANSPARENT_BLUE: Color = { r: 0, g: 0, b: 255, a: 128 };
 
-  function setup(color: Color, index = 0) {
+  function setup(color: Color, index = 0, paletteLength = 3) {
     const closeSpy = vi.fn();
     TestBed.configureTestingModule({
       imports: [EditSwatchDialogComponent, NoopAnimationsModule],
       providers: [
-        { provide: MAT_DIALOG_DATA, useValue: { index, color } },
+        { provide: MAT_DIALOG_DATA, useValue: { index, color, paletteLength } },
         { provide: MatDialogRef, useValue: { close: closeSpy } },
       ],
     });
@@ -76,5 +76,25 @@ describe('EditSwatchDialogComponent', () => {
     // 128/255 * 100 ≈ 50
     const pct = (component as unknown as { alphaPercent: { (): number } }).alphaPercent();
     expect(pct).toBe(50);
+  });
+
+  it('should close the dialog with deleted flag on remove', () => {
+    const { component, closeSpy } = setup(RED, 2, 4);
+    (component as unknown as { onRemove: () => void }).onRemove();
+    expect(closeSpy).toHaveBeenCalledWith({
+      index: 2,
+      color: expect.objectContaining({ r: 255, g: 0, b: 0 }),
+      deleted: true,
+    });
+  });
+
+  it('canRemove is true when paletteLength > 1', () => {
+    const { component } = setup(RED, 0, 3);
+    expect((component as unknown as { canRemove: { (): boolean } }).canRemove()).toBe(true);
+  });
+
+  it('canRemove is false when paletteLength === 1', () => {
+    const { component } = setup(RED, 0, 1);
+    expect((component as unknown as { canRemove: { (): boolean } }).canRemove()).toBe(false);
   });
 });

@@ -20,11 +20,13 @@ import { Color, colorToRgba, hexToColor } from '../../models';
 export interface EditSwatchDialogData {
   index: number;
   color: Color;
+  paletteLength: number;
 }
 
 export interface EditSwatchDialogResult {
   index: number;
   color: Color;
+  deleted?: true;
 }
 
 /** Converts a Color to a 6-char #rrggbb hex string (drops alpha). */
@@ -71,6 +73,8 @@ export class EditSwatchDialogComponent {
     Math.round((this.alphaValue() / 255) * 100),
   );
 
+  protected readonly canRemove = computed<boolean>(() => this.data.paletteLength > 1);
+
   onHexChange(value: string): void {
     this.hexValue.set(value);
   }
@@ -83,6 +87,15 @@ export class EditSwatchDialogComponent {
     const result: EditSwatchDialogResult = {
       index: this.data.index,
       color: this.previewColor(),
+    };
+    this.dialogRef.close(result);
+  }
+
+  onRemove(): void {
+    const result: EditSwatchDialogResult = {
+      index: this.data.index,
+      color: this.previewColor(),
+      deleted: true,
     };
     this.dialogRef.close(result);
   }

@@ -89,10 +89,15 @@ export class ColorPaletteComponent {
     this.dragStartPos = null;
   }
 
+  protected addSwatch(): void {
+    this.colorService.addToPalette(this.colorService.primaryColor());
+  }
+
   private openEditDialog(index: number): void {
-    const color = this.colorService.palette()[index];
+    const palette = this.colorService.palette();
+    const color = palette[index];
     const ref = this.dialog.open(EditSwatchDialogComponent, {
-      data: { index, color },
+      data: { index, color, paletteLength: palette.length },
     });
 
     const deregister = this.backButtonService.push(() => {
@@ -103,7 +108,11 @@ export class ColorPaletteComponent {
     ref.afterClosed().subscribe((result: EditSwatchDialogResult | undefined) => {
       deregister();
       if (result) {
-        this.colorService.updatePaletteColor(result.index, result.color);
+        if (result.deleted) {
+          this.colorService.removeFromPalette(result.index);
+        } else {
+          this.colorService.updatePaletteColor(result.index, result.color);
+        }
       }
     });
   }
