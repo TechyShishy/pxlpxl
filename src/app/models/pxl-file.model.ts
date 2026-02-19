@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { Color } from './color.model';
 import { GridType } from './project.model';
 
@@ -59,6 +60,31 @@ export interface SerializedModifiedPixel {
   oldColor: Color;
   newColor: Color;
 }
+
+// ── PxlFile zod schema (used for import dispatch) ───────────────────────
+
+export const PxlFileSchema = z.object({
+  version: z.number().int(),
+  name: z.string(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  gridType: z.enum(['square', 'peyote']),
+  palette: z.array(
+    z.object({ r: z.number(), g: z.number(), b: z.number(), a: z.number() }),
+  ),
+  layers: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      visible: z.boolean(),
+      opacity: z.number(),
+      data: z.string(),
+    }),
+  ),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  history: z.unknown().optional(),
+});
 
 // ── base64 helpers ────────────────────────────────────────────────────
 

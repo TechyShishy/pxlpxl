@@ -2,9 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import {
   PxlFile,
   PXL_FORMAT_VERSION,
+  PxlFileSchema,
+  RgpProject,
+  RgpProjectSchema,
   base64ToUint8Array,
-  GridType,
+  letterToColor,
 } from '../models';
+import { createLayer } from '../models/layer.model';
 import { LayerService } from './layer.service';
 import { CanvasStateService } from './canvas-state.service';
 import { ColorService } from './color.service';
@@ -13,7 +17,7 @@ import { GridService } from './grid.service';
 import { deserializeCommand } from '../commands/command-serialization';
 import { LayerCommand } from '../commands/layer.command';
 
-const ACCEPTED_TYPES = '.png,.pxl';
+const ACCEPTED_TYPES = '.png,.pxl,.rgp';
 
 /** PNG magic bytes: 0x89 P N G */
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47];
@@ -29,14 +33,15 @@ export class ImportService {
   private readonly gridService = inject(GridService);
 
   /**
-   * Open a native file picker filtered to PNG and PXL files.
+   * Open a native file picker filtered to PNG, PXL, and RGP files.
+   * Pass `accept` to restrict to a specific set of extensions (e.g. `.rgp`).
    * Returns the selected File, or null if the user cancels.
    */
-  openFilePicker(): Promise<File | null> {
+  openFilePicker(accept: string = ACCEPTED_TYPES): Promise<File | null> {
     return new Promise((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = ACCEPTED_TYPES;
+      input.accept = accept;
       input.style.display = 'none';
 
       input.addEventListener('change', () => {
@@ -79,12 +84,40 @@ export class ImportService {
     if (matchesMagic(header, PNG_MAGIC)) {
       await this.importPng(buffer, filename);
     } else if (matchesMagic(header, GZIP_MAGIC)) {
-      await this.importPxl(buffer);
+      await this.importGzip(buffer, filename);
     } else {
       throw new Error(
-        `Unrecognised file format for "${filename}". Expected a PNG image or a .pxl project file.`,
+        `Unrecognised file format for "${filename}". Expected a PNG image, a .pxl project file, or a .rgp RowGuide project file.`,
       );
     }
+  }
+
+  /**
+   * Decompress a gzip buffer, parse as JSON, then dispatch to the appropriate
+   * import handler by schema validation.
+   */
+  private async importGzip(buffer: ArrayBuffer, filename: string): Promise<void> {
+    const json = await decompressGzip(buffer);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(json);
+    } catch {
+      throw new Error(`Failed to parse "${filename}" as JSON.`);
+    }
+
+    const rgpResult = RgpProjectSchema.safeParse(parsed);
+    if (rgpResult.success) {
+      return this.importRgp(rgpResult.data);
+    }
+
+    const pxlResult = PxlFileSchema.safeParse(parsed);
+    if (pxlResult.success) {
+      return this.hydrateFromPxlFile(pxlResult.data as PxlFile);
+    }
+
+    throw new Error(
+      `Unrecognised gzip file format for "${filename}". Expected a .pxl or .rgp project file.`,
+    );
   }
 
   // ── PNG import ────────────────────────────────────────────────────────
@@ -133,15 +166,7 @@ export class ImportService {
 
   // ── PXL import ────────────────────────────────────────────────────────
 
-  private async importPxl(buffer: ArrayBuffer): Promise<void> {
-    const json = await decompressGzip(buffer);
-    let pxl: PxlFile;
-    try {
-      pxl = JSON.parse(json) as PxlFile;
-    } catch {
-      throw new Error('Failed to parse project file as JSON.');
-    }
-
+  private hydrateFromPxlFile(pxl: PxlFile): void {
     if (pxl.version !== PXL_FORMAT_VERSION) {
       throw new Error(
         `Unsupported .pxl version ${pxl.version}. Expected version ${PXL_FORMAT_VERSION}.`,
@@ -178,6 +203,63 @@ export class ImportService {
     } else {
       this.historyService.clear();
     }
+  }
+
+  // ── RGP import ────────────────────────────────────────────────────────
+
+  private importRgp(project: RgpProject): void {
+    // Derive buffer dimensions from the RGP data.
+    // bufferHeight = number of rows; bufferWidth = total bead count per row.
+    const bufferHeight = project.rows.length;
+    const bufferWidth = project.rows.reduce((max, row) => {
+      const rowCount = row.steps.reduce((sum, s) => sum + s.count, 0);
+      return Math.max(max, rowCount);
+    }, 0);
+
+    if (bufferHeight === 0 || bufferWidth === 0) {
+      throw new Error('RGP project contains no bead data.');
+    }
+
+    // Visual canvas width for peyote: bufferWidth = ceil(visualCols / 2),
+    // so visualCols = bufferWidth * 2.
+    const visualWidth = bufferWidth * 2;
+    const visualHeight = bufferHeight;
+
+    const colorMapping: Record<string, string> = project.colorMapping ?? {};
+
+    // Expand rows into a flat RGBA buffer
+    const pixelData = new Uint8ClampedArray(bufferWidth * bufferHeight * 4);
+    for (let by = 0; by < project.rows.length; by++) {
+      let bx = 0;
+      for (const step of project.rows[by].steps) {
+        const color = letterToColor(step.description, colorMapping);
+        for (let k = 0; k < step.count && bx < bufferWidth; k++, bx++) {
+          const offset = (by * bufferWidth + bx) * 4;
+          pixelData[offset] = color.r;
+          pixelData[offset + 1] = color.g;
+          pixelData[offset + 2] = color.b;
+          pixelData[offset + 3] = color.a;
+        }
+      }
+    }
+
+    // Hydrate canvas state
+    this.canvasState.setCanvasSize(visualWidth, visualHeight);
+    this.canvasState.setGridType('peyote');
+    this.canvasState.resetZoom();
+
+    // Create a single layer sized to the buffer dimensions
+    const layer = createLayer(crypto.randomUUID(), 'Layer 1', bufferWidth, bufferHeight);
+    layer.data.set(pixelData);
+    this.layerService.setLayers([layer]);
+
+    // Build palette from colorMapping values
+    const palette = Object.entries(colorMapping).map(([letter, _hex]) =>
+      letterToColor(letter, colorMapping),
+    );
+    this.colorService.setPalette(palette.length > 0 ? palette : []);
+
+    this.historyService.clear();
   }
 }
 

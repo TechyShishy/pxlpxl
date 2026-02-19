@@ -54,6 +54,8 @@ describe('ExportService', () => {
           useValue: {
             canvasWidth: vi.fn(() => 2),
             canvasHeight: vi.fn(() => 2),
+            bufferWidth: vi.fn(() => 2),
+            bufferHeight: vi.fn(() => 2),
             gridType: vi.fn(() => 'square'),
           },
         },
@@ -229,6 +231,151 @@ describe('ExportService', () => {
         url: 'file:///cache/test.pxl',
         dialogTitle: 'Share test.pxl',
       });
+    });
+  });
+
+  describe('downloadRgp (browser)', () => {
+    it('should create an anchor element and trigger click on web', async () => {
+      vi.mocked(CapacitorCore.Capacitor.isNativePlatform).mockReturnValue(false);
+      vi.spyOn(service, 'exportAsRgp').mockResolvedValue(
+        new Blob(['{}'], { type: 'application/x-rowguide-project' }),
+      );
+
+      const clickSpy = vi.fn();
+      vi.spyOn(document, 'createElement').mockReturnValue({
+        set href(_: string) { /* noop */ },
+        set download(_: string) { /* noop */ },
+        click: clickSpy,
+      } as unknown as HTMLAnchorElement);
+      vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+      await service.downloadRgp('test.rgp');
+
+      expect(clickSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('downloadExport with rgp format', () => {
+    it('should call downloadRgp and replace extension with .rgp', async () => {
+      vi.mocked(CapacitorCore.Capacitor.isNativePlatform).mockReturnValue(false);
+      const downloadRgpSpy = vi
+        .spyOn(service, 'downloadRgp')
+        .mockResolvedValue(undefined);
+
+      await service.downloadExport({ format: 'rgp', scale: 1, transparent: true }, 'canvas.png');
+
+      expect(downloadRgpSpy).toHaveBeenCalledWith('canvas.rgp');
+    });
+  });
+
+  describe('exportAsRgp', () => {
+    /** Decompress a Blob produced by exportAsRgp back to a JSON string */
+    async function decompressBlob(blob: Blob): Promise<string> {
+      const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(blob);
+      });
+      const ds = new DecompressionStream('gzip');
+      const writer = ds.writable.getWriter();
+      writer.write(new Uint8Array(buffer));
+      writer.close();
+      const reader = ds.readable.getReader();
+      const chunks: Uint8Array[] = [];
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      const total = chunks.reduce((s, c) => s + c.length, 0);
+      const result = new Uint8Array(total);
+      let offset = 0;
+      for (const c of chunks) { result.set(c, offset); offset += c.length; }
+      return new TextDecoder().decode(result);
+    }
+
+    it('should return a Blob with the RGP MIME type', async () => {
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([]);
+
+      const blob = await service.exportAsRgp();
+
+      expect(blob.type).toBe('application/x-rowguide-project');
+    });
+
+    it('should run-length encode same-color pixels in a row', async () => {
+      const bw = 2;
+      const bh = 2;
+      const data = new Uint8ClampedArray(bw * bh * 4);
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 255;
+      }
+
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([{ visible: true, opacity: 1, data }]);
+
+      const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
+      colorServiceMock.palette.mockReturnValue([{ r: 0, g: 0, b: 0, a: 255 }]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      expect(parsed.rows).toHaveLength(bh);
+      expect(parsed.rows[0].steps).toHaveLength(1);
+      expect(parsed.rows[0].steps[0].count).toBe(2);
+      expect(parsed.rows[0].steps[0].description).toBe('A');
+    });
+
+    it('should produce separate steps for different colors in a row', async () => {
+      const data = new Uint8ClampedArray(2 * 1 * 4);
+      data.set([0, 0, 0, 255, 255, 255, 255, 255]);
+
+      const canvasMock = TestBed.inject(CanvasStateService) as unknown as {
+        bufferHeight: ReturnType<typeof vi.fn>;
+      };
+      canvasMock.bufferHeight.mockReturnValue(1);
+
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([{ visible: true, opacity: 1, data }]);
+
+      const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
+      colorServiceMock.palette.mockReturnValue([
+        { r: 0, g: 0, b: 0, a: 255 },
+        { r: 255, g: 255, b: 255, a: 255 },
+      ]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      expect(parsed.rows[0].steps).toHaveLength(2);
+      expect(parsed.rows[0].steps[0]).toMatchObject({ count: 1, description: 'A' });
+      expect(parsed.rows[0].steps[1]).toMatchObject({ count: 1, description: 'B' });
+    });
+
+    it('should include 1-based row ids', async () => {
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      expect(parsed.rows[0].id).toBe(1);
+      expect(parsed.rows[1].id).toBe(2);
+    });
+
+    it('should include colorMapping with letter keys', async () => {
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([]);
+
+      const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
+      colorServiceMock.palette.mockReturnValue([{ r: 0, g: 0, b: 0, a: 255 }]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      expect(parsed.colorMapping).toBeDefined();
+      expect(parsed.colorMapping['A']).toBeDefined();
     });
   });
 });

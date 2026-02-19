@@ -162,6 +162,18 @@ export class ToolbarComponent implements OnDestroy {
     await this.exportService.downloadPxl(`${name}.pxl`);
   }
 
+  async onExportRgp(): Promise<void> {
+    const name = this.sanitizeFilename(this.projectService.currentProjectName());
+    await this.exportService.downloadRgp(`${name}.rgp`);
+  }
+
+  async onImportRgp(): Promise<void> {
+    const file = await this.importService.openFilePicker('.rgp');
+    if (file) {
+      await this.importService.importFile(file);
+    }
+  }
+
   private sanitizeFilename(name: string): string {
     return name.replace(/[^a-zA-Z0-9_-]/g, '_') || 'untitled';
   }

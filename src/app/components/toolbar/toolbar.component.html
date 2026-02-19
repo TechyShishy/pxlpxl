@@ -57,18 +57,33 @@
       <mat-icon>upload_file</mat-icon>
       <span>Import File</span>
     </button>
+    <button mat-menu-item (click)="onImportRgp()">
+      <mat-icon>upload_file</mat-icon>
+      <span>Import RGP</span>
+    </button>
     <mat-divider></mat-divider>
     <button mat-menu-item (click)="onSaveProject()">
       <mat-icon>save</mat-icon>
       <span>Save</span>
     </button>
-    <button mat-menu-item (click)="onExportPxl()">
+    <button mat-menu-item [matMenuTriggerFor]="exportMenu">
       <mat-icon>download</mat-icon>
       <span>Export</span>
+    </button>
+  </mat-menu>
+
+  <mat-menu #exportMenu="matMenu">
+    <button mat-menu-item (click)="onExportPxl()">
+      <mat-icon>download</mat-icon>
+      <span>Export PXL</span>
     </button>
     <button mat-menu-item (click)="onExportProject()">
       <mat-icon>image</mat-icon>
       <span>Export PNG</span>
+    </button>
+    <button mat-menu-item (click)="onExportRgp()">
+      <mat-icon>download</mat-icon>
+      <span>Export RGP</span>
     </button>
   </mat-menu>
 

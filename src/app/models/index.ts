@@ -27,3 +27,12 @@ export type {
 export { PXL_FORMAT_VERSION, uint8ArrayToBase64, base64ToUint8Array } from './pxl-file.model';
 export { GestureState } from './gesture.model';
 export type { ViewTransform, GestureEvent } from './gesture.model';
+export type { RgpStep, RgpRow, RgpProject } from './rgp-file.model';
+export {
+  RgpStepSchema,
+  RgpRowSchema,
+  RgpProjectSchema,
+  buildPaletteLetterMap,
+  letterToColor,
+} from './rgp-file.model';
+export { PxlFileSchema } from './pxl-file.model';
