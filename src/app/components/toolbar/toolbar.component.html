@@ -114,8 +114,18 @@
     matTooltip="Toggle grid"
     (click)="canvasState.toggleGrid()"
     aria-label="Toggle pixel grid"
+    [attr.aria-pressed]="canvasState.showGrid()"
   >
     <mat-icon>grid_on</mat-icon>
+  </button>
+  <button
+    mat-icon-button
+    matTooltip="Toggle rulers"
+    (click)="canvasState.toggleRulers()"
+    aria-label="Toggle row and column rulers"
+    [attr.aria-pressed]="canvasState.showRulers()"
+  >
+    <mat-icon>border_all</mat-icon>
   </button>
 
   <button

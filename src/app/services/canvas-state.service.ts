@@ -9,6 +9,7 @@ export class CanvasStateService {
   readonly canvasWidth = signal<number>(32);
   readonly canvasHeight = signal<number>(32);
   readonly showGrid = signal<boolean>(true);
+  readonly showRulers = signal<boolean>(false);
   readonly gridType = signal<GridType>('square');
 
   readonly transform = signal<ViewTransform>({
@@ -59,6 +60,10 @@ export class CanvasStateService {
 
   toggleGrid(): void {
     this.showGrid.update((v) => !v);
+  }
+
+  toggleRulers(): void {
+    this.showRulers.update((v) => !v);
   }
 
   /** Convert screen coordinates to pixel coordinates on the canvas */

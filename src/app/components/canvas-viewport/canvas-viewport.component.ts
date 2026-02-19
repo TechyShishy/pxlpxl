@@ -17,6 +17,7 @@ import { GestureService } from '../../services/gesture.service';
 import { RenderService } from '../../services/render.service';
 import { LayoutService } from '../../services/layout.service';
 import { Color, ToolContext, GestureState, PixelCoord } from '../../models';
+import { renderColumnRuler, renderRowRuler, RulerParams } from './ruler-renderer';
 import { DrawCommand } from '../../commands/draw.command';
 import { FillCommand } from '../../commands/fill.command';
 import { LayerCommand } from '../../commands/layer.command';
@@ -30,9 +31,10 @@ import { ToolType } from '../../models';
   imports: [],
   templateUrl: './canvas-viewport.component.html',
   styleUrl: './canvas-viewport.component.scss',
+  host: { '[class.rulers-active]': 'canvasState.showRulers()' },
 })
 export class CanvasViewportComponent {
-  private readonly canvasState = inject(CanvasStateService);
+  protected readonly canvasState = inject(CanvasStateService);
   private readonly layerService = inject(LayerService);
   private readonly toolService = inject(ToolService);
   private readonly colorService = inject(ColorService);
@@ -44,9 +46,23 @@ export class CanvasViewportComponent {
   private readonly elementRef = inject(ElementRef<HTMLElement>);
 
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
+  private readonly rulerTopRef = viewChild<ElementRef<HTMLCanvasElement>>('rulerTop');
+  private readonly rulerBottomRef = viewChild<ElementRef<HTMLCanvasElement>>('rulerBottom');
+  private readonly rulerLeftRef = viewChild<ElementRef<HTMLCanvasElement>>('rulerLeft');
+  private readonly rulerRightRef = viewChild<ElementRef<HTMLCanvasElement>>('rulerRight');
+  private readonly crosshairRef = viewChild<ElementRef<HTMLCanvasElement>>('crosshair');
 
   private ctx: CanvasRenderingContext2D | null = null;
+  private rulerTopCtx: CanvasRenderingContext2D | null = null;
+  private rulerBottomCtx: CanvasRenderingContext2D | null = null;
+  private rulerLeftCtx: CanvasRenderingContext2D | null = null;
+  private rulerRightCtx: CanvasRenderingContext2D | null = null;
+  private crosshairCtx: CanvasRenderingContext2D | null = null;
   private animFrameId = 0;
+  private rulerFrameId = 0;
+  private crosshairFrameId = 0;
+  private cursorX = -1;
+  private cursorY = -1;
   private previewPixels: PixelCoord[] = [];
   private previewColor: Color | undefined;
 
@@ -83,11 +99,31 @@ export class CanvasViewportComponent {
       this.layerService.layers();
       this.requestRender();
     });
+
+    // Re-render rulers when ruler-relevant state changes
+    effect(() => {
+      this.canvasState.showRulers();
+      this.canvasState.transform();
+      this.canvasState.canvasWidth();
+      this.canvasState.canvasHeight();
+      this.canvasState.gridType();
+      this.requestRulerRender();
+      this.requestCrosshairRender();
+    });
   }
 
   private setupCanvas(): void {
     const canvas = this.canvasRef().nativeElement;
     this.ctx = canvas.getContext('2d');
+
+    const getCtx = (ref: ElementRef<HTMLCanvasElement> | undefined) =>
+      ref?.nativeElement.getContext('2d') ?? null;
+    this.rulerTopCtx = getCtx(this.rulerTopRef());
+    this.rulerBottomCtx = getCtx(this.rulerBottomRef());
+    this.rulerLeftCtx = getCtx(this.rulerLeftRef());
+    this.rulerRightCtx = getCtx(this.rulerRightRef());
+    this.crosshairCtx = getCtx(this.crosshairRef());
+
     this.resizeCanvas();
 
     const observer = new ResizeObserver(() => this.resizeCanvas());
@@ -96,10 +132,35 @@ export class CanvasViewportComponent {
 
   private resizeCanvas(): void {
     const canvas = this.canvasRef().nativeElement;
-    const rect = this.elementRef.nativeElement.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    this.resizeRulerCanvases();
+    this.resizeCrosshairCanvas();
     this.requestRender();
+    this.requestRulerRender();
+    this.requestCrosshairRender();
+  }
+
+  private resizeRulerCanvases(): void {
+    for (const ref of [
+      this.rulerTopRef(),
+      this.rulerBottomRef(),
+      this.rulerLeftRef(),
+      this.rulerRightRef(),
+    ]) {
+      if (!ref) continue;
+      const c = ref.nativeElement;
+      c.width = c.clientWidth;
+      c.height = c.clientHeight;
+    }
+  }
+
+  private resizeCrosshairCanvas(): void {
+    const ref = this.crosshairRef();
+    if (!ref) return;
+    const host = this.elementRef.nativeElement;
+    ref.nativeElement.width = host.clientWidth;
+    ref.nativeElement.height = host.clientHeight;
   }
 
   private startRenderLoop(): void {
@@ -126,6 +187,82 @@ export class CanvasViewportComponent {
     );
   }
 
+  private requestRulerRender(): void {
+    if (this.rulerFrameId) return;
+    this.rulerFrameId = requestAnimationFrame(() => {
+      this.rulerFrameId = 0;
+      this.renderRulers();
+    });
+  }
+
+  private renderRulers(): void {
+    // Always sync canvas resolution attributes to current layout before drawing.
+    // This is necessary because ruler canvases start at 0×0 (gutter is 0px when
+    // rulers are hidden) and must be resized once the CSS reflows to 20px.
+    this.resizeRulerCanvases();
+
+    if (!this.canvasState.showRulers()) {
+      // Clear all ruler canvases when hidden
+      for (const ctx of [this.rulerTopCtx, this.rulerBottomCtx, this.rulerLeftCtx, this.rulerRightCtx]) {
+        if (ctx) ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      }
+      return;
+    }
+
+    const { scale, offsetX, offsetY } = this.canvasState.transform();
+    const style = getComputedStyle(this.elementRef.nativeElement);
+    const bgColor = style.getPropertyValue('--mat-sys-surface-variant').trim() || '#e0e0e0';
+    const textColor = style.getPropertyValue('--mat-sys-on-surface-variant').trim() || '#555555';
+
+    const params: RulerParams = {
+      scale,
+      offsetX,
+      offsetY,
+      canvasWidth: this.canvasState.canvasWidth(),
+      canvasHeight: this.canvasState.canvasHeight(),
+      bgColor,
+      textColor,
+      gridType: this.canvasState.gridType(),
+    };
+
+    if (this.rulerTopCtx) renderColumnRuler(this.rulerTopCtx, params);
+    if (this.rulerBottomCtx) renderColumnRuler(this.rulerBottomCtx, params);
+    if (this.rulerLeftCtx) renderRowRuler(this.rulerLeftCtx, { ...params, rowParity: 'odd' });
+    if (this.rulerRightCtx) renderRowRuler(this.rulerRightCtx, { ...params, rowParity: 'even' });
+  }
+
+  private requestCrosshairRender(): void {
+    if (this.crosshairFrameId) return;
+    this.crosshairFrameId = requestAnimationFrame(() => {
+      this.crosshairFrameId = 0;
+      this.renderCrosshair();
+    });
+  }
+
+  private renderCrosshair(): void {
+    const ctx = this.crosshairCtx;
+    if (!ctx) return;
+    const { width, height } = ctx.canvas;
+    ctx.clearRect(0, 0, width, height);
+    if (!this.canvasState.showRulers()) return;
+    if (this.cursorX < 0 || this.cursorY < 0) return;
+
+    ctx.save();
+    ctx.strokeStyle = '#8b0000';
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.85;
+    // Align to pixel boundary to avoid sub-pixel blur.
+    const x = Math.floor(this.cursorX) + 0.5;
+    const y = Math.floor(this.cursorY) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // --- Pointer event handlers ---
 
   onPointerDown(e: PointerEvent): void {
@@ -136,6 +273,10 @@ export class CanvasViewportComponent {
 
   onPointerMove(e: PointerEvent): void {
     this.gestureService.handlePointerMove(e);
+    const rect = this.elementRef.nativeElement.getBoundingClientRect();
+    this.cursorX = e.clientX - rect.left;
+    this.cursorY = e.clientY - rect.top;
+    this.requestCrosshairRender();
   }
 
   onPointerUp(e: PointerEvent): void {
@@ -144,6 +285,12 @@ export class CanvasViewportComponent {
 
   onPointerCancel(e: PointerEvent): void {
     this.gestureService.handlePointerCancel(e);
+  }
+
+  onPointerLeave(_e: PointerEvent): void {
+    this.cursorX = -1;
+    this.cursorY = -1;
+    this.requestCrosshairRender();
   }
 
   onWheel(e: WheelEvent): void {

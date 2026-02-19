@@ -4,7 +4,30 @@
   (pointermove)="onPointerMove($event)"
   (pointerup)="onPointerUp($event)"
   (pointercancel)="onPointerCancel($event)"
+  (pointerleave)="onPointerLeave($event)"
   (wheel)="onWheel($event)"
 >
+  <!-- top-left corner -->
+  <div class="ruler-corner" aria-hidden="true"></div>
+  <!-- top column ruler -->
+  <canvas #rulerTop class="ruler ruler-h" aria-hidden="true"></canvas>
+  <!-- top-right corner -->
+  <div class="ruler-corner" aria-hidden="true"></div>
+
+  <!-- left row ruler -->
+  <canvas #rulerLeft class="ruler ruler-v" aria-hidden="true"></canvas>
+  <!-- main drawing canvas -->
   <canvas #canvas></canvas>
+  <!-- right row ruler -->
+  <canvas #rulerRight class="ruler ruler-v" aria-hidden="true"></canvas>
+
+  <!-- bottom-left corner -->
+  <div class="ruler-corner" aria-hidden="true"></div>
+  <!-- bottom column ruler -->
+  <canvas #rulerBottom class="ruler ruler-h" aria-hidden="true"></canvas>
+  <!-- bottom-right corner -->
+  <div class="ruler-corner" aria-hidden="true"></div>
+
+  <!-- crosshair overlay — covers entire viewport, pointer-events: none -->
+  <canvas #crosshair class="crosshair-overlay" aria-hidden="true"></canvas>
 </div>
