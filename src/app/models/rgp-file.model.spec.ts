@@ -84,6 +84,33 @@ describe('letterToColor', () => {
     expect(result).toEqual(TRANSPARENT);
   });
 
+  it('resolves a known Delica DB code to the catalog hex color', () => {
+    // DB0001 maps to #424145 (fully opaque)
+    const result = letterToColor('A', { A: 'DB0001' });
+    expect(result.r).toBe(0x42);
+    expect(result.g).toBe(0x41);
+    expect(result.b).toBe(0x45);
+    expect(result.a).toBe(255);
+  });
+
+  it('returns TRANSPARENT for an unrecognised DB code', () => {
+    const result = letterToColor('A', { A: 'DB9999' });
+    expect(result).toEqual(TRANSPARENT);
+  });
+
+  it('resolves a hex value starting with # directly', () => {
+    const result = letterToColor('A', { A: '#ff0000ff' });
+    expect(result.r).toBe(255);
+    expect(result.g).toBe(0);
+    expect(result.b).toBe(0);
+    expect(result.a).toBe(255);
+  });
+
+  it('returns TRANSPARENT for a value with unrecognised format', () => {
+    const result = letterToColor('A', { A: 'unknown' });
+    expect(result).toEqual(TRANSPARENT);
+  });
+
   it('round-trips BLACK through buildPaletteLetterMap', () => {
     const palette = [BLACK];
     const hexToLetter = buildPaletteLetterMap(palette);

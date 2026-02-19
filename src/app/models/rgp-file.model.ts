@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import type { Color } from './color.model';
 import { colorToHex, hexToColor, TRANSPARENT } from './color.model';
+import delicaColors from '../../assets/data/delica-colors.json';
+
+const DELICA_COLORS: Record<string, string> = delicaColors as Record<string, string>;
 
 // ── RGP zod schemas ───────────────────────────────────────────────────
 
@@ -65,15 +68,32 @@ export function buildPaletteLetterMap(palette: Color[]): Map<string, string> {
 
 /**
  * Look up the Color for a step description letter using the project's
- * colorMapping (letter → 8-digit hex). Returns TRANSPARENT if not found.
+ * colorMapping (letter → hex or DB code). Returns TRANSPARENT if not found.
+ *
+ * Supported colorMapping value formats:
+ *   - Hex string starting with `#`  (e.g. `#ff0000ff`) — used directly.
+ *   - Delica part number starting with `DB` (e.g. `DB0001`) — resolved via
+ *     the bundled Miyuki Delica catalog; returns TRANSPARENT if the code is
+ *     not in the catalog.
  */
 export function letterToColor(
   letter: string,
   colorMapping: Record<string, string>,
 ): Color {
-  const hex = colorMapping[letter];
-  if (!hex) return { ...TRANSPARENT };
-  return hexToColor(hex);
+  const value = colorMapping[letter];
+  if (!value) return { ...TRANSPARENT };
+
+  if (value.startsWith('#')) {
+    return hexToColor(value);
+  }
+
+  if (value.startsWith('DB')) {
+    const catalogHex = DELICA_COLORS[value];
+    if (!catalogHex) return { ...TRANSPARENT };
+    return hexToColor(catalogHex);
+  }
+
+  return { ...TRANSPARENT };
 }
 
 /** Convert a 0-based palette index to a label: 0→A, 25→Z, 26→AA, 27→AB… */
