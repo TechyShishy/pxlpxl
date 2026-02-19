@@ -8,6 +8,7 @@ import {
   base64ToUint8Array,
   letterToColor,
 } from '../models';
+import type { Color } from '../models';
 import { createLayer } from '../models/layer.model';
 import { LayerService } from './layer.service';
 import { CanvasStateService } from './canvas-state.service';
@@ -230,16 +231,23 @@ export class ImportService {
     // Expand rows into a flat RGBA buffer
     const pixelData = new Uint8ClampedArray(bufferWidth * bufferHeight * 4);
     for (let by = 0; by < project.rows.length; by++) {
-      let bx = 0;
+      // Expand RLE to a flat color array for this row.
+      const rowColors: Color[] = [];
       for (const step of project.rows[by].steps) {
         const color = letterToColor(step.description, colorMapping);
-        for (let k = 0; k < step.count && bx < bufferWidth; k++, bx++) {
-          const offset = (by * bufferWidth + bx) * 4;
-          pixelData[offset] = color.r;
-          pixelData[offset + 1] = color.g;
-          pixelData[offset + 2] = color.b;
-          pixelData[offset + 3] = color.a;
+        for (let k = 0; k < step.count; k++) {
+          rowColors.push(color);
         }
+      }
+      // Even rows (0-indexed) are encoded right-to-left in the RGP format.
+      if (by % 2 === 0) rowColors.reverse();
+      for (let bx = 0; bx < bufferWidth && bx < rowColors.length; bx++) {
+        const offset = (by * bufferWidth + bx) * 4;
+        const color = rowColors[bx];
+        pixelData[offset] = color.r;
+        pixelData[offset + 1] = color.g;
+        pixelData[offset + 2] = color.b;
+        pixelData[offset + 3] = color.a;
       }
     }
 

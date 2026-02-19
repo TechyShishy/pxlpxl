@@ -349,8 +349,10 @@ describe('ExportService', () => {
       const parsed = JSON.parse(await decompressBlob(blob));
 
       expect(parsed.rows[0].steps).toHaveLength(2);
-      expect(parsed.rows[0].steps[0]).toMatchObject({ count: 1, description: 'A' });
-      expect(parsed.rows[0].steps[1]).toMatchObject({ count: 1, description: 'B' });
+      // Row 0 is even-indexed, so it is encoded right-to-left (bx=1 first).
+      // bx=1 is white (B) and bx=0 is black (A).
+      expect(parsed.rows[0].steps[0]).toMatchObject({ count: 1, description: 'B' });
+      expect(parsed.rows[0].steps[1]).toMatchObject({ count: 1, description: 'A' });
     });
 
     it('should include 1-based row ids', async () => {
@@ -362,6 +364,37 @@ describe('ExportService', () => {
 
       expect(parsed.rows[0].id).toBe(1);
       expect(parsed.rows[1].id).toBe(2);
+    });
+
+    it('should encode even rows (0-indexed) right-to-left and odd rows left-to-right', async () => {
+      // 2 rows, bufferWidth=2: row 0 (even) right-to-left, row 1 (odd) left-to-right
+      const bw = 2;
+      const bh = 2;
+      const data = new Uint8ClampedArray(bw * bh * 4);
+      // Row 0: bx0=black, bx1=white
+      data.set([0, 0, 0, 255,   255, 255, 255, 255], 0);
+      // Row 1: bx0=black, bx1=white
+      data.set([0, 0, 0, 255,   255, 255, 255, 255], bw * 4);
+
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([{ visible: true, opacity: 1, data }]);
+
+      const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
+      colorServiceMock.palette.mockReturnValue([
+        { r: 0, g: 0, b: 0, a: 255 },
+        { r: 255, g: 255, b: 255, a: 255 },
+      ]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      // Row 0 (even): encoded right-to-left → bx1 (white=B) comes first, then bx0 (black=A)
+      expect(parsed.rows[0].steps[0]).toMatchObject({ count: 1, description: 'B' });
+      expect(parsed.rows[0].steps[1]).toMatchObject({ count: 1, description: 'A' });
+
+      // Row 1 (odd): encoded left-to-right → bx0 (black=A) comes first, then bx1 (white=B)
+      expect(parsed.rows[1].steps[0]).toMatchObject({ count: 1, description: 'A' });
+      expect(parsed.rows[1].steps[1]).toMatchObject({ count: 1, description: 'B' });
     });
 
     it('should include colorMapping with letter keys', async () => {

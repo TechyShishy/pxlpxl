@@ -195,6 +195,76 @@ describe('ImportService – RGP import (integration)', () => {
     );
   });
 
+  it('should reverse even rows (0-indexed) when importing so RGP right-to-left becomes left-to-right buffer order', async () => {
+    // Row 0 (by=0, even): RGP encodes right-to-left, so step A is at the right (bx=1)
+    // and step B is at the left (bx=0) after reversal.
+    const project: RgpProject = {
+      id: 0,
+      name: 'Even row reversal test',
+      rows: [
+        { id: 1, steps: [
+          { id: 1, count: 1, description: 'A' }, // rightmost bead
+          { id: 2, count: 1, description: 'B' }, // leftmost bead (in RGP right-to-left order)
+        ]},
+      ],
+      colorMapping: {
+        'A': '#ff0000ff', // red
+        'B': '#0000ffff', // blue
+      },
+    };
+    const buffer = await compressToGzip(JSON.stringify(project));
+
+    await service.importFromBuffer(buffer, 'project.rgp');
+
+    const bufferWidth = canvasState.bufferWidth();
+    const layerData = layerService.getLayerData(0)!;
+
+    // After reversing, bx=0 should hold the last RGP step (B = blue)
+    const offsetBx0 = (0 * bufferWidth + 0) * 4;
+    expect(layerData[offsetBx0]).toBe(0);     // r
+    expect(layerData[offsetBx0 + 2]).toBe(255); // b (blue)
+
+    // bx=1 should hold the first RGP step (A = red)
+    const offsetBx1 = (0 * bufferWidth + 1) * 4;
+    expect(layerData[offsetBx1]).toBe(255);   // r (red)
+    expect(layerData[offsetBx1 + 2]).toBe(0);  // b
+  });
+
+  it('should NOT reverse odd rows (1-indexed) — they are already left-to-right', async () => {
+    // Row 1 (by=1, odd): no reversal, step A at bx=0 and step B at bx=1.
+    const project: RgpProject = {
+      id: 0,
+      name: 'Odd row no-reversal test',
+      rows: [
+        { id: 1, steps: [{ id: 1, count: 2, description: 'X' }] }, // filler even row
+        { id: 2, steps: [
+          { id: 1, count: 1, description: 'A' }, // bx=0
+          { id: 2, count: 1, description: 'B' }, // bx=1
+        ]},
+      ],
+      colorMapping: {
+        'X': '#00000000',
+        'A': '#ff0000ff', // red
+        'B': '#0000ffff', // blue
+      },
+    };
+    const buffer = await compressToGzip(JSON.stringify(project));
+
+    await service.importFromBuffer(buffer, 'project.rgp');
+
+    const bufferWidth = canvasState.bufferWidth();
+    const layerData = layerService.getLayerData(0)!;
+
+    // Odd row, no reversal: bx=0 = A (red), bx=1 = B (blue)
+    const offsetBx0 = (1 * bufferWidth + 0) * 4;
+    expect(layerData[offsetBx0]).toBe(255);    // r (red)
+    expect(layerData[offsetBx0 + 2]).toBe(0);  // b
+
+    const offsetBx1 = (1 * bufferWidth + 1) * 4;
+    expect(layerData[offsetBx1]).toBe(0);      // r
+    expect(layerData[offsetBx1 + 2]).toBe(255); // b (blue)
+  });
+
   it('should resolve a Delica DB code in colorMapping to the catalog hex color', async () => {
     // DB0001 → #424145 (fully opaque)
     const project: RgpProject = {

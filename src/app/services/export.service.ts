@@ -209,7 +209,11 @@ export class ExportService {
       let currentCount = 0;
       const steps: RgpRow['steps'] = [];
 
-      for (let bx = 0; bx < bufferWidth; bx++) {
+      // Even rows (0-indexed) are encoded right-to-left in the RGP format.
+      const bxStart = by % 2 === 0 ? bufferWidth - 1 : 0;
+      const bxEnd   = by % 2 === 0 ? -1 : bufferWidth;
+      const bxStep  = by % 2 === 0 ? -1 : 1;
+      for (let bx = bxStart; bx !== bxEnd; bx += bxStep) {
         const offset = (by * bufferWidth + bx) * 4;
         const r = composited[offset];
         const g = composited[offset + 1];
