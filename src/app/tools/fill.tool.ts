@@ -39,6 +39,7 @@ export class FillTool implements Tool {
       targetColor,
       fillColor,
       ctx.gridType,
+      ctx.visualColumns,
     );
 
     return modifiedPixels.length > 0 ? { modifiedPixels } : null;
@@ -61,6 +62,7 @@ export class FillTool implements Tool {
     targetColor: Color,
     fillColor: Color,
     gridTypeValue: GridType,
+    visualColumns: number,
   ): ModifiedPixel[] {
     const modified: ModifiedPixel[] = [];
     const stack: [number, number][] = [[startX, startY]];
@@ -71,7 +73,7 @@ export class FillTool implements Tool {
       const key = `${x},${y}`;
 
       if (visited.has(key)) continue;
-      if (!gridService.isValidPixel(x, y, width, height, gridTypeValue)) continue;
+      if (!gridService.isValidPixel(x, y, width, height, gridTypeValue, visualColumns)) continue;
 
       const offset = (y * width + x) * 4;
       const pixelColor: Color = {
@@ -96,7 +98,7 @@ export class FillTool implements Tool {
       data[offset + 2] = fillColor.b;
       data[offset + 3] = fillColor.a;
 
-      const neighbors = gridService.getNeighbors(x, y, gridTypeValue, width, height);
+      const neighbors = gridService.getNeighbors(x, y, gridTypeValue, width, height, visualColumns);
       for (const n of neighbors) {
         stack.push([n.x, n.y]);
       }

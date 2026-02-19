@@ -36,7 +36,7 @@ export class ProjectService {
     this.currentProjectName.set(name);
     this.canvasState.setCanvasSize(width, height);
     this.canvasState.setGridType(gridType);
-    this.layerService.initLayers(width, height);
+    this.layerService.initLayers(this.canvasState.bufferWidth(), this.canvasState.bufferHeight());
     this.colorService.setPalette([...DEFAULT_PALETTE]);
     this.historyService.clear();
     this.canvasState.resetZoom();

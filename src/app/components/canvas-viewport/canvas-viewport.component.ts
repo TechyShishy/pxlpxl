@@ -320,8 +320,9 @@ export class CanvasViewportComponent {
     const ctx: ToolContext = {
       coord: pixel,
       layerIndex: this.layerService.activeLayerIndex(),
-      canvasWidth: this.canvasState.canvasWidth(),
-      canvasHeight: this.canvasState.canvasHeight(),
+      canvasWidth: this.canvasState.bufferWidth(),
+      canvasHeight: this.canvasState.bufferHeight(),
+      visualColumns: this.canvasState.canvasWidth(),
       primaryColor: this.colorService.primaryColor(),
       secondaryColor: this.colorService.secondaryColor(),
       isSecondary: false,

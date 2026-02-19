@@ -28,6 +28,22 @@ export class PxlpxlDatabase extends Dexie {
     this.version(3).stores({
       projects: '++id, name, createdAt, updatedAt',
     });
+    this.version(4)
+      .stores({
+        projects: '++id, name, createdAt, updatedAt',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('projects')
+          .toCollection()
+          .modify((project: any) => {
+            if (project.gridType === 'peyote-even') {
+              project.gridType = 'peyote';
+            } else if (project.gridType === 'peyote-odd') {
+              project.gridType = 'peyote';
+            }
+          }),
+      );
   }
 
   async saveProject(project: Project): Promise<number> {

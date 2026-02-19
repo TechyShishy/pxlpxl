@@ -69,7 +69,7 @@ export class LineTool implements Tool {
     if (!gridService.isPeyote(ctx.gridType)) {
       return this.bresenhamLine(from, to);
     }
-    // Map logical coords to visual center positions, run Bresenham there, map back
+    // Map buffer coords to visual center positions, run Bresenham there, map back
     const scale = 100; // arbitrary unit scale for visual-space computation
     const fromV = gridService.pixelToScreen(from.x, from.y, scale, ctx.gridType);
     const toV = gridService.pixelToScreen(to.x, to.y, scale, ctx.gridType);
@@ -82,7 +82,7 @@ export class LineTool implements Tool {
       { x: Math.round(toCenter.x), y: Math.round(toCenter.y) },
     );
 
-    // Map back to logical pixels, dedup
+    // Map back to buffer pixels, dedup
     const seen = new Set<string>();
     const result: PixelCoord[] = [];
     for (const vp of visualPoints) {
@@ -93,6 +93,7 @@ export class LineTool implements Tool {
         ctx.canvasWidth,
         ctx.canvasHeight,
         ctx.gridType,
+        ctx.visualColumns,
       );
       if (!lp) continue;
       const key = `${lp.x},${lp.y}`;

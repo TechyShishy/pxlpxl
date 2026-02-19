@@ -4,161 +4,213 @@ import { GridType, PixelCoord } from '../models';
 /**
  * Utility service for grid-type-aware coordinate mapping and neighbor lookups.
  *
- * Column 0 is even (0-based indexing). Odd columns (1, 3, 5…) are shifted down by
- * half a bead in peyote grids. In peyote-odd, odd columns also have 1 fewer pixel.
+ * In peyote mode, the data buffer uses a dense row-based layout:
+ *   - Buffer width  = ceil(visualColumns / 2)
+ *   - Buffer height = beadsPerColumn * 2
+ *   - Even buffer rows (0, 2, 4…) hold beads from even visual columns (0, 2, 4…)
+ *   - Odd  buffer rows (1, 3, 5…) hold beads from odd  visual columns (1, 3, 5…)
+ *
+ * Visual column parity determines the half-bead offset:
+ *   odd visual columns are shifted down by half a bead on screen.
  */
 @Injectable({ providedIn: 'root' })
 export class GridService {
-  /** Whether a given column index is an odd column (shifted in peyote grids). */
-  isOddColumn(x: number): boolean {
-    return x % 2 === 1;
-  }
+  // ── Visual ↔ Buffer coordinate conversions ────────────────────────
 
-  /** Number of pixels in a given column, accounting for grid type. */
-  colHeight(x: number, baseHeight: number, gridType: GridType): number {
-    if (gridType === 'peyote-odd' && this.isOddColumn(x)) {
-      return baseHeight - 1;
-    }
-    return baseHeight;
-  }
-
-  /** Whether a pixel coordinate is within the canvas bounds for the grid type. */
-  isValidPixel(
-    x: number,
-    y: number,
-    baseWidth: number,
-    height: number,
-    gridType: GridType,
-  ): boolean {
-    if (x < 0 || x >= baseWidth || y < 0) return false;
-    return y < this.colHeight(x, height, gridType);
+  /**
+   * Convert a buffer coordinate (bx, by) to the visual column and bead-row index.
+   * Even buffer rows → even visual columns; odd buffer rows → odd visual columns.
+   */
+  bufferToVisual(bx: number, by: number): { col: number; beadRow: number } {
+    const isOddRow = by % 2 === 1;
+    return {
+      col: isOddRow ? bx * 2 + 1 : bx * 2,
+      beadRow: Math.floor(by / 2),
+    };
   }
 
   /**
-   * Convert a logical pixel coordinate to its top-left screen position
+   * Convert a visual column and bead-row index to buffer coordinates.
+   */
+  visualToBuffer(col: number, beadRow: number): { bx: number; by: number } {
+    const isOddCol = col % 2 === 1;
+    return {
+      bx: Math.floor(col / 2),
+      by: beadRow * 2 + (isOddCol ? 1 : 0),
+    };
+  }
+
+  // ── Validity ──────────────────────────────────────────────────────
+
+  /**
+   * Whether a buffer coordinate is valid.
+   * For peyote, also checks that the buffer position maps to a real visual column
+   * (handles the case where visualColumns is odd and the last slot in odd rows is unused).
+   */
+  isValidPixel(
+    bx: number,
+    by: number,
+    bufferWidth: number,
+    bufferHeight: number,
+    gridType: GridType,
+    visualColumns?: number,
+  ): boolean {
+    if (bx < 0 || bx >= bufferWidth || by < 0 || by >= bufferHeight) return false;
+    if (gridType === 'peyote' && visualColumns !== undefined) {
+      const { col } = this.bufferToVisual(bx, by);
+      if (col >= visualColumns) return false;
+    }
+    return true;
+  }
+
+  // ── Pixel ↔ Screen coordinate mapping ─────────────────────────────
+
+  /**
+   * Convert a buffer coordinate to its top-left screen position
    * (before viewport pan/offset, but after scale).
+   *
+   * For square grids: sx = bx * scale, sy = by * scale.
+   * For peyote grids: maps buffer → visual, then visual → screen with
+   * a half-bead Y offset on odd visual columns.
    */
   pixelToScreen(
-    x: number,
-    y: number,
+    bx: number,
+    by: number,
     scale: number,
     gridType: GridType,
   ): { sx: number; sy: number } {
-    const offsetY = this.isPeyote(gridType) && this.isOddColumn(x) ? scale / 2 : 0;
+    if (gridType !== 'peyote') {
+      return { sx: bx * scale, sy: by * scale };
+    }
+    const { col, beadRow } = this.bufferToVisual(bx, by);
+    const isOddCol = col % 2 === 1;
+    const offsetY = isOddCol ? scale / 2 : 0;
     return {
-      sx: x * scale,
-      sy: y * scale + offsetY,
+      sx: col * scale,
+      sy: beadRow * scale + offsetY,
     };
   }
 
   /**
    * Convert a screen-space position (relative to canvas origin, before viewport offset)
-   * to the nearest logical pixel coordinate. Returns null if out of bounds.
+   * to the nearest buffer coordinate. Returns null if out of bounds.
+   *
+   * For square grids: standard floor division.
+   * For peyote grids: determines the visual column from screen X, applies the
+   * peyote half-bead offset to screen Y, computes the bead row, then converts
+   * visual → buffer.
    */
   screenToPixel(
     localX: number,
     localY: number,
     scale: number,
-    baseWidth: number,
-    height: number,
+    bufferWidth: number,
+    bufferHeight: number,
     gridType: GridType,
+    visualColumns?: number,
   ): PixelCoord | null {
-    const x = Math.floor(localX / scale);
-    if (x < 0 || x >= baseWidth) return null;
+    if (gridType !== 'peyote') {
+      const x = Math.floor(localX / scale);
+      const y = Math.floor(localY / scale);
+      if (x < 0 || x >= bufferWidth || y < 0 || y >= bufferHeight) return null;
+      return { x, y };
+    }
 
+    const visCols = visualColumns ?? bufferWidth * 2;
+    const col = Math.floor(localX / scale);
+    if (col < 0 || col >= visCols) return null;
+
+    const isOddCol = col % 2 === 1;
     let effectiveY = localY;
-    if (this.isPeyote(gridType) && this.isOddColumn(x)) {
+    if (isOddCol) {
       effectiveY -= scale / 2;
     }
-    const y = Math.floor(effectiveY / scale);
+    const beadRow = Math.floor(effectiveY / scale);
+    const beadsPerCol = bufferHeight / 2;
+    if (beadRow < 0 || beadRow >= beadsPerCol) return null;
 
-    if (!this.isValidPixel(x, y, baseWidth, height, gridType)) return null;
-    return { x, y };
+    const { bx, by } = this.visualToBuffer(col, beadRow);
+    if (!this.isValidPixel(bx, by, bufferWidth, bufferHeight, gridType, visCols)) return null;
+    return { x: bx, y: by };
   }
 
+  // ── Neighbor lookups ──────────────────────────────────────────────
+
   /**
-   * Return the valid neighbor coordinates for a pixel, accounting for grid type.
+   * Return the valid neighbor buffer coordinates for a pixel, accounting for grid type.
    *
    * Square: 4-connected (up, down, left, right).
    * Peyote: 6-connected (up, down, upper-left, lower-left, upper-right, lower-right).
    *
-   * In a peyote grid, the diagonal neighbors depend on column parity:
-   * - Even column (not shifted): upper-left = (x-1, y-1), lower-left = (x-1, y)
-   * - Odd column (shifted down): upper-left = (x-1, y), lower-left = (x-1, y+1)
-   * Same pattern applies to the column to the right.
+   * For peyote, operates in visual space then converts back to buffer coords.
    */
   getNeighbors(
-    x: number,
-    y: number,
+    bx: number,
+    by: number,
     gridType: GridType,
-    baseWidth: number,
-    height: number,
+    bufferWidth: number,
+    bufferHeight: number,
+    visualColumns?: number,
   ): PixelCoord[] {
     const neighbors: PixelCoord[] = [];
 
-    if (!this.isPeyote(gridType)) {
+    if (gridType !== 'peyote') {
       // Square grid: 4-connected
       const candidates: PixelCoord[] = [
-        { x: x - 1, y },
-        { x: x + 1, y },
-        { x, y: y - 1 },
-        { x, y: y + 1 },
+        { x: bx - 1, y: by },
+        { x: bx + 1, y: by },
+        { x: bx, y: by - 1 },
+        { x: bx, y: by + 1 },
       ];
       for (const c of candidates) {
-        if (this.isValidPixel(c.x, c.y, baseWidth, height, gridType)) {
+        if (this.isValidPixel(c.x, c.y, bufferWidth, bufferHeight, gridType)) {
           neighbors.push(c);
         }
       }
       return neighbors;
     }
 
-    // Peyote grid: 6-connected
-    // Up and down in the same column
-    const candidates: PixelCoord[] = [
-      { x, y: y - 1 },
-      { x, y: y + 1 },
+    // Peyote grid: work in visual space
+    const visCols = visualColumns ?? bufferWidth * 2;
+    const { col, beadRow } = this.bufferToVisual(bx, by);
+    const isOddCol = col % 2 === 1;
+
+    // Up and down in the same visual column
+    const visualCandidates: { col: number; beadRow: number }[] = [
+      { col, beadRow: beadRow - 1 },
+      { col, beadRow: beadRow + 1 },
     ];
 
-    if (this.isOddColumn(x)) {
-      // Current column is odd (shifted down by half a bead)
-      // Neighbors in the column to the left (even, not shifted):
-      candidates.push({ x: x - 1, y }); // upper-left
-      candidates.push({ x: x - 1, y: y + 1 }); // lower-left
-      // Neighbors in the column to the right (even, not shifted):
-      candidates.push({ x: x + 1, y }); // upper-right
-      candidates.push({ x: x + 1, y: y + 1 }); // lower-right
+    if (isOddCol) {
+      // Odd column (shifted down): neighbors in adjacent even columns
+      visualCandidates.push({ col: col - 1, beadRow }); // upper-left
+      visualCandidates.push({ col: col - 1, beadRow: beadRow + 1 }); // lower-left
+      visualCandidates.push({ col: col + 1, beadRow }); // upper-right
+      visualCandidates.push({ col: col + 1, beadRow: beadRow + 1 }); // lower-right
     } else {
-      // Current column is even (not shifted)
-      // Neighbors in the column to the left (odd, shifted down):
-      candidates.push({ x: x - 1, y: y - 1 }); // upper-left
-      candidates.push({ x: x - 1, y }); // lower-left
-      // Neighbors in the column to the right (odd, shifted down):
-      candidates.push({ x: x + 1, y: y - 1 }); // upper-right
-      candidates.push({ x: x + 1, y }); // lower-right
+      // Even column (not shifted): neighbors in adjacent odd columns
+      visualCandidates.push({ col: col - 1, beadRow: beadRow - 1 }); // upper-left
+      visualCandidates.push({ col: col - 1, beadRow }); // lower-left
+      visualCandidates.push({ col: col + 1, beadRow: beadRow - 1 }); // upper-right
+      visualCandidates.push({ col: col + 1, beadRow }); // lower-right
     }
 
-    for (const c of candidates) {
-      if (this.isValidPixel(c.x, c.y, baseWidth, height, gridType)) {
-        neighbors.push(c);
+    const beadsPerCol = bufferHeight / 2;
+    for (const vc of visualCandidates) {
+      if (vc.col < 0 || vc.col >= visCols) continue;
+      if (vc.beadRow < 0 || vc.beadRow >= beadsPerCol) continue;
+      const { bx: nbx, by: nby } = this.visualToBuffer(vc.col, vc.beadRow);
+      if (this.isValidPixel(nbx, nby, bufferWidth, bufferHeight, gridType, visCols)) {
+        neighbors.push({ x: nbx, y: nby });
       }
     }
     return neighbors;
   }
 
-  /** Convert a screen-space point to the nearest logical pixel (for shape tool mapping). */
-  visualToLogical(
-    visualX: number,
-    visualY: number,
-    scale: number,
-    baseWidth: number,
-    height: number,
-    gridType: GridType,
-  ): PixelCoord | null {
-    return this.screenToPixel(visualX, visualY, scale, baseWidth, height, gridType);
-  }
+  // ── Utility ───────────────────────────────────────────────────────
 
-  /** Whether the grid type is any peyote variant. */
+  /** Whether the grid type is peyote. */
   isPeyote(gridType: GridType): boolean {
-    return gridType === 'peyote-even' || gridType === 'peyote-odd';
+    return gridType === 'peyote';
   }
 }

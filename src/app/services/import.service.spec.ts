@@ -159,7 +159,7 @@ describe('ImportService', () => {
     });
 
     it('should warn and skip on peyote grids', async () => {
-      canvasState.setGridType('peyote-even');
+      canvasState.setGridType('peyote');
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const pngBuffer = createMinimalPng();

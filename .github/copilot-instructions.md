@@ -50,11 +50,22 @@ Tools implement the `Tool` interface: `onPointerDown`/`onPointerMove`/`onPointer
 
 ### Pixel Data Format
 
-Layer pixel data is a flat `Uint8ClampedArray` of RGBA bytes. Offset for pixel `(x, y)` = `(y * canvasWidth + x) * 4`. The `Color` model is `{ r, g, b, a }` with `a` in 0–255 range. Use helpers from `src/app/models/color.model.ts` (`colorsEqual`, `colorToHex`, `hexToColor`).
+Layer pixel data is a flat `Uint8ClampedArray` of RGBA bytes. Offset for pixel `(x, y)` = `(y * bufferWidth + x) * 4`. The `Color` model is `{ r, g, b, a }` with `a` in 0–255 range. Use helpers from `src/app/models/color.model.ts` (`colorsEqual`, `colorToHex`, `hexToColor`).
+
+For square grids, buffer dimensions equal the visual canvas dimensions. For peyote grids, use `computeBufferDimensions()` from `project.model.ts` and the `bufferWidth()`/`bufferHeight()` signals on `CanvasStateService`.
 
 ### Grid Types
 
-Three grid types: `'square'` (standard), `'peyote-even'`, `'peyote-odd'` (bead patterns with hex-offset rows). Peyote grids have shifted odd rows and different neighbor connectivity. Always use `GridService` for coordinate math — never hard-code square-grid assumptions.
+Two grid types: `'square'` (standard) and `'peyote'` (bead patterns with hex-offset columns). Use `GridService` for all coordinate math — never hard-code square-grid assumptions.
+
+**Peyote dense-row buffer layout**: Each visual row of beads maps to one buffer row. Even buffer rows (0, 2, 4…) hold beads from even visual columns (0, 2, 4…); odd buffer rows (1, 3, 5…) hold beads from odd visual columns (1, 3, 5…). The buffer dimensions are:
+- `bufferWidth = Math.ceil(visualColumns / 2)`
+- `bufferHeight = visibleRows` (same as `canvasHeight`)
+- `beadsPerColumn = Math.ceil(bufferHeight / 2)` for even columns, `Math.floor(bufferHeight / 2)` for odd columns
+
+Entering 32×32 in the new-project dialog produces a 32-column × 32-visible-row peyote grid (16 beads per column).
+
+Use `GridService.bufferToVisual(bx, by)` and `GridService.visualToBuffer(col, beadRow)` to convert between coordinate spaces. Peyote grids use 6-connected neighbor connectivity.
 
 ### Persistence
 

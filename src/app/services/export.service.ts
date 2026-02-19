@@ -45,8 +45,8 @@ export class ExportService {
     }
 
     const imageData = this.renderService.compositeToImageData();
-    const width = this.canvasState.canvasWidth();
-    const height = this.canvasState.canvasHeight();
+    const width = this.canvasState.bufferWidth();
+    const height = this.canvasState.bufferHeight();
     const scaledWidth = width * options.scale;
     const scaledHeight = height * options.scale;
 

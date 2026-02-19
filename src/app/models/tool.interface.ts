@@ -9,14 +9,16 @@ export interface PixelCoord {
 
 /** Context passed to tools on pointer events */
 export interface ToolContext {
-  /** Pixel coordinate on the canvas */
+  /** Pixel coordinate on the canvas (in buffer space) */
   coord: PixelCoord;
   /** Active layer index */
   layerIndex: number;
-  /** Canvas width in pixels */
+  /** Buffer width (for offset calculation: (y * canvasWidth + x) * 4) */
   canvasWidth: number;
-  /** Canvas height in pixels */
+  /** Buffer height */
   canvasHeight: number;
+  /** Number of visual columns (for peyote: the actual visual column count) */
+  visualColumns: number;
   /** Primary selected color */
   primaryColor: Color;
   /** Secondary selected color */

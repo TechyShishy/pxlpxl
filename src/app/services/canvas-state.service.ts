@@ -1,16 +1,38 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { ViewTransform, GridType } from '../models';
+import { ViewTransform, GridType, computeBufferDimensions } from '../models';
 import { GridService } from './grid.service';
 
 @Injectable({ providedIn: 'root' })
 export class CanvasStateService {
   private readonly gridService = inject(GridService);
 
+  /** Visual canvas width (number of visual columns). */
   readonly canvasWidth = signal<number>(32);
+  /** Visual canvas height (for square: rows; for peyote: visible bead rows). */
   readonly canvasHeight = signal<number>(32);
   readonly showGrid = signal<boolean>(true);
   readonly showRulers = signal<boolean>(false);
   readonly gridType = signal<GridType>('square');
+
+  /** Buffer width — for peyote: ceil(visualColumns / 2); for square: same as canvasWidth. */
+  readonly bufferWidth = computed(() => {
+    const { bufferWidth } = computeBufferDimensions(
+      this.canvasWidth(),
+      this.canvasHeight(),
+      this.gridType(),
+    );
+    return bufferWidth;
+  });
+
+  /** Buffer height — for peyote: same as canvasHeight (visual rows); for square: same as canvasHeight. */
+  readonly bufferHeight = computed(() => {
+    const { bufferHeight } = computeBufferDimensions(
+      this.canvasWidth(),
+      this.canvasHeight(),
+      this.gridType(),
+    );
+    return bufferHeight;
+  });
 
   readonly transform = signal<ViewTransform>({
     scale: 10,
@@ -66,7 +88,7 @@ export class CanvasStateService {
     this.showRulers.update((v) => !v);
   }
 
-  /** Convert screen coordinates to pixel coordinates on the canvas */
+  /** Convert screen coordinates to buffer coordinates on the canvas */
   screenToPixel(
     screenX: number,
     screenY: number,
@@ -80,9 +102,10 @@ export class CanvasStateService {
       localX,
       localY,
       t.scale,
-      this.canvasWidth(),
-      this.canvasHeight(),
+      this.bufferWidth(),
+      this.bufferHeight(),
       this.gridType(),
+      this.canvasWidth(),
     );
   }
 }

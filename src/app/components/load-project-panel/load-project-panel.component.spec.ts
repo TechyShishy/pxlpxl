@@ -21,7 +21,7 @@ const MOCK_PROJECTS: Project[] = [
     name: 'Test Project 2',
     width: 64,
     height: 64,
-    gridType: 'peyote-even',
+    gridType: 'peyote',
     layers: [],
     palette: [],
     createdAt: new Date('2025-03-01'),

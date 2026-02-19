@@ -76,11 +76,11 @@ describe('ProjectService', () => {
 
   describe('newProject', () => {
     it('should set canvas dimensions and grid type', () => {
-      service.newProject('Test', 32, 24, 'peyote-even');
+      service.newProject('Test', 32, 24, 'peyote');
 
       expect(canvasState.canvasWidth()).toBe(32);
       expect(canvasState.canvasHeight()).toBe(24);
-      expect(canvasState.gridType()).toBe('peyote-even');
+      expect(canvasState.gridType()).toBe('peyote');
     });
 
     it('should default grid type to square', () => {
@@ -187,10 +187,10 @@ describe('ProjectService', () => {
     });
 
     it('should save grid type', async () => {
-      service.newProject('Peyote', 8, 8, 'peyote-odd');
+      service.newProject('Peyote', 8, 8, 'peyote');
       const id = await service.saveProject('Peyote');
       const saved = await db.getProject(id);
-      expect(saved?.gridType).toBe('peyote-odd');
+      expect(saved?.gridType).toBe('peyote');
     });
   });
 
@@ -198,7 +198,7 @@ describe('ProjectService', () => {
 
   describe('loadProject', () => {
     it('should load a previously saved project', async () => {
-      service.newProject('LoadMe', 12, 10, 'peyote-even');
+      service.newProject('LoadMe', 12, 10, 'peyote');
       const id = await service.saveProject('LoadMe');
 
       // Start a different project
@@ -210,7 +210,7 @@ describe('ProjectService', () => {
       expect(loaded).toBe(true);
       expect(canvasState.canvasWidth()).toBe(12);
       expect(canvasState.canvasHeight()).toBe(10);
-      expect(canvasState.gridType()).toBe('peyote-even');
+      expect(canvasState.gridType()).toBe('peyote');
       expect(service.currentId).toBe(id);
     });
 

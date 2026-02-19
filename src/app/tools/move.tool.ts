@@ -1,4 +1,7 @@
 import { Tool, ToolType, ToolContext, ToolResult, PixelCoord } from '../models';
+import { GridService } from '../services/grid.service';
+
+const gridService = new GridService();
 
 /**
  * Move tool — shifts the active layer's pixel data by dragging.
@@ -10,6 +13,11 @@ import { Tool, ToolType, ToolContext, ToolResult, PixelCoord } from '../models';
  *   (no command yet — the canvas-viewport handles command creation on pointer-up).
  * - onPointerUp: apply the final shift, expose the before-snapshot via
  *   getOriginalData() for the canvas-viewport to build a LayerCommand, then reset.
+ *
+ * For peyote grids, the shift operates in visual space: buffer coords are converted
+ * to visual (col, beadRow), the delta is applied in visual space, then converted
+ * back to buffer coords. This ensures that visual shifts map correctly despite the
+ * dense row-based buffer layout.
  *
  * Pixels shifted beyond the canvas boundary are clipped (transparent). No wrapping.
  */
@@ -40,7 +48,7 @@ export class MoveTool implements Tool {
     if (!this.startCoord || !this.originalData) return null;
     const dx = ctx.coord.x - this.startCoord.x;
     const dy = ctx.coord.y - this.startCoord.y;
-    this.applyShift(dx, dy, ctx.canvasWidth, ctx.canvasHeight, layerData);
+    this.applyShift(dx, dy, ctx, layerData);
     return null;
   }
 
@@ -48,7 +56,7 @@ export class MoveTool implements Tool {
     if (!this.startCoord || !this.originalData) return null;
     const dx = ctx.coord.x - this.startCoord.x;
     const dy = ctx.coord.y - this.startCoord.y;
-    this.applyShift(dx, dy, ctx.canvasWidth, ctx.canvasHeight, layerData);
+    this.applyShift(dx, dy, ctx, layerData);
     // Reset start coord but keep originalData alive so canvas-viewport can read it.
     this.startCoord = null;
     return null;
@@ -64,27 +72,67 @@ export class MoveTool implements Tool {
   private applyShift(
     dx: number,
     dy: number,
-    width: number,
-    height: number,
+    ctx: ToolContext,
     layerData: Uint8ClampedArray,
   ): void {
     if (!this.originalData) return;
 
-    // Restore the buffer from the snapshot first, then write the shifted version.
-    // This approach avoids accumulated drift across multiple move events.
+    const width = ctx.canvasWidth;
+    const height = ctx.canvasHeight;
     const src = this.originalData;
 
     // Clear the destination buffer to transparent.
     layerData.fill(0);
 
-    for (let y = 0; y < height; y++) {
-      const srcY = y - dy;
-      if (srcY < 0 || srcY >= height) continue;
-      for (let x = 0; x < width; x++) {
-        const srcX = x - dx;
-        if (srcX < 0 || srcX >= width) continue;
-        const srcOffset = (srcY * width + srcX) * 4;
-        const dstOffset = (y * width + x) * 4;
+    if (!gridService.isPeyote(ctx.gridType)) {
+      // Square grid: same as before — simple buffer-space shift
+      for (let y = 0; y < height; y++) {
+        const srcY = y - dy;
+        if (srcY < 0 || srcY >= height) continue;
+        for (let x = 0; x < width; x++) {
+          const srcX = x - dx;
+          if (srcX < 0 || srcX >= width) continue;
+          const srcOffset = (srcY * width + srcX) * 4;
+          const dstOffset = (y * width + x) * 4;
+          layerData[dstOffset] = src[srcOffset];
+          layerData[dstOffset + 1] = src[srcOffset + 1];
+          layerData[dstOffset + 2] = src[srcOffset + 2];
+          layerData[dstOffset + 3] = src[srcOffset + 3];
+        }
+      }
+      return;
+    }
+
+    // Peyote grid: shift in visual space
+    // Convert buffer delta to visual delta
+    const startVisual = gridService.bufferToVisual(0, 0);
+    const endVisual = gridService.bufferToVisual(dx, dy);
+    const visualDx = endVisual.col - startVisual.col;
+    const visualDy = endVisual.beadRow - startVisual.beadRow;
+
+    const visCols = ctx.visualColumns;
+    const beadsPerCol = height / 2;
+
+    for (let by = 0; by < height; by++) {
+      for (let bx = 0; bx < width; bx++) {
+        if (!gridService.isValidPixel(bx, by, width, height, ctx.gridType, visCols)) continue;
+
+        // Convert destination buffer pos to visual
+        const dstVisual = gridService.bufferToVisual(bx, by);
+
+        // Compute the source visual pos by subtracting the visual delta
+        const srcCol = dstVisual.col - visualDx;
+        const srcBeadRow = dstVisual.beadRow - visualDy;
+
+        if (srcCol < 0 || srcCol >= visCols) continue;
+        if (srcBeadRow < 0 || srcBeadRow >= beadsPerCol) continue;
+
+        // Convert source visual back to buffer
+        const srcBuf = gridService.visualToBuffer(srcCol, srcBeadRow);
+        if (!gridService.isValidPixel(srcBuf.bx, srcBuf.by, width, height, ctx.gridType, visCols)) continue;
+
+        const srcOffset = (srcBuf.by * width + srcBuf.bx) * 4;
+        const dstOffset = (by * width + bx) * 4;
         layerData[dstOffset] = src[srcOffset];
         layerData[dstOffset + 1] = src[srcOffset + 1];
         layerData[dstOffset + 2] = src[srcOffset + 2];

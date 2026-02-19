@@ -24,8 +24,10 @@ export class RenderService {
     previewPixels?: PixelCoord[],
     previewColor?: Color,
   ): void {
-    const width = this.canvasState.canvasWidth();
-    const height = this.canvasState.canvasHeight();
+    const visualWidth = this.canvasState.canvasWidth();
+    const visualHeight = this.canvasState.canvasHeight();
+    const bufWidth = this.canvasState.bufferWidth();
+    const bufHeight = this.canvasState.bufferHeight();
     const transform = this.canvasState.transform();
     const layers = this.layerService.layers();
     const gridType = this.canvasState.gridType();
@@ -34,19 +36,19 @@ export class RenderService {
     ctx.clearRect(0, 0, viewportWidth, viewportHeight);
 
     // Draw checkerboard background (transparency indicator)
-    this.drawCheckerboard(ctx, width, height, transform, gridType);
+    this.drawCheckerboard(ctx, visualWidth, visualHeight, bufWidth, bufHeight, transform, gridType);
 
     // Composite visible layers
     if (this.gridService.isPeyote(gridType)) {
-      this.renderPeyoteLayers(ctx, width, height, transform, gridType, layers);
+      this.renderPeyoteLayers(ctx, visualWidth, bufWidth, bufHeight, transform, gridType, layers);
     } else {
       for (const layer of layers) {
         if (!layer.visible || layer.opacity === 0) continue;
 
-        const imageData = new ImageData(new Uint8ClampedArray(layer.data), width, height);
+        const imageData = new ImageData(new Uint8ClampedArray(layer.data), bufWidth, bufHeight);
 
         // Create a temporary canvas for the layer
-        const tempCanvas = new OffscreenCanvas(width, height);
+        const tempCanvas = new OffscreenCanvas(bufWidth, bufHeight);
         const tempCtx = tempCanvas.getContext('2d')!;
         tempCtx.putImageData(imageData, 0, 0);
 
@@ -68,7 +70,7 @@ export class RenderService {
 
     // Draw pixel grid
     if (this.canvasState.showGrid() && transform.scale >= 4) {
-      this.drawGrid(ctx, width, height, transform, gridType);
+      this.drawGrid(ctx, visualWidth, visualHeight, bufWidth, bufHeight, transform, gridType);
     }
   }
 
@@ -76,8 +78,8 @@ export class RenderService {
    * Render all visible layers to a flat ImageData (for export — square grids only).
    */
   compositeToImageData(): ImageData {
-    const width = this.canvasState.canvasWidth();
-    const height = this.canvasState.canvasHeight();
+    const width = this.canvasState.bufferWidth();
+    const height = this.canvasState.bufferHeight();
     const result = new ImageData(width, height);
     const layers = this.layerService.layers();
 
@@ -108,14 +110,17 @@ export class RenderService {
    * drawing beads in peyote layout. Used for peyote export.
    */
   compositeToCanvas(scale: number): OffscreenCanvas {
-    const width = this.canvasState.canvasWidth();
-    const height = this.canvasState.canvasHeight();
+    const visualWidth = this.canvasState.canvasWidth();
+    const visualHeight = this.canvasState.canvasHeight();
+    const bufWidth = this.canvasState.bufferWidth();
+    const bufHeight = this.canvasState.bufferHeight();
     const gridType = this.canvasState.gridType();
 
-    // Canvas needs extra half-bead height for odd-column offset in peyote-even
-    const extraY = gridType === 'peyote-even' ? Math.ceil(scale / 2) : 0;
-    const canvasW = width * scale;
-    const canvasH = height * scale + extraY;
+    // Canvas needs extra half-bead height for odd-column offset in peyote
+    const beadsPerCol = gridType === 'peyote' ? Math.ceil(bufHeight / 2) : bufHeight;
+    const extraY = gridType === 'peyote' ? Math.ceil(scale / 2) : 0;
+    const canvasW = visualWidth * scale;
+    const canvasH = beadsPerCol * scale + extraY;
     const canvas = new OffscreenCanvas(canvasW, canvasH);
     const ctx = canvas.getContext('2d')!;
 
@@ -124,14 +129,14 @@ export class RenderService {
       if (!layer.visible || layer.opacity === 0) continue;
       ctx.globalAlpha = layer.opacity;
 
-      for (let x = 0; x < width; x++) {
-        const ch = this.gridService.colHeight(x, height, gridType);
-        for (let y = 0; y < ch; y++) {
-          const offset = (y * width + x) * 4;
+      for (let by = 0; by < bufHeight; by++) {
+        for (let bx = 0; bx < bufWidth; bx++) {
+          if (!this.gridService.isValidPixel(bx, by, bufWidth, bufHeight, gridType, visualWidth)) continue;
+          const offset = (by * bufWidth + bx) * 4;
           const a = layer.data[offset + 3];
           if (a === 0) continue;
 
-          const { sx, sy } = this.gridService.pixelToScreen(x, y, scale, gridType);
+          const { sx, sy } = this.gridService.pixelToScreen(bx, by, scale, gridType);
           ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${a / 255})`;
           ctx.fillRect(sx, sy, scale, scale);
         }
@@ -166,8 +171,9 @@ export class RenderService {
   /** Render peyote layers bead-by-bead onto the viewport canvas. */
   private renderPeyoteLayers(
     ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
+    visualWidth: number,
+    bufWidth: number,
+    bufHeight: number,
     transform: { scale: number; offsetX: number; offsetY: number },
     gridType: GridType,
     layers: readonly { visible: boolean; opacity: number; data: Uint8ClampedArray }[],
@@ -179,14 +185,14 @@ export class RenderService {
       if (!layer.visible || layer.opacity === 0) continue;
       ctx.globalAlpha = layer.opacity;
 
-      for (let x = 0; x < width; x++) {
-        const ch = this.gridService.colHeight(x, height, gridType);
-        for (let y = 0; y < ch; y++) {
-          const offset = (y * width + x) * 4;
+      for (let by = 0; by < bufHeight; by++) {
+        for (let bx = 0; bx < bufWidth; bx++) {
+          if (!this.gridService.isValidPixel(bx, by, bufWidth, bufHeight, gridType, visualWidth)) continue;
+          const offset = (by * bufWidth + bx) * 4;
           const a = layer.data[offset + 3];
           if (a === 0) continue;
 
-          const { sx, sy } = this.gridService.pixelToScreen(x, y, transform.scale, gridType);
+          const { sx, sy } = this.gridService.pixelToScreen(bx, by, transform.scale, gridType);
           ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${a / 255})`;
           ctx.fillRect(sx, sy, transform.scale, transform.scale);
         }
@@ -199,8 +205,10 @@ export class RenderService {
 
   private drawCheckerboard(
     ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
+    visualWidth: number,
+    visualHeight: number,
+    bufWidth: number,
+    bufHeight: number,
     transform: { scale: number; offsetX: number; offsetY: number },
     gridType: GridType,
   ): void {
@@ -209,18 +217,19 @@ export class RenderService {
 
     if (this.gridService.isPeyote(gridType)) {
       // Draw checkerboard bead-by-bead for peyote
-      for (let x = 0; x < width; x++) {
-        const ch = this.gridService.colHeight(x, height, gridType);
-        for (let y = 0; y < ch; y++) {
-          const isLight = x % 2 === 0;
+      for (let by = 0; by < bufHeight; by++) {
+        for (let bx = 0; bx < bufWidth; bx++) {
+          if (!this.gridService.isValidPixel(bx, by, bufWidth, bufHeight, gridType, visualWidth)) continue;
+          const { col } = this.gridService.bufferToVisual(bx, by);
+          const isLight = col % 2 === 0;
           ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
-          const { sx, sy } = this.gridService.pixelToScreen(x, y, transform.scale, gridType);
+          const { sx, sy } = this.gridService.pixelToScreen(bx, by, transform.scale, gridType);
           ctx.fillRect(sx, sy, transform.scale, transform.scale);
         }
       }
     } else {
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
+      for (let y = 0; y < bufHeight; y++) {
+        for (let x = 0; x < bufWidth; x++) {
           const isLight = (x + y) % 2 === 0;
           ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
           ctx.fillRect(x * transform.scale, y * transform.scale, transform.scale, transform.scale);
@@ -233,8 +242,10 @@ export class RenderService {
 
   private drawGrid(
     ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
+    visualWidth: number,
+    visualHeight: number,
+    bufWidth: number,
+    bufHeight: number,
     transform: { scale: number; offsetX: number; offsetY: number },
     gridType: GridType,
   ): void {
@@ -244,48 +255,49 @@ export class RenderService {
     ctx.lineWidth = 0.5;
 
     if (this.gridService.isPeyote(gridType)) {
-      // Draw per-column grid for peyote
-      for (let x = 0; x <= width; x++) {
-        // Vertical line spanning full height including offset
-        const maxCh = x < width ? this.gridService.colHeight(x, height, gridType) : height;
-        const offsetY = x < width && this.gridService.isOddColumn(x) ? transform.scale / 2 : 0;
-        const lineEndY = offsetY + maxCh * transform.scale;
+      // beadsPerColumn for even/odd visual columns
+      const beadsEven = Math.ceil(bufHeight / 2);
+      const beadsOdd = Math.floor(bufHeight / 2);
+      const maxBeads = beadsEven; // height of tallest column
 
+      // Draw per-column grid for peyote using visual columns
+      for (let col = 0; col <= visualWidth; col++) {
         ctx.beginPath();
-        ctx.moveTo(x * transform.scale, 0);
+        ctx.moveTo(col * transform.scale, 0);
         ctx.lineTo(
-          x * transform.scale,
-          Math.max(lineEndY, height * transform.scale + transform.scale / 2),
+          col * transform.scale,
+          maxBeads * transform.scale + transform.scale / 2,
         );
         ctx.stroke();
       }
 
-      // Horizontal lines per column
-      for (let x = 0; x < width; x++) {
-        const ch = this.gridService.colHeight(x, height, gridType);
-        const offsetY = this.gridService.isOddColumn(x) ? transform.scale / 2 : 0;
+      // Horizontal lines per visual column
+      for (let col = 0; col < visualWidth; col++) {
+        const isOddCol = col % 2 === 1;
+        const offsetY = isOddCol ? transform.scale / 2 : 0;
+        const colBeads = isOddCol ? beadsOdd : beadsEven;
 
-        for (let y = 0; y <= ch; y++) {
-          const sy = y * transform.scale + offsetY;
+        for (let beadRow = 0; beadRow <= colBeads; beadRow++) {
+          const sy = beadRow * transform.scale + offsetY;
           ctx.beginPath();
-          ctx.moveTo(x * transform.scale, sy);
-          ctx.lineTo((x + 1) * transform.scale, sy);
+          ctx.moveTo(col * transform.scale, sy);
+          ctx.lineTo((col + 1) * transform.scale, sy);
           ctx.stroke();
         }
       }
     } else {
       // Square grid: uniform vertical and horizontal lines
-      for (let x = 0; x <= width; x++) {
+      for (let x = 0; x <= bufWidth; x++) {
         ctx.beginPath();
         ctx.moveTo(x * transform.scale, 0);
-        ctx.lineTo(x * transform.scale, height * transform.scale);
+        ctx.lineTo(x * transform.scale, bufHeight * transform.scale);
         ctx.stroke();
       }
 
-      for (let y = 0; y <= height; y++) {
+      for (let y = 0; y <= bufHeight; y++) {
         ctx.beginPath();
         ctx.moveTo(0, y * transform.scale);
-        ctx.lineTo(width * transform.scale, y * transform.scale);
+        ctx.lineTo(bufWidth * transform.scale, y * transform.scale);
         ctx.stroke();
       }
     }

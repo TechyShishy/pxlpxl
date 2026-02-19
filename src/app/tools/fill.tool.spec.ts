@@ -7,6 +7,7 @@ function makeContext(overrides: Partial<ToolContext> = {}): ToolContext {
     layerIndex: 0,
     canvasWidth: 4,
     canvasHeight: 4,
+    visualColumns: 4,
     primaryColor: { ...BLACK },
     secondaryColor: { ...WHITE },
     isSecondary: false,
@@ -190,14 +191,18 @@ describe('FillTool', () => {
 
   describe('peyote grid', () => {
     it('should use 6-connected fill on peyote grid', () => {
-      // 4x4 peyote-even canvas, all transparent — odd columns shifted down
+      // 4 visual columns, 4 beads/col → bufferWidth=2, bufferHeight=8
+      const peyoteData = makeLayerData(2, 8);
       const ctx = makeContext({
         coord: { x: 0, y: 0 },
-        gridType: 'peyote-even',
+        canvasWidth: 2,
+        canvasHeight: 8,
+        visualColumns: 4,
+        gridType: 'peyote',
       });
-      const result = tool.onPointerDown(ctx, layerData);
+      const result = tool.onPointerDown(ctx, peyoteData);
       expect(result).not.toBeNull();
-      // All pixels should be filled via 6-connected (up/down + diagonal) traversal
+      // All 16 beads (4 cols × 4 beads) should be filled via 6-connected traversal
       expect(result!.modifiedPixels.length).toBe(16);
     });
   });
@@ -209,6 +214,7 @@ describe('FillTool', () => {
         coord: { x: 0, y: 0 },
         canvasWidth: 64,
         canvasHeight: 64,
+        visualColumns: 64,
       });
       const result = tool.onPointerDown(ctx, largeData);
       expect(result).not.toBeNull();

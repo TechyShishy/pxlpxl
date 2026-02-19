@@ -103,21 +103,24 @@ export function renderRowRuler(
   ctx.fillStyle = textColor;
 
   const midX = rulerWidth / 2;
-  const isPeyote = gridType === 'peyote-even' || gridType === 'peyote-odd';
-  // peyote-odd odd columns have one fewer row than even columns.
-  const oddColHeight = gridType === 'peyote-odd' ? canvasHeight - 1 : canvasHeight;
+  const isPeyote = gridType === 'peyote';
 
   // Collect all unique vertical bead-centre positions, then assign sequential
   // 1-based row numbers in screen-Y order.
   const positions: number[] = [];
 
-  for (let r = 0; r < canvasHeight; r++) {
+  // For peyote, canvasHeight = visual rows.  beadsPerColumn = ceil(canvasHeight/2)
+  // for even columns, floor(canvasHeight/2) for odd columns.
+  const beadsEven = isPeyote ? Math.ceil(canvasHeight / 2) : canvasHeight;
+  const beadsOdd = isPeyote ? Math.floor(canvasHeight / 2) : canvasHeight;
+
+  for (let r = 0; r < beadsEven; r++) {
     // Even-column bead centre (all grid types).
     positions.push(r * scale + offsetY + scale / 2);
   }
 
   if (isPeyote) {
-    for (let r = 0; r < oddColHeight; r++) {
+    for (let r = 0; r < beadsOdd; r++) {
       // Odd-column bead centre: shifted down by scale/2 relative to even columns.
       positions.push(r * scale + offsetY + scale);
     }

@@ -85,8 +85,8 @@ export class LayersPanelComponent implements OnDestroy {
     const command = new FlattenLayerCommand(
       this.layerService,
       index,
-      this.canvasState.canvasWidth(),
-      this.canvasState.canvasHeight(),
+      this.canvasState.bufferWidth(),
+      this.canvasState.bufferHeight(),
     );
     this.historyService.execute(command);
   }

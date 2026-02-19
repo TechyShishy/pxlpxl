@@ -40,7 +40,7 @@ export class RectangleTool implements Tool {
     const modifiedPixels: ModifiedPixel[] = [];
 
     for (const coord of pixels) {
-      if (!gridService.isValidPixel(coord.x, coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType))
+      if (!gridService.isValidPixel(coord.x, coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns))
         continue;
 
       const offset = (coord.y * ctx.canvasWidth + coord.x) * 4;
@@ -87,7 +87,7 @@ export class RectangleTool implements Tool {
     const seen = new Set<string>();
     const result: PixelCoord[] = [];
     for (const vp of visualPoints) {
-      const lp = gridService.screenToPixel(vp.x, vp.y, scale, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType);
+      const lp = gridService.screenToPixel(vp.x, vp.y, scale, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns);
       if (!lp) continue;
       const key = `${lp.x},${lp.y}`;
       if (seen.has(key)) continue;

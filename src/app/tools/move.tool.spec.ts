@@ -7,6 +7,7 @@ function makeContext(overrides: Partial<ToolContext> = {}): ToolContext {
     layerIndex: 0,
     canvasWidth: 4,
     canvasHeight: 4,
+    visualColumns: 4,
     primaryColor: { r: 0, g: 0, b: 0, a: 255 },
     secondaryColor: { r: 255, g: 255, b: 255, a: 255 },
     isSecondary: false,

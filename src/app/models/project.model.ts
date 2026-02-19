@@ -2,7 +2,38 @@ import { Color, DEFAULT_PALETTE } from './color.model';
 import { Layer } from './layer.model';
 import { SerializedHistoryEntry } from './pxl-file.model';
 
-export type GridType = 'square' | 'peyote-even' | 'peyote-odd';
+export type GridType = 'square' | 'peyote';
+
+/**
+ * Compute the buffer dimensions for a given set of visual dimensions and grid type.
+ *
+ * For square grids, the buffer dimensions match the visual dimensions.
+ * For peyote grids, width (visual columns) and height (visible bead rows) are
+ * re-packed into a dense row-based layout:
+ *   bufferWidth  = ceil(visualColumns / 2)
+ *   bufferHeight = height (= number of visible bead rows)
+ *
+ * In the buffer, even rows hold even-visual-column beads and odd rows hold odd-
+ * visual-column beads.  beadsPerColumn = ceil(height / 2) for even columns and
+ * floor(height / 2) for odd columns.
+ *
+ * The user-facing "height" value corresponds to the number of visible horizontal
+ * bead rows (counting both even-column and odd-column rows), so entering 32×32
+ * in the new-project dialog produces a 32-column × 32-visible-row peyote grid.
+ */
+export function computeBufferDimensions(
+  width: number,
+  height: number,
+  gridType: GridType,
+): { bufferWidth: number; bufferHeight: number } {
+  if (gridType === 'peyote') {
+    return {
+      bufferWidth: Math.ceil(width / 2),
+      bufferHeight: height,
+    };
+  }
+  return { bufferWidth: width, bufferHeight: height };
+}
 
 export interface Project {
   id?: number;
@@ -56,6 +87,7 @@ export function createDefaultProject(
   height: number,
   gridType: GridType = 'square',
 ): Project {
+  const { bufferWidth, bufferHeight } = computeBufferDimensions(width, height, gridType);
   return {
     name,
     width,
@@ -67,7 +99,7 @@ export function createDefaultProject(
         name: 'Layer 1',
         visible: true,
         opacity: 1,
-        data: Array.from(new Uint8ClampedArray(width * height * 4)),
+        data: Array.from(new Uint8ClampedArray(bufferWidth * bufferHeight * 4)),
       },
     ],
     palette: [...DEFAULT_PALETTE],

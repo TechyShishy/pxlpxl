@@ -27,7 +27,7 @@
     },
     "gridType": {
       "type": "string",
-      "enum": ["square", "peyote-even", "peyote-odd"],
+      "enum": ["square", "peyote"],
       "description": "Grid layout type."
     },
     "palette": {
