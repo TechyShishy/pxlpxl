@@ -31,7 +31,10 @@ import { ToolType } from '../../models';
   imports: [],
   templateUrl: './canvas-viewport.component.html',
   styleUrl: './canvas-viewport.component.scss',
-  host: { '[class.rulers-active]': 'canvasState.showRulers()' },
+  host: {
+    '[class.rulers-active]': 'canvasState.showRulers()',
+    '[style.cursor]': 'activeCursor',
+  },
 })
 export class CanvasViewportComponent {
   protected readonly canvasState = inject(CanvasStateService);
@@ -44,6 +47,14 @@ export class CanvasViewportComponent {
   private readonly layoutService = inject(LayoutService);
   private readonly ngZone = inject(NgZone);
   private readonly elementRef = inject(ElementRef<HTMLElement>);
+
+  protected get activeCursor(): string {
+    const tool = this.toolService.activeTool;
+    if (tool?.type === ToolType.Pan) {
+      return this.isPanning ? 'grabbing' : 'grab';
+    }
+    return tool?.cursor ?? 'crosshair';
+  }
 
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   private readonly rulerTopRef = viewChild<ElementRef<HTMLCanvasElement>>('rulerTop');
@@ -65,6 +76,11 @@ export class CanvasViewportComponent {
   private cursorY = -1;
   private previewPixels: PixelCoord[] = [];
   private previewColor: Color | undefined;
+
+  /** Tracks the last raw screen position during a pan-tool drag. */
+  private panLastX = 0;
+  private panLastY = 0;
+  private isPanning = false;
 
   constructor() {
     // Set up gesture callbacks
@@ -305,14 +321,20 @@ export class CanvasViewportComponent {
   // --- Drawing logic ---
 
   private handleDraw(screenX: number, screenY: number, phase: 'start' | 'move' | 'end'): void {
+    const tool = this.toolService.activeTool;
+    if (!tool) return;
+
+    // Pan tool operates entirely in screen space — bypass pixel mapping.
+    if (tool.type === ToolType.Pan) {
+      this.handlePanDraw(screenX, screenY, phase);
+      return;
+    }
+
     const canvas = this.canvasRef().nativeElement;
     const rect = canvas.getBoundingClientRect();
     const pixel = this.canvasState.screenToPixel(screenX, screenY, rect);
 
     if (!pixel) return;
-
-    const tool = this.toolService.activeTool;
-    if (!tool) return;
 
     const activeLayer = this.layerService.activeLayer();
     if (!activeLayer) return;
@@ -386,6 +408,27 @@ export class CanvasViewportComponent {
     }
 
     this.requestRender();
+  }
+
+  private handlePanDraw(screenX: number, screenY: number, phase: 'start' | 'move' | 'end'): void {
+    switch (phase) {
+      case 'start':
+        this.panLastX = screenX;
+        this.panLastY = screenY;
+        this.isPanning = true;
+        break;
+      case 'move': {
+        const dx = screenX - this.panLastX;
+        const dy = screenY - this.panLastY;
+        this.canvasState.pan(dx, dy);
+        this.panLastX = screenX;
+        this.panLastY = screenY;
+        break;
+      }
+      case 'end':
+        this.isPanning = false;
+        break;
+    }
   }
 
   private handlePinch(scaleDelta: number): void {
