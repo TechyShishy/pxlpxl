@@ -7,6 +7,7 @@ import {
   Color,
   TRANSPARENT,
   colorsEqual,
+  pixelOffset,
 } from '../models';
 
 export class EraserTool implements Tool {
@@ -40,7 +41,7 @@ export class EraserTool implements Tool {
     if (this.visitedPixels.has(key)) return null;
     this.visitedPixels.add(key);
 
-    const offset = (ctx.coord.y * ctx.canvasWidth + ctx.coord.x) * 4;
+    const offset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD);
     const oldColor: Color = {
       r: layerData[offset],
       g: layerData[offset + 1],

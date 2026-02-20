@@ -93,7 +93,9 @@ export class FlattenLayerCommand implements Command {
     width: number,
     height: number,
   ): Uint8ClampedArray {
-    const pixelCount = width * height;
+    // Use actual buffer length rather than width * height to support triangular grids
+    // where the pixel count is less than width * height.
+    const pixelCount = lower.data.length / 4;
     const out = new Uint8ClampedArray(pixelCount * 4);
 
     for (let p = 0; p < pixelCount; p++) {

@@ -1,5 +1,6 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { Layer, createLayer, cloneLayerData, Color, TRANSPARENT } from '../models';
+import { Layer, createLayer, cloneLayerData, Color, TRANSPARENT, pixelOffset } from '../models';
+import { GridType } from '../models/project.model';
 
 @Injectable({ providedIn: 'root' })
 export class LayerService {
@@ -14,15 +15,15 @@ export class LayerService {
 
   readonly layerCount = computed(() => this.layers().length);
 
-  initLayers(width: number, height: number): void {
-    const layer = createLayer(crypto.randomUUID(), 'Layer 1', width, height);
+  initLayers(width: number, height: number, pixelCount?: number): void {
+    const layer = createLayer(crypto.randomUUID(), 'Layer 1', width, height, pixelCount);
     this.layers.set([layer]);
     this.activeLayerIndex.set(0);
   }
 
-  addLayer(width: number, height: number): void {
+  addLayer(width: number, height: number, pixelCount?: number): void {
     const idx = this.layerCount();
-    const layer = createLayer(crypto.randomUUID(), `Layer ${idx + 1}`, width, height);
+    const layer = createLayer(crypto.randomUUID(), `Layer ${idx + 1}`, width, height, pixelCount);
     this.layers.update((layers) => [...layers, layer]);
     this.activeLayerIndex.set(idx);
   }
@@ -90,10 +91,13 @@ export class LayerService {
   }
 
   /** Get pixel color at coordinates on a specific layer */
-  getPixel(layerIndex: number, x: number, y: number, width: number): Color {
+  getPixel(
+    layerIndex: number, x: number, y: number, width: number,
+    gridType?: GridType, triangularA?: number, triangularD?: number,
+  ): Color {
     const layer = this.layers()[layerIndex];
     if (!layer) return { ...TRANSPARENT };
-    const offset = (y * width + x) * 4;
+    const offset = pixelOffset(x, y, width, gridType, triangularA, triangularD);
     return {
       r: layer.data[offset],
       g: layer.data[offset + 1],
@@ -103,10 +107,13 @@ export class LayerService {
   }
 
   /** Set pixel color at coordinates on a specific layer */
-  setPixel(layerIndex: number, x: number, y: number, width: number, color: Color): void {
+  setPixel(
+    layerIndex: number, x: number, y: number, width: number, color: Color,
+    gridType?: GridType, triangularA?: number, triangularD?: number,
+  ): void {
     const layer = this.layers()[layerIndex];
     if (!layer) return;
-    const offset = (y * width + x) * 4;
+    const offset = pixelOffset(x, y, width, gridType, triangularA, triangularD);
     layer.data[offset] = color.r;
     layer.data[offset + 1] = color.g;
     layer.data[offset + 2] = color.b;

@@ -1,4 +1,4 @@
-import { Tool, ToolType, ToolContext, ToolResult, Color } from '../models';
+import { Tool, ToolType, ToolContext, ToolResult, Color, pixelOffset } from '../models';
 
 /**
  * Eyedropper tool — picks a color from the canvas.
@@ -29,7 +29,7 @@ export class EyedropperTool implements Tool {
   }
 
   private pickColor(ctx: ToolContext, layerData: Uint8ClampedArray): void {
-    const offset = (ctx.coord.y * ctx.canvasWidth + ctx.coord.x) * 4;
+    const offset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD);
     const color: Color = {
       r: layerData[offset],
       g: layerData[offset + 1],

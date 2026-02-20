@@ -1,4 +1,5 @@
 import { Command, Color, PixelCoord, ModifiedPixel } from '../models';
+import { GridType } from '../models/project.model';
 import { LayerService } from '../services/layer.service';
 
 /**
@@ -14,6 +15,9 @@ export class DrawCommand implements Command {
     readonly width: number,
     readonly modifiedPixels: ModifiedPixel[],
     description?: string,
+    readonly gridType?: GridType,
+    readonly triangularA?: number,
+    readonly triangularD?: number,
   ) {
     this.description = description ?? `Draw ${modifiedPixels.length} pixel(s)`;
   }
@@ -26,6 +30,9 @@ export class DrawCommand implements Command {
         pixel.coord.y,
         this.width,
         pixel.newColor,
+        this.gridType,
+        this.triangularA,
+        this.triangularD,
       );
     }
     this.layerService.notifyLayersChanged();
@@ -39,6 +46,9 @@ export class DrawCommand implements Command {
         pixel.coord.y,
         this.width,
         pixel.oldColor,
+        this.gridType,
+        this.triangularA,
+        this.triangularD,
       );
     }
     this.layerService.notifyLayersChanged();

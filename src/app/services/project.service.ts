@@ -7,6 +7,7 @@ import {
   serializeLayer,
   deserializeLayer,
   DEFAULT_PALETTE,
+  computeBufferPixelCount,
 } from '../models';
 import { CanvasStateService } from './canvas-state.service';
 import { LayerService } from './layer.service';
@@ -31,12 +32,25 @@ export class ProjectService {
   readonly savedProjects = signal<Project[]>([]);
 
   /** Create a new blank project and load it into the editor */
-  newProject(name: string, width: number, height: number, gridType: GridType = 'square'): void {
+  newProject(
+    name: string, width: number, height: number,
+    gridType: GridType = 'square',
+    triangularA?: number, triangularD?: number,
+  ): void {
     this.currentProjectId = undefined;
     this.currentProjectName.set(name);
     this.canvasState.setCanvasSize(width, height);
     this.canvasState.setGridType(gridType);
-    this.layerService.initLayers(this.canvasState.bufferWidth(), this.canvasState.bufferHeight());
+    if (gridType === 'triangular' && triangularA !== undefined && triangularD !== undefined) {
+      this.canvasState.setTriangularParams(triangularA, triangularD);
+    }
+    const pixelCount = computeBufferPixelCount(
+      this.canvasState.bufferWidth(), this.canvasState.bufferHeight(),
+      gridType, triangularA, triangularD,
+    );
+    this.layerService.initLayers(
+      this.canvasState.bufferWidth(), this.canvasState.bufferHeight(), pixelCount,
+    );
     this.colorService.setPalette([...DEFAULT_PALETTE]);
     this.historyService.clear();
     this.canvasState.resetZoom();
@@ -52,6 +66,8 @@ export class ProjectService {
       width: this.canvasState.canvasWidth(),
       height: this.canvasState.canvasHeight(),
       gridType: this.canvasState.gridType(),
+      triangularA: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularA() : undefined,
+      triangularD: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularD() : undefined,
       layers: this.layerService.layers().map(serializeLayer),
       palette: this.colorService.palette(),
       history: {
@@ -85,6 +101,9 @@ export class ProjectService {
     this.currentProjectName.set(project.name);
     this.canvasState.setCanvasSize(project.width, project.height);
     this.canvasState.setGridType(project.gridType ?? 'square');
+    if (project.gridType === 'triangular' && project.triangularA !== undefined && project.triangularD !== undefined) {
+      this.canvasState.setTriangularParams(project.triangularA, project.triangularD);
+    }
     this.layerService.setLayers(project.layers.map(deserializeLayer));
     this.colorService.setPalette(project.palette);
     if (project.history) {

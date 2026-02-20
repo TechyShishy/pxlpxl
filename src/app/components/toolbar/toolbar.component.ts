@@ -129,7 +129,10 @@ export class ToolbarComponent implements OnDestroy {
     const dialogRef = this.dialog.open(NewProjectDialogComponent);
     dialogRef.afterClosed().subscribe((result: NewProjectDialogResult | undefined) => {
       if (result) {
-        this.projectService.newProject(result.name, result.width, result.height, result.gridType);
+        this.projectService.newProject(
+          result.name, result.width, result.height, result.gridType,
+          result.triangularA, result.triangularD,
+        );
       }
     });
   }

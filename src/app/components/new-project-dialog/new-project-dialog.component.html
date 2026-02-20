@@ -37,8 +37,44 @@
       <mat-select [(ngModel)]="gridType" aria-label="Grid type">
         <mat-option value="square">Square</mat-option>
         <mat-option value="peyote">Peyote</mat-option>
+        <mat-option value="triangular">Triangular</mat-option>
       </mat-select>
     </mat-form-field>
+
+    @if (gridType === 'triangular') {
+      <div class="dimensions">
+        <mat-form-field appearance="outline">
+          <mat-label>a (first row width)</mat-label>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="triangularA"
+            [min]="1"
+            aria-label="First row width (a)"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>d (row growth)</mat-label>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="triangularD"
+            [min]="1"
+            aria-label="Per-row growth (d)"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>R (rows)</mat-label>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="triangularRows"
+            [min]="1"
+            aria-label="Number of rows (R)"
+          />
+        </mat-form-field>
+      </div>
+    }
 
     <div class="presets">
       <button mat-stroked-button (click)="setPreset(16, 16)">16×16</button>
@@ -50,7 +86,7 @@
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   <button mat-button mat-dialog-close>Cancel</button>
-  <button mat-flat-button [disabled]="width < 1 || height < 1" (click)="onCreate()">
+  <button mat-flat-button [disabled]="isCreateDisabled" (click)="onCreate()">
     Create
   </button>
 </mat-dialog-actions>

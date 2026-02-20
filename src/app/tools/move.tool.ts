@@ -1,4 +1,4 @@
-import { Tool, ToolType, ToolContext, ToolResult, PixelCoord } from '../models';
+import { Tool, ToolType, ToolContext, ToolResult, PixelCoord, pixelOffset } from '../models';
 import { GridService } from '../services/grid.service';
 
 const gridService = new GridService();
@@ -84,20 +84,44 @@ export class MoveTool implements Tool {
     // Clear the destination buffer to transparent.
     layerData.fill(0);
 
-    if (!gridService.isPeyote(ctx.gridType)) {
-      // Square grid: same as before — simple buffer-space shift
+    if (!gridService.isPeyote(ctx.gridType) && !gridService.isTriangular(ctx.gridType)) {
+      // Square grid: simple buffer-space shift
       for (let y = 0; y < height; y++) {
         const srcY = y - dy;
         if (srcY < 0 || srcY >= height) continue;
         for (let x = 0; x < width; x++) {
           const srcX = x - dx;
           if (srcX < 0 || srcX >= width) continue;
-          const srcOffset = (srcY * width + srcX) * 4;
-          const dstOffset = (y * width + x) * 4;
-          layerData[dstOffset] = src[srcOffset];
-          layerData[dstOffset + 1] = src[srcOffset + 1];
-          layerData[dstOffset + 2] = src[srcOffset + 2];
-          layerData[dstOffset + 3] = src[srcOffset + 3];
+          const srcOff = pixelOffset(srcX, srcY, width);
+          const dstOff = pixelOffset(x, y, width);
+          layerData[dstOff] = src[srcOff];
+          layerData[dstOff + 1] = src[srcOff + 1];
+          layerData[dstOff + 2] = src[srcOff + 2];
+          layerData[dstOff + 3] = src[srcOff + 3];
+        }
+      }
+      return;
+    }
+
+    if (gridService.isTriangular(ctx.gridType)) {
+      // Triangular grid: shift in buffer space, per-row bounds
+      const a = ctx.triangularA ?? 1;
+      const d = ctx.triangularD ?? 1;
+      const totalRows = height;
+      for (let y = 0; y < totalRows; y++) {
+        const rowWidth = a + d * y;
+        const srcY = y - dy;
+        if (srcY < 0 || srcY >= totalRows) continue;
+        const srcRowWidth = a + d * srcY;
+        for (let x = 0; x < rowWidth; x++) {
+          const srcX = x - dx;
+          if (srcX < 0 || srcX >= srcRowWidth) continue;
+          const srcOff = pixelOffset(srcX, srcY, width, 'triangular', a, d);
+          const dstOff = pixelOffset(x, y, width, 'triangular', a, d);
+          layerData[dstOff] = src[srcOff];
+          layerData[dstOff + 1] = src[srcOff + 1];
+          layerData[dstOff + 2] = src[srcOff + 2];
+          layerData[dstOff + 3] = src[srcOff + 3];
         }
       }
       return;
@@ -131,12 +155,12 @@ export class MoveTool implements Tool {
         const srcBuf = gridService.visualToBuffer(srcCol, srcBeadRow);
         if (!gridService.isValidPixel(srcBuf.bx, srcBuf.by, width, height, ctx.gridType, visCols)) continue;
 
-        const srcOffset = (srcBuf.by * width + srcBuf.bx) * 4;
-        const dstOffset = (by * width + bx) * 4;
-        layerData[dstOffset] = src[srcOffset];
-        layerData[dstOffset + 1] = src[srcOffset + 1];
-        layerData[dstOffset + 2] = src[srcOffset + 2];
-        layerData[dstOffset + 3] = src[srcOffset + 3];
+        const srcOff = pixelOffset(srcBuf.bx, srcBuf.by, width);
+        const dstOff = pixelOffset(bx, by, width);
+        layerData[dstOff] = src[srcOff];
+        layerData[dstOff + 1] = src[srcOff + 1];
+        layerData[dstOff + 2] = src[srcOff + 2];
+        layerData[dstOff + 3] = src[srcOff + 3];
       }
     }
   }

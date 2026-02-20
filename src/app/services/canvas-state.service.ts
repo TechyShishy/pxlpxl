@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { ViewTransform, GridType, computeBufferDimensions } from '../models';
+import { ViewTransform, GridType, computeBufferDimensions, computeBufferPixelCount } from '../models';
 import { GridService } from './grid.service';
 
 @Injectable({ providedIn: 'root' })
@@ -14,12 +14,19 @@ export class CanvasStateService {
   readonly showRulers = signal<boolean>(false);
   readonly gridType = signal<GridType>('square');
 
+  /** First-row width for triangular grids. */
+  readonly triangularA = signal<number>(1);
+  /** Per-row growth for triangular grids. */
+  readonly triangularD = signal<number>(1);
+
   /** Buffer width — for peyote: ceil(visualColumns / 2); for square: same as canvasWidth. */
   readonly bufferWidth = computed(() => {
     const { bufferWidth } = computeBufferDimensions(
       this.canvasWidth(),
       this.canvasHeight(),
       this.gridType(),
+      this.triangularA(),
+      this.triangularD(),
     );
     return bufferWidth;
   });
@@ -30,9 +37,22 @@ export class CanvasStateService {
       this.canvasWidth(),
       this.canvasHeight(),
       this.gridType(),
+      this.triangularA(),
+      this.triangularD(),
     );
     return bufferHeight;
   });
+
+  /** Total number of pixels for buffer allocation. */
+  readonly bufferPixelCount = computed(() =>
+    computeBufferPixelCount(
+      this.canvasWidth(),
+      this.canvasHeight(),
+      this.gridType(),
+      this.triangularA(),
+      this.triangularD(),
+    ),
+  );
 
   readonly transform = signal<ViewTransform>({
     scale: 10,
@@ -49,6 +69,11 @@ export class CanvasStateService {
 
   setGridType(type: GridType): void {
     this.gridType.set(type);
+  }
+
+  setTriangularParams(a: number, d: number): void {
+    this.triangularA.set(a);
+    this.triangularD.set(d);
   }
 
   setZoom(scale: number): void {
@@ -106,6 +131,8 @@ export class CanvasStateService {
       this.bufferHeight(),
       this.gridType(),
       this.canvasWidth(),
+      this.triangularA(),
+      this.triangularD(),
     );
   }
 }

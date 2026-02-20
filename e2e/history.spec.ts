@@ -36,7 +36,7 @@ async function waitForRender(page: Page): Promise<void> {
 async function getCanvasPixel(page: Page, x: number, y: number): Promise<RGBA> {
   return page.evaluate(
     ({ px, py }) => {
-      const canvas = document.querySelector('app-canvas-viewport canvas') as HTMLCanvasElement;
+      const canvas = document.querySelector('app-canvas-viewport canvas:not([aria-hidden])') as HTMLCanvasElement;
       const ctx = canvas.getContext('2d')!;
       const [r, g, b, a] = ctx.getImageData(px, py, 1, 1).data;
       return { r, g, b, a };
@@ -55,7 +55,7 @@ function colorsEqual(a: RGBA, b: RGBA): boolean {
  * position (relative to the **canvas element**, not the page).
  */
 async function drawAt(page: Page, canvasX: number, canvasY: number): Promise<void> {
-  const canvas = page.locator('app-canvas-viewport canvas');
+  const canvas = page.locator('app-canvas-viewport canvas:not([aria-hidden])');
   const box = (await canvas.boundingBox())!;
 
   // Convert canvas-relative to page-absolute coordinates
@@ -82,7 +82,7 @@ test.describe('History – undo / redo', () => {
     await page.goto('/editor');
 
     // Wait for the canvas to be visible and rendered
-    await page.locator('app-canvas-viewport canvas').waitFor({ state: 'visible' });
+    await page.locator('app-canvas-viewport canvas:not([aria-hidden])').waitFor({ state: 'visible' });
     await waitForRender(page);
   });
 

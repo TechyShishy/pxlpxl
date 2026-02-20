@@ -12,7 +12,14 @@ export {
 export type { Layer } from './layer.model';
 export { createLayer, cloneLayerData } from './layer.model';
 export type { Project, SerializedLayer, GridType } from './project.model';
-export { serializeLayer, deserializeLayer, createDefaultProject, computeBufferDimensions } from './project.model';
+export {
+  serializeLayer,
+  deserializeLayer,
+  createDefaultProject,
+  computeBufferDimensions,
+  computeBufferPixelCount,
+} from './project.model';
+export { pixelOffset } from './pixel-offset';
 export type { Tool, ToolContext, ToolResult, ModifiedPixel, PixelCoord } from './tool.interface';
 export { ToolType } from './tool.interface';
 export type { Command } from './command.interface';

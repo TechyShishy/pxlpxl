@@ -27,6 +27,10 @@ export interface ToolContext {
   isSecondary: boolean;
   /** Grid type for coordinate mapping */
   gridType: GridType;
+  /** First-row width for triangular grids */
+  triangularA?: number;
+  /** Per-row growth for triangular grids */
+  triangularD?: number;
 }
 
 export enum ToolType {

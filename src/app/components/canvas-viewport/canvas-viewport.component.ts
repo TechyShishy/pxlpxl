@@ -334,13 +334,16 @@ export class CanvasViewportComponent {
     const rect = canvas.getBoundingClientRect();
     const pixel = this.canvasState.screenToPixel(screenX, screenY, rect);
 
-    if (!pixel) return;
+    // For 'end' phase we must always call onPointerUp to finalise the
+    // command, even when the pointer is over a gap or outside the grid.
+    // For 'start'/'move' we need a valid pixel coordinate.
+    if (!pixel && phase !== 'end') return;
 
     const activeLayer = this.layerService.activeLayer();
     if (!activeLayer) return;
 
     const ctx: ToolContext = {
-      coord: pixel,
+      coord: pixel ?? { x: 0, y: 0 },
       layerIndex: this.layerService.activeLayerIndex(),
       canvasWidth: this.canvasState.bufferWidth(),
       canvasHeight: this.canvasState.bufferHeight(),
@@ -349,6 +352,8 @@ export class CanvasViewportComponent {
       secondaryColor: this.colorService.secondaryColor(),
       isSecondary: false,
       gridType: this.canvasState.gridType(),
+      triangularA: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularA() : undefined,
+      triangularD: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularD() : undefined,
     };
 
     let result;
@@ -393,12 +398,19 @@ export class CanvasViewportComponent {
                   ctx.layerIndex,
                   ctx.canvasWidth,
                   result.modifiedPixels,
+                  ctx.gridType,
+                  ctx.triangularA,
+                  ctx.triangularD,
                 )
               : new DrawCommand(
                   this.layerService,
                   ctx.layerIndex,
                   ctx.canvasWidth,
                   result.modifiedPixels,
+                  undefined,
+                  ctx.gridType,
+                  ctx.triangularA,
+                  ctx.triangularD,
                 );
           // Don't execute — pixels already applied by the tool
           this.historyService['undoStack'].update((s) => [...s, command]);

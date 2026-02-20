@@ -2,7 +2,7 @@ import { Color, DEFAULT_PALETTE } from './color.model';
 import { Layer } from './layer.model';
 import { SerializedHistoryEntry } from './pxl-file.model';
 
-export type GridType = 'square' | 'peyote';
+export type GridType = 'square' | 'peyote' | 'triangular';
 
 /**
  * Compute the buffer dimensions for a given set of visual dimensions and grid type.
@@ -25,6 +25,8 @@ export function computeBufferDimensions(
   width: number,
   height: number,
   gridType: GridType,
+  triangularA?: number,
+  triangularD?: number,
 ): { bufferWidth: number; bufferHeight: number } {
   if (gridType === 'peyote') {
     return {
@@ -32,7 +34,36 @@ export function computeBufferDimensions(
       bufferHeight: height,
     };
   }
+  if (gridType === 'triangular' && triangularA !== undefined && triangularD !== undefined) {
+    // bufferWidth = max row width (last row), bufferHeight = number of rows
+    return {
+      bufferWidth: triangularA + triangularD * Math.max(0, height - 1),
+      bufferHeight: height,
+    };
+  }
   return { bufferWidth: width, bufferHeight: height };
+}
+
+/**
+ * Compute the total number of pixels for buffer allocation.
+ *
+ * For square and peyote grids: bufferWidth × bufferHeight.
+ * For triangular grids: sum of row widths = R·a + d·R·(R−1)/2.
+ */
+export function computeBufferPixelCount(
+  width: number,
+  height: number,
+  gridType: GridType,
+  triangularA?: number,
+  triangularD?: number,
+): number {
+  if (gridType === 'triangular' && triangularA !== undefined && triangularD !== undefined) {
+    return height * triangularA + triangularD * height * (height - 1) / 2;
+  }
+  const { bufferWidth, bufferHeight } = computeBufferDimensions(
+    width, height, gridType, triangularA, triangularD,
+  );
+  return bufferWidth * bufferHeight;
 }
 
 export interface Project {
@@ -41,6 +72,10 @@ export interface Project {
   width: number;
   height: number;
   gridType: GridType;
+  /** First-row width for triangular grids. */
+  triangularA?: number;
+  /** Per-row growth for triangular grids. */
+  triangularD?: number;
   layers: SerializedLayer[];
   palette: Color[];
   /** Serialized undo/redo history (optional for backward compatibility) */
@@ -86,20 +121,24 @@ export function createDefaultProject(
   width: number,
   height: number,
   gridType: GridType = 'square',
+  triangularA?: number,
+  triangularD?: number,
 ): Project {
-  const { bufferWidth, bufferHeight } = computeBufferDimensions(width, height, gridType);
+  const pixelCount = computeBufferPixelCount(width, height, gridType, triangularA, triangularD);
   return {
     name,
     width,
     height,
     gridType,
+    triangularA,
+    triangularD,
     layers: [
       {
         id: crypto.randomUUID(),
         name: 'Layer 1',
         visible: true,
         opacity: 1,
-        data: Array.from(new Uint8ClampedArray(bufferWidth * bufferHeight * 4)),
+        data: Array.from(new Uint8ClampedArray(pixelCount * 4)),
       },
     ],
     palette: [...DEFAULT_PALETTE],

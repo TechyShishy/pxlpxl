@@ -17,6 +17,9 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
       description: command.description,
       layerIndex: command.layerIdx,
       canvasWidth: command.width,
+      gridType: command.gridType,
+      triangularA: command.triangularA,
+      triangularD: command.triangularD,
       modifiedPixels: command.modifiedPixels.map((p) => ({
         coord: { x: p.coord.x, y: p.coord.y },
         oldColor: { ...p.oldColor },
@@ -31,6 +34,9 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
       description: command.description,
       layerIndex: command.layerIdx,
       canvasWidth: command.width,
+      gridType: command.gridType,
+      triangularA: command.triangularA,
+      triangularD: command.triangularD,
       modifiedPixels: command.modifiedPixels.map((p) => ({
         coord: { x: p.coord.x, y: p.coord.y },
         oldColor: { ...p.oldColor },
@@ -101,6 +107,9 @@ export function deserializeCommand(
           newColor: { ...p.newColor },
         })),
         entry.description,
+        entry.gridType,
+        entry.triangularA,
+        entry.triangularD,
       );
 
     case 'fill':
@@ -113,6 +122,9 @@ export function deserializeCommand(
           oldColor: { ...p.oldColor },
           newColor: { ...p.newColor },
         })),
+        entry.gridType,
+        entry.triangularA,
+        entry.triangularD,
       );
 
     case 'layer':

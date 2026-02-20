@@ -125,9 +125,9 @@ export class ImportService {
 
   private async importPng(buffer: ArrayBuffer, filename: string): Promise<void> {
     const gridType = this.canvasState.gridType();
-    if (this.gridService.isPeyote(gridType)) {
+    if (this.gridService.isPeyote(gridType) || this.gridService.isTriangular(gridType)) {
       // eslint-disable-next-line no-console
-      console.warn('[ImportService] PNG import on peyote grids is not yet implemented.');
+      console.warn('[ImportService] PNG import on peyote/triangular grids is not yet implemented.');
       return;
     }
 
@@ -177,6 +177,9 @@ export class ImportService {
     // Hydrate canvas
     this.canvasState.setCanvasSize(pxl.width, pxl.height);
     this.canvasState.setGridType(pxl.gridType);
+    if (pxl.gridType === 'triangular' && pxl.triangularA !== undefined && pxl.triangularD !== undefined) {
+      this.canvasState.setTriangularParams(pxl.triangularA, pxl.triangularD);
+    }
     this.canvasState.resetZoom();
 
     // Hydrate layers

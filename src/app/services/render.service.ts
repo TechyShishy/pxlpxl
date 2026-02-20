@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { LayerService } from './layer.service';
 import { CanvasStateService } from './canvas-state.service';
 import { GridService } from './grid.service';
-import { Color, GridType, PixelCoord } from '../models';
+import { Color, GridType, PixelCoord, pixelOffset } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class RenderService {
@@ -41,6 +41,8 @@ export class RenderService {
     // Composite visible layers
     if (this.gridService.isPeyote(gridType)) {
       this.renderPeyoteLayers(ctx, visualWidth, bufWidth, bufHeight, transform, gridType, layers);
+    } else if (this.gridService.isTriangular(gridType)) {
+      this.renderTriangularLayers(ctx, bufHeight, transform, gridType, layers);
     } else {
       for (const layer of layers) {
         if (!layer.visible || layer.opacity === 0) continue;
@@ -65,7 +67,7 @@ export class RenderService {
 
     // Draw preview overlay (e.g. line/rect preview while dragging)
     if (previewPixels && previewPixels.length > 0 && previewColor) {
-      this.drawPreview(ctx, previewPixels, previewColor, transform, gridType);
+      this.drawPreview(ctx, previewPixels, previewColor, transform, gridType, bufHeight);
     }
 
     // Draw pixel grid
@@ -107,7 +109,7 @@ export class RenderService {
 
   /**
    * Render all visible layers to an OffscreenCanvas at the given scale,
-   * drawing beads in peyote layout. Used for peyote export.
+   * drawing beads in peyote/triangular layout. Used for non-square export.
    */
   compositeToCanvas(scale: number): OffscreenCanvas {
     const visualWidth = this.canvasState.canvasWidth();
@@ -115,33 +117,75 @@ export class RenderService {
     const bufWidth = this.canvasState.bufferWidth();
     const bufHeight = this.canvasState.bufferHeight();
     const gridType = this.canvasState.gridType();
+    const triA = this.canvasState.triangularA();
+    const triD = this.canvasState.triangularD();
 
-    // Canvas needs extra half-bead height for odd-column offset in peyote
-    const beadsPerCol = gridType === 'peyote' ? Math.ceil(bufHeight / 2) : bufHeight;
-    const extraY = gridType === 'peyote' ? Math.ceil(scale / 2) : 0;
-    const canvasW = visualWidth * scale;
-    const canvasH = beadsPerCol * scale + extraY;
+    let canvasW: number;
+    let canvasH: number;
+
+    if (gridType === 'triangular') {
+      const maxRowWidth = triA + triD * Math.max(0, bufHeight - 1);
+      if (triD % 2 !== 0) {
+        // Odd d: 2-stride spacing + half-row interleaving
+        canvasW = ((maxRowWidth - 1) * 2 + 1) * scale;
+        canvasH = (bufHeight - 1) * Math.ceil(scale / 2) + scale;
+      } else {
+        canvasW = maxRowWidth * scale;
+        canvasH = bufHeight * scale;
+      }
+    } else {
+      // Canvas needs extra half-bead height for odd-column offset in peyote
+      const beadsPerCol = gridType === 'peyote' ? Math.ceil(bufHeight / 2) : bufHeight;
+      const extraY = gridType === 'peyote' ? Math.ceil(scale / 2) : 0;
+      canvasW = visualWidth * scale;
+      canvasH = beadsPerCol * scale + extraY;
+    }
+
     const canvas = new OffscreenCanvas(canvasW, canvasH);
     const ctx = canvas.getContext('2d')!;
 
     const layers = this.layerService.layers();
-    for (const layer of layers) {
-      if (!layer.visible || layer.opacity === 0) continue;
-      ctx.globalAlpha = layer.opacity;
 
-      for (let by = 0; by < bufHeight; by++) {
-        for (let bx = 0; bx < bufWidth; bx++) {
-          if (!this.gridService.isValidPixel(bx, by, bufWidth, bufHeight, gridType, visualWidth)) continue;
-          const offset = (by * bufWidth + bx) * 4;
-          const a = layer.data[offset + 3];
-          if (a === 0) continue;
+    if (gridType === 'triangular') {
+      for (const layer of layers) {
+        if (!layer.visible || layer.opacity === 0) continue;
+        ctx.globalAlpha = layer.opacity;
 
-          const { sx, sy } = this.gridService.pixelToScreen(bx, by, scale, gridType);
-          ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${a / 255})`;
-          ctx.fillRect(sx, sy, scale, scale);
+        for (let row = 0; row < bufHeight; row++) {
+          const rowWidth = triA + triD * row;
+          for (let col = 0; col < rowWidth; col++) {
+            const offset = pixelOffset(col, row, bufWidth, 'triangular', triA, triD);
+            const a = layer.data[offset + 3];
+            if (a === 0) continue;
+
+            const { sx, sy } = this.gridService.pixelToScreen(
+              col, row, scale, gridType, triA, triD, bufHeight,
+            );
+            ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${a / 255})`;
+            ctx.fillRect(sx, sy, scale, scale);
+          }
+        }
+      }
+    } else {
+      for (const layer of layers) {
+        if (!layer.visible || layer.opacity === 0) continue;
+        ctx.globalAlpha = layer.opacity;
+
+        for (let by = 0; by < bufHeight; by++) {
+          for (let bx = 0; bx < bufWidth; bx++) {
+            if (!this.gridService.isValidPixel(bx, by, bufWidth, bufHeight, gridType, visualWidth)) continue;
+            const offset = (by * bufWidth + bx) * 4;
+            const a = layer.data[offset + 3];
+            if (a === 0) continue;
+
+            const { sx, sy } = this.gridService.pixelToScreen(bx, by, scale, gridType);
+            ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${a / 255})`;
+            ctx.fillRect(sx, sy, scale, scale);
+          }
         }
       }
     }
+
     ctx.globalAlpha = 1;
     return canvas;
   }
@@ -153,15 +197,59 @@ export class RenderService {
     color: Color,
     transform: { scale: number; offsetX: number; offsetY: number },
     gridType: GridType,
+    totalRows?: number,
   ): void {
+    const a = this.canvasState.triangularA();
+    const d = this.canvasState.triangularD();
     ctx.save();
     ctx.translate(transform.offsetX, transform.offsetY);
     ctx.globalAlpha = 0.75;
     ctx.fillStyle = `rgb(${color.r},${color.g},${color.b})`;
 
     for (const { x, y } of pixels) {
-      const { sx, sy } = this.gridService.pixelToScreen(x, y, transform.scale, gridType);
+      const { sx, sy } = this.gridService.pixelToScreen(
+        x, y, transform.scale, gridType, a, d, totalRows,
+      );
       ctx.fillRect(sx, sy, transform.scale, transform.scale);
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  /** Render triangular layers bead-by-bead onto the viewport canvas. */
+  private renderTriangularLayers(
+    ctx: CanvasRenderingContext2D,
+    totalRows: number,
+    transform: { scale: number; offsetX: number; offsetY: number },
+    gridType: GridType,
+    layers: readonly { visible: boolean; opacity: number; data: Uint8ClampedArray }[],
+  ): void {
+    const a = this.canvasState.triangularA();
+    const d = this.canvasState.triangularD();
+    const bufWidth = this.canvasState.bufferWidth();
+
+    ctx.save();
+    ctx.translate(transform.offsetX, transform.offsetY);
+
+    for (const layer of layers) {
+      if (!layer.visible || layer.opacity === 0) continue;
+      ctx.globalAlpha = layer.opacity;
+
+      for (let row = 0; row < totalRows; row++) {
+        const rowWidth = a + d * row;
+        for (let col = 0; col < rowWidth; col++) {
+          const offset = pixelOffset(col, row, bufWidth, 'triangular', a, d);
+          const alpha = layer.data[offset + 3];
+          if (alpha === 0) continue;
+
+          const { sx, sy } = this.gridService.pixelToScreen(
+            col, row, transform.scale, gridType, a, d, totalRows,
+          );
+          ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${alpha / 255})`;
+          ctx.fillRect(sx, sy, transform.scale, transform.scale);
+        }
+      }
     }
 
     ctx.globalAlpha = 1;
@@ -227,6 +315,21 @@ export class RenderService {
           ctx.fillRect(sx, sy, transform.scale, transform.scale);
         }
       }
+    } else if (this.gridService.isTriangular(gridType)) {
+      // Draw checkerboard bead-by-bead for triangular
+      const a = this.canvasState.triangularA();
+      const d = this.canvasState.triangularD();
+      for (let row = 0; row < bufHeight; row++) {
+        const rowWidth = a + d * row;
+        for (let col = 0; col < rowWidth; col++) {
+          const isLight = (col + row) % 2 === 0;
+          ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
+          const { sx, sy } = this.gridService.pixelToScreen(
+            col, row, transform.scale, gridType, a, d, bufHeight,
+          );
+          ctx.fillRect(sx, sy, transform.scale, transform.scale);
+        }
+      }
     } else {
       for (let y = 0; y < bufHeight; y++) {
         for (let x = 0; x < bufWidth; x++) {
@@ -282,6 +385,63 @@ export class RenderService {
           ctx.beginPath();
           ctx.moveTo(col * transform.scale, sy);
           ctx.lineTo((col + 1) * transform.scale, sy);
+          ctx.stroke();
+        }
+      }
+    } else if (this.gridService.isTriangular(gridType)) {
+      // Triangular grid: draw cell outlines per row
+      const a = this.canvasState.triangularA();
+      const d = this.canvasState.triangularD();
+      const totalRows = bufHeight;
+      const maxWidth = a + d * Math.max(0, totalRows - 1);
+      const isOddD = d % 2 !== 0;
+      const rowSpacing = isOddD ? transform.scale / 2 : transform.scale;
+
+      if (isOddD) {
+        // Odd d: spaced layout — draw individual cell outlines
+        for (let row = 0; row < totalRows; row++) {
+          const rowWidth = a + d * row;
+          const centerOffset = maxWidth - rowWidth;
+          const y = row * rowSpacing;
+          for (let col = 0; col < rowWidth; col++) {
+            const x = (centerOffset + col * 2) * transform.scale;
+            ctx.strokeRect(x, y, transform.scale, transform.scale);
+          }
+        }
+      } else {
+        // Even d: continuous rows
+        for (let row = 0; row < totalRows; row++) {
+          const rowWidth = a + d * row;
+          const centerOffset = (maxWidth - rowWidth) / 2;
+          const y = row * rowSpacing;
+
+          const startX = centerOffset * transform.scale;
+          const endX = (centerOffset + rowWidth) * transform.scale;
+          ctx.beginPath();
+          ctx.moveTo(startX, y);
+          ctx.lineTo(endX, y);
+          ctx.stroke();
+
+          for (let col = 0; col <= rowWidth; col++) {
+            const x = (centerOffset + col) * transform.scale;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y + transform.scale);
+            ctx.stroke();
+          }
+        }
+
+        // Bottom border of last row
+        {
+          const lastRow = totalRows - 1;
+          const lastRowWidth = a + d * lastRow;
+          const lastCenterOffset = (maxWidth - lastRowWidth) / 2;
+          const bottomY = lastRow * rowSpacing + transform.scale;
+          const startX = lastCenterOffset * transform.scale;
+          const endX = (lastCenterOffset + lastRowWidth) * transform.scale;
+          ctx.beginPath();
+          ctx.moveTo(startX, bottomY);
+          ctx.lineTo(endX, bottomY);
           ctx.stroke();
         }
       }

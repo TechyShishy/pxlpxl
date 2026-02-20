@@ -12,6 +12,10 @@ export interface PxlFile {
   width: number;
   height: number;
   gridType: GridType;
+  /** First-row width for triangular grids. */
+  triangularA?: number;
+  /** Per-row growth for triangular grids. */
+  triangularD?: number;
   palette: Color[];
   layers: PxlLayer[];
   history?: PxlHistory;
@@ -39,6 +43,12 @@ export interface SerializedHistoryEntry {
   description: string;
   layerIndex: number;
   canvasWidth: number;
+  /** For 'draw' and 'fill' commands — the grid type at time of command */
+  gridType?: GridType;
+  /** For 'draw' and 'fill' commands — triangular first-row width */
+  triangularA?: number;
+  /** For 'draw' and 'fill' commands — triangular per-row growth */
+  triangularD?: number;
   /** For 'draw' and 'fill' commands */
   modifiedPixels?: SerializedModifiedPixel[];
   /** For 'layer' commands — base64-encoded Uint8ClampedArray */
@@ -68,7 +78,9 @@ export const PxlFileSchema = z.object({
   name: z.string(),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
-  gridType: z.enum(['square', 'peyote']),
+  gridType: z.enum(['square', 'peyote', 'triangular']),
+  triangularA: z.number().int().positive().optional(),
+  triangularD: z.number().int().nonnegative().optional(),
   palette: z.array(
     z.object({ r: z.number(), g: z.number(), b: z.number(), a: z.number() }),
   ),

@@ -1,4 +1,5 @@
 import { Command, ModifiedPixel } from '../models';
+import { GridType } from '../models/project.model';
 import { LayerService } from '../services/layer.service';
 
 /**
@@ -13,6 +14,9 @@ export class FillCommand implements Command {
     readonly layerIdx: number,
     readonly width: number,
     readonly modifiedPixels: ModifiedPixel[],
+    readonly gridType?: GridType,
+    readonly triangularA?: number,
+    readonly triangularD?: number,
   ) {
     this.description = `Fill ${modifiedPixels.length} pixel(s)`;
   }
@@ -25,6 +29,9 @@ export class FillCommand implements Command {
         pixel.coord.y,
         this.width,
         pixel.newColor,
+        this.gridType,
+        this.triangularA,
+        this.triangularD,
       );
     }
     this.layerService.notifyLayersChanged();
@@ -38,6 +45,9 @@ export class FillCommand implements Command {
         pixel.coord.y,
         this.width,
         pixel.oldColor,
+        this.gridType,
+        this.triangularA,
+        this.triangularD,
       );
     }
     this.layerService.notifyLayersChanged();

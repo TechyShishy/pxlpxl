@@ -281,4 +281,338 @@ describe('GridService', () => {
       expect(service.isPeyote('peyote')).toBe(true);
     });
   });
+
+  describe('isTriangular', () => {
+    it('should return false for square', () => {
+      expect(service.isTriangular('square')).toBe(false);
+    });
+
+    it('should return false for peyote', () => {
+      expect(service.isTriangular('peyote')).toBe(false);
+    });
+
+    it('should return true for triangular', () => {
+      expect(service.isTriangular('triangular')).toBe(true);
+    });
+  });
+
+  describe('triangularRowWidth', () => {
+    it('should return a for row 0', () => {
+      expect(service.triangularRowWidth(0, 3, 2)).toBe(3);
+    });
+
+    it('should return a + d for row 1', () => {
+      expect(service.triangularRowWidth(1, 3, 2)).toBe(5);
+    });
+
+    it('should return a + d*r for arbitrary row', () => {
+      expect(service.triangularRowWidth(4, 1, 2)).toBe(9);
+    });
+  });
+
+  describe('triangular grid', () => {
+    // Using a=1, d=2, R=4 (totalRows=4, bufferHeight=4)
+    // Row widths: 1, 3, 5, 7
+    const a = 1;
+    const d = 2;
+    const totalRows = 4;
+
+    describe('isValidPixel', () => {
+      it('should accept (0, 0) — only pixel in row 0', () => {
+        expect(service.isValidPixel(0, 0, 0, totalRows, 'triangular', undefined, a, d)).toBe(true);
+      });
+
+      it('should reject (1, 0) — row 0 has width 1', () => {
+        expect(service.isValidPixel(1, 0, 0, totalRows, 'triangular', undefined, a, d)).toBe(false);
+      });
+
+      it('should accept (2, 1) — row 1 has width 3', () => {
+        expect(service.isValidPixel(2, 1, 0, totalRows, 'triangular', undefined, a, d)).toBe(true);
+      });
+
+      it('should reject (3, 1) — row 1 has width 3', () => {
+        expect(service.isValidPixel(3, 1, 0, totalRows, 'triangular', undefined, a, d)).toBe(false);
+      });
+
+      it('should accept (6, 3) — last pixel of row 3', () => {
+        expect(service.isValidPixel(6, 3, 0, totalRows, 'triangular', undefined, a, d)).toBe(true);
+      });
+
+      it('should reject (7, 3) — past end of row 3', () => {
+        expect(service.isValidPixel(7, 3, 0, totalRows, 'triangular', undefined, a, d)).toBe(false);
+      });
+
+      it('should reject negative x', () => {
+        expect(service.isValidPixel(-1, 0, 0, totalRows, 'triangular', undefined, a, d)).toBe(false);
+      });
+
+      it('should reject negative y', () => {
+        expect(service.isValidPixel(0, -1, 0, totalRows, 'triangular', undefined, a, d)).toBe(false);
+      });
+
+      it('should reject y >= totalRows', () => {
+        expect(service.isValidPixel(0, totalRows, 0, totalRows, 'triangular', undefined, a, d)).toBe(false);
+      });
+    });
+
+    describe('pixelToScreen (even d)', () => {
+      // a=1, d=2 (even), totalRows=4
+      // maxWidth = 1 + 2*3 = 7
+      // Row 0: width 1, centerOffset = (7-1)/2 = 3
+      // Row 3: width 7, centerOffset = 0
+
+      it('should center single pixel in row 0', () => {
+        const result = service.pixelToScreen(0, 0, 10, 'triangular', a, d, totalRows);
+        // centerOffset = 3, sx = (3 + 0) * 10 = 30
+        expect(result).toEqual({ sx: 30, sy: 0 });
+      });
+
+      it('should position first pixel of row 3 at left edge', () => {
+        const result = service.pixelToScreen(0, 3, 10, 'triangular', a, d, totalRows);
+        // centerOffset = 0, sx = 0
+        expect(result).toEqual({ sx: 0, sy: 30 });
+      });
+
+      it('should position middle pixel of row 2', () => {
+        // row 2: width 5, centerOffset = (7-5)/2 = 1
+        const result = service.pixelToScreen(2, 2, 10, 'triangular', a, d, totalRows);
+        expect(result).toEqual({ sx: 30, sy: 20 });
+      });
+
+      it('should not apply vertical stagger for even d', () => {
+        const r0 = service.pixelToScreen(0, 0, 10, 'triangular', a, d, totalRows);
+        const r1 = service.pixelToScreen(0, 1, 10, 'triangular', a, d, totalRows);
+        // No stagger — rows are at y=0 and y=10 exactly
+        expect(r0.sy).toBe(0);
+        expect(r1.sy).toBe(10);
+      });
+    });
+
+    describe('pixelToScreen (odd d)', () => {
+      // a=2, d=1, totalRows=4
+      // maxWidth = 5
+      // Odd d: 2-stride layout. centerOffset = maxWidth - rowWidth (integer).
+      // Row 0: width 2, centerOffset = 3 → pixel 0 at (3+0)*10=30, pixel 1 at (3+2)*10=50
+      // Row 1: width 3, centerOffset = 2 → pixels at 20, 40, 60
+      // Row 2: width 4, centerOffset = 1 → pixels at 10, 30, 50, 70
+      // Row 3: width 5, centerOffset = 0 → pixels at 0, 20, 40, 60, 80
+      const oddA = 2;
+      const oddD = 1;
+
+      it('should center first row with whole-pixel offset', () => {
+        const result = service.pixelToScreen(0, 0, 10, 'triangular', oddA, oddD, totalRows);
+        // centerOffset = 5-2 = 3, sx = (3 + 0*2) * 10 = 30
+        expect(result.sx).toBe(30);
+        expect(result.sy).toBe(0);
+      });
+
+      it('should space pixels within a row with stride 2', () => {
+        // Row 3: width 5, centerOffset = 0. Pixels at 0, 20, 40, 60, 80.
+        const p0 = service.pixelToScreen(0, 3, 10, 'triangular', oddA, oddD, totalRows);
+        const p1 = service.pixelToScreen(1, 3, 10, 'triangular', oddA, oddD, totalRows);
+        const p2 = service.pixelToScreen(2, 3, 10, 'triangular', oddA, oddD, totalRows);
+        expect(p0.sx).toBe(0);
+        expect(p1.sx).toBe(20);
+        expect(p2.sx).toBe(40);
+      });
+
+      it('should use peyote-style half-row Y spacing', () => {
+        const r0 = service.pixelToScreen(0, 0, 10, 'triangular', oddA, oddD, totalRows);
+        const r1 = service.pixelToScreen(0, 1, 10, 'triangular', oddA, oddD, totalRows);
+        const r2 = service.pixelToScreen(0, 2, 10, 'triangular', oddA, oddD, totalRows);
+        const r3 = service.pixelToScreen(0, 3, 10, 'triangular', oddA, oddD, totalRows);
+        expect(r0.sy).toBe(0);
+        expect(r1.sy).toBe(5);
+        expect(r2.sy).toBe(10);
+        expect(r3.sy).toBe(15);
+      });
+
+      it('should shift adjacent rows by a whole pixel', () => {
+        // Row 0 pixel 0: sx=30. Row 1 pixel 0: sx=20. Shift = 10 (one cell width).
+        const r0 = service.pixelToScreen(0, 0, 10, 'triangular', oddA, oddD, totalRows);
+        const r1 = service.pixelToScreen(0, 1, 10, 'triangular', oddA, oddD, totalRows);
+        expect(r0.sx - r1.sx).toBe(10);
+      });
+    });
+
+    describe('screenToPixel (even d)', () => {
+      // a=1, d=2, totalRows=4
+      // maxWidth=7, scale=10
+      // Row 0: width 1, centerOffset=3 → pixel range x∈[30, 40)
+      // Row 3: width 7, centerOffset=0 → pixel range x∈[0, 70)
+
+      it('should identify the single pixel in row 0', () => {
+        const result = service.screenToPixel(35, 5, 10, 0, totalRows, 'triangular', undefined, a, d);
+        expect(result).toEqual({ x: 0, y: 0 });
+      });
+
+      it('should return null for click outside row 0 pixel', () => {
+        const result = service.screenToPixel(5, 5, 10, 0, totalRows, 'triangular', undefined, a, d);
+        expect(result).toBeNull();
+      });
+
+      it('should identify first pixel in row 3', () => {
+        const result = service.screenToPixel(5, 35, 10, 0, totalRows, 'triangular', undefined, a, d);
+        expect(result).toEqual({ x: 0, y: 3 });
+      });
+
+      it('should identify last pixel in row 3', () => {
+        const result = service.screenToPixel(65, 35, 10, 0, totalRows, 'triangular', undefined, a, d);
+        expect(result).toEqual({ x: 6, y: 3 });
+      });
+
+      it('should return null for y below the grid', () => {
+        const result = service.screenToPixel(35, 45, 10, 0, totalRows, 'triangular', undefined, a, d);
+        expect(result).toBeNull();
+      });
+
+      it('should return null for negative coordinates', () => {
+        expect(service.screenToPixel(-5, 5, 10, 0, totalRows, 'triangular', undefined, a, d)).toBeNull();
+      });
+    });
+
+    describe('screenToPixel (odd d)', () => {
+      // a=2, d=1, totalRows=4, maxWidth=5, scale=10
+      // Odd d: 2-stride layout. centerOffset = maxWidth - rowWidth (integer).
+      // Row 0: width 2, centerOffset=3 → pixels at gridCols 3, 5
+      // Row 1: width 3, centerOffset=2 → pixels at gridCols 2, 4, 6
+      // Row 3: width 5, centerOffset=0 → pixels at gridCols 0, 2, 4, 6, 8
+      const oddA = 2;
+      const oddD = 1;
+
+      it('should identify pixel in first row', () => {
+        // Row 0: pixel 0 at gridCol 3 → screen x in [30, 40)
+        // Click at (35, 5): gridCol=3, relCol=3-3=0, even → bx=0
+        const result = service.screenToPixel(35, 5, 10, 0, totalRows, 'triangular', undefined, oddA, oddD);
+        expect(result).toEqual({ x: 0, y: 0 });
+      });
+
+      it('should identify pixel in last row', () => {
+        // Row 3: pixel 2 at gridCol 4 → screen x in [40, 50)
+        // Click at (45, 22): only row 3 contains y=22
+        const result = service.screenToPixel(45, 22, 10, 0, totalRows, 'triangular', undefined, oddA, oddD);
+        expect(result).toEqual({ x: 2, y: 3 });
+      });
+
+      it('should return null for click in a gap between pixels', () => {
+        // Row 0: pixels at gridCols 3, 5 → gaps at gridCols 4
+        // Click at (45, 3): y=3 is only in row 0 band [0, 10).
+        // gridCol=4, relCol=4-3=1 (odd → gap)
+        const result = service.screenToPixel(45, 3, 10, 0, totalRows, 'triangular', undefined, oddA, oddD);
+        expect(result).toBeNull();
+      });
+
+      it('should return null for click outside row pixels', () => {
+        // Row 0: centerOffset=3. Click at (5, 3): gridCol=0, relCol=0-3=-3 → null
+        const result = service.screenToPixel(5, 3, 10, 0, totalRows, 'triangular', undefined, oddA, oddD);
+        expect(result).toBeNull();
+      });
+
+      it('should resolve overlap to row with valid pixel at that column', () => {
+        // At y=7, rows 0 and 1 overlap. gridCol 4:
+        //   Row 0: relCol=4-3=1 (odd → gap)
+        //   Row 1: relCol=4-2=2 (even → bx=1, valid since width=3)
+        const result = service.screenToPixel(45, 7, 10, 0, totalRows, 'triangular', undefined, oddA, oddD);
+        expect(result).toEqual({ x: 1, y: 1 });
+      });
+    });
+
+    describe('getNeighbors (even d)', () => {
+      // a=1, d=2, totalRows=4
+      // Row widths: 1, 3, 5, 7
+
+      it('should return 2 neighbors for (0, 0) — left/right blocked, one below', () => {
+        const neighbors = service.getNeighbors(0, 0, 'triangular', 0, totalRows, undefined, a, d);
+        // Same-row: no left (bx-1 < 0), no right (bx+1 >= 1)
+        // Below: shift = 1, belowX = 0 + 1 = 1 → valid (row 1 has width 3)
+        expect(neighbors).toContainEqual({ x: 1, y: 1 });
+        // No above (row -1)
+        expect(neighbors.length).toBe(1);
+      });
+
+      it('should return 4 neighbors for center pixel of middle row', () => {
+        // (2, 2) in row 2 (width 5)
+        const neighbors = service.getNeighbors(2, 2, 'triangular', 0, totalRows, undefined, a, d);
+        // Left: (1, 2), Right: (3, 2)
+        // Above: shift=1, aboveX=2-1=1 → (1, 1) valid (row 1 width 3)
+        // Below: shift=1, belowX=2+1=3 → (3, 3) valid (row 3 width 7)
+        expect(neighbors.length).toBe(4);
+        expect(neighbors).toContainEqual({ x: 1, y: 2 });
+        expect(neighbors).toContainEqual({ x: 3, y: 2 });
+        expect(neighbors).toContainEqual({ x: 1, y: 1 });
+        expect(neighbors).toContainEqual({ x: 3, y: 3 });
+      });
+
+      it('should handle edge of last row', () => {
+        // (6, 3) — rightmost pixel of row 3 (width 7)
+        const neighbors = service.getNeighbors(6, 3, 'triangular', 0, totalRows, undefined, a, d);
+        // Left: (5, 3)
+        // Right: (7, 3) invalid
+        // Above: shift=1, aboveX=6-1=5 → invalid (row 2 width 5, max index 4)
+        // Below: no row 4
+        expect(neighbors.length).toBe(1);
+        expect(neighbors).toContainEqual({ x: 5, y: 3 });
+      });
+    });
+
+    describe('getNeighbors (odd d)', () => {
+      // a=2, d=1, totalRows=4
+      // Row widths: 2, 3, 4, 5
+      // 2-stride layout: no same-row neighbors.
+      // Neighbors: ±1 row diagonals (gridCol ± 1) and ±2 rows (same gridCol).
+      const oddA = 2;
+      const oddD = 1;
+
+      it('should return 6-connected neighbors for center pixel (1,2)', () => {
+        // (1, 2) in row 2 (width 4)
+        // gridCol = centerOffset + bx*2 = (5-4) + 1*2 = 3
+        // 1 row above: leftAbove=(2-1-1)/2=0 → (0,1), rightAbove=(2+1-1)/2=1 → (1,1)
+        // 1 row below: leftBelow=(2-1+1)/2=1 → (1,3), rightBelow=(2+1+1)/2=2 → (2,3)
+        // 2 rows above: bx-d=0 → (0,0)
+        // 2 rows below: no row 4
+        const neighbors = service.getNeighbors(1, 2, 'triangular', 0, totalRows, undefined, oddA, oddD);
+        expect(neighbors.length).toBe(5);
+        expect(neighbors).toContainEqual({ x: 0, y: 1 });
+        expect(neighbors).toContainEqual({ x: 1, y: 1 });
+        expect(neighbors).toContainEqual({ x: 1, y: 3 });
+        expect(neighbors).toContainEqual({ x: 2, y: 3 });
+        expect(neighbors).toContainEqual({ x: 0, y: 0 });
+      });
+
+      it('should filter invalid neighbors at top-left corner (0,0)', () => {
+        // (0, 0) in row 0 (width 2)
+        // No row above. No 2 rows above.
+        // 1 row below: leftBelow=(0-1+1)/2=0 → (0,1), rightBelow=(0+1+1)/2=1 → (1,1)
+        // 2 rows below: bx+d=1 → (1,2)
+        const neighbors = service.getNeighbors(0, 0, 'triangular', 0, totalRows, undefined, oddA, oddD);
+        expect(neighbors).toContainEqual({ x: 0, y: 1 });
+        expect(neighbors).toContainEqual({ x: 1, y: 1 });
+        expect(neighbors).toContainEqual({ x: 1, y: 2 });
+        expect(neighbors.length).toBe(3);
+      });
+
+      it('should not include same-row neighbors', () => {
+        // (1, 2) in row 2: should NOT contain (0,2) or (2,2)
+        const neighbors = service.getNeighbors(1, 2, 'triangular', 0, totalRows, undefined, oddA, oddD);
+        expect(neighbors).not.toContainEqual({ x: 0, y: 2 });
+        expect(neighbors).not.toContainEqual({ x: 2, y: 2 });
+      });
+
+      it('should all be valid pixels', () => {
+        // Exhaustive check: all neighbors returned should be valid
+        for (let row = 0; row < totalRows; row++) {
+          const rowWidth = oddA + oddD * row;
+          for (let col = 0; col < rowWidth; col++) {
+            const neighbors = service.getNeighbors(col, row, 'triangular', 0, totalRows, undefined, oddA, oddD);
+            for (const n of neighbors) {
+              expect(
+                service.isValidPixel(n.x, n.y, 0, totalRows, 'triangular', undefined, oddA, oddD),
+                `neighbor (${n.x},${n.y}) of (${col},${row}) should be valid`,
+              ).toBe(true);
+            }
+          }
+        }
+      });
+    });
+  });
 });

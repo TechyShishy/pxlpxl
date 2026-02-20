@@ -37,7 +37,7 @@ async function longPress(
 test.describe('Layer rename – long-press to edit', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/editor');
-    await page.locator('app-canvas-viewport canvas').waitFor({ state: 'visible' });
+    await page.locator('app-canvas-viewport canvas:not([aria-hidden])').waitFor({ state: 'visible' });
     await waitForRender(page);
   });
 

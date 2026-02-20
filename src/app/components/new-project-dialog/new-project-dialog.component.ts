@@ -12,6 +12,8 @@ export interface NewProjectDialogResult {
   width: number;
   height: number;
   gridType: GridType;
+  triangularA?: number;
+  triangularD?: number;
 }
 
 @Component({
@@ -35,6 +37,10 @@ export class NewProjectDialogComponent {
   width = 32;
   height = 32;
   gridType: GridType = 'square';
+  triangularA = 1;
+  triangularD = 2;
+  /** For triangular grids, height = number of rows (R). */
+  triangularRows = 10;
 
   setPreset(w: number, h: number): void {
     this.width = w;
@@ -44,10 +50,19 @@ export class NewProjectDialogComponent {
   onCreate(): void {
     const result: NewProjectDialogResult = {
       name: this.name,
-      width: this.width,
-      height: this.height,
+      width: this.gridType === 'triangular' ? this.triangularA + this.triangularD * Math.max(0, this.triangularRows - 1) : this.width,
+      height: this.gridType === 'triangular' ? this.triangularRows : this.height,
       gridType: this.gridType,
+      triangularA: this.gridType === 'triangular' ? this.triangularA : undefined,
+      triangularD: this.gridType === 'triangular' ? this.triangularD : undefined,
     };
     this.dialogRef.close(result);
+  }
+
+  get isCreateDisabled(): boolean {
+    if (this.gridType === 'triangular') {
+      return this.triangularA < 1 || this.triangularD < 1 || this.triangularRows < 1;
+    }
+    return this.width < 1 || this.height < 1;
   }
 }

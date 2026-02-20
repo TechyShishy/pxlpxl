@@ -3,6 +3,7 @@ import {
   deserializeLayer,
   createDefaultProject,
   computeBufferDimensions,
+  computeBufferPixelCount,
   SerializedLayer,
 } from './project.model';
 import { createLayer } from './layer.model';
@@ -173,6 +174,61 @@ describe('Project Model', () => {
       const { bufferWidth, bufferHeight } = computeBufferDimensions(7, 3, 'peyote');
       expect(bufferWidth).toBe(4);  // ceil(7/2)
       expect(bufferHeight).toBe(3); // same as height (visible rows)
+    });
+  });
+
+  describe('computeBufferPixelCount', () => {
+    it('should return width * height for square grid', () => {
+      expect(computeBufferPixelCount(8, 8, 'square')).toBe(64);
+    });
+
+    it('should return bufferWidth * bufferHeight for peyote grid', () => {
+      // 8 visual columns, 4 visible rows → bufferWidth=4, bufferHeight=4
+      expect(computeBufferPixelCount(8, 4, 'peyote')).toBe(16);
+    });
+
+    it('should compute triangular pixel count with a=1, d=2, R=4', () => {
+      // Row widths: 1, 3, 5, 7 → total = 16
+      // Formula: R*a + d*R*(R-1)/2 = 4*1 + 2*4*3/2 = 4 + 12 = 16
+      expect(computeBufferPixelCount(0, 4, 'triangular', 1, 2)).toBe(16);
+    });
+
+    it('should compute triangular pixel count with a=3, d=1, R=5', () => {
+      // Row widths: 3, 4, 5, 6, 7 → total = 25
+      // Formula: 5*3 + 1*5*4/2 = 15 + 10 = 25
+      expect(computeBufferPixelCount(0, 5, 'triangular', 3, 1)).toBe(25);
+    });
+
+    it('should compute triangular pixel count for single row', () => {
+      // R=1, a=5, d=3 → total = 5
+      expect(computeBufferPixelCount(0, 1, 'triangular', 5, 3)).toBe(5);
+    });
+
+    it('should compute triangular pixel count with a=1, d=1, R=3', () => {
+      // Row widths: 1, 2, 3 → total = 6
+      // Formula: 3*1 + 1*3*2/2 = 3 + 3 = 6
+      expect(computeBufferPixelCount(0, 3, 'triangular', 1, 1)).toBe(6);
+    });
+  });
+
+  describe('createDefaultProject (triangular)', () => {
+    it('should create project with triangular grid type', () => {
+      const project = createDefaultProject('Tri', 0, 4, 'triangular', 1, 2);
+      expect(project.gridType).toBe('triangular');
+      expect(project.triangularA).toBe(1);
+      expect(project.triangularD).toBe(2);
+    });
+
+    it('should allocate correct buffer size for triangular layer', () => {
+      // a=1, d=2, R=4 → 16 pixels → 64 bytes
+      const project = createDefaultProject('Tri', 0, 4, 'triangular', 1, 2);
+      expect(project.layers[0].data.length).toBe(16 * 4);
+    });
+
+    it('should allocate correct buffer for a=3, d=1, R=5', () => {
+      // 25 pixels → 100 bytes
+      const project = createDefaultProject('Tri', 0, 5, 'triangular', 3, 1);
+      expect(project.layers[0].data.length).toBe(25 * 4);
     });
   });
 });

@@ -6,6 +6,7 @@ import {
   ModifiedPixel,
   Color,
   colorsEqual,
+  pixelOffset,
 } from '../models';
 
 export class PencilTool implements Tool {
@@ -40,7 +41,7 @@ export class PencilTool implements Tool {
     this.visitedPixels.add(key);
 
     const color = ctx.isSecondary ? ctx.secondaryColor : ctx.primaryColor;
-    const offset = (ctx.coord.y * ctx.canvasWidth + ctx.coord.x) * 4;
+    const offset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD);
     const oldColor: Color = {
       r: layerData[offset],
       g: layerData[offset + 1],

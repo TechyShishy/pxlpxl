@@ -44,8 +44,8 @@ export class ExportService {
   async exportAsBlob(options: ExportOptions): Promise<Blob> {
     const gridType = this.canvasState.gridType();
 
-    if (this.gridService.isPeyote(gridType)) {
-      return this.exportPeyote(options);
+    if (this.gridService.isPeyote(gridType) || this.gridService.isTriangular(gridType)) {
+      return this.exportNonSquare(options);
     }
 
     const imageData = this.renderService.compositeToImageData();
@@ -83,7 +83,7 @@ export class ExportService {
     }
   }
 
-  private async exportPeyote(options: ExportOptions): Promise<Blob> {
+  private async exportNonSquare(options: ExportOptions): Promise<Blob> {
     const composited = this.renderService.compositeToCanvas(options.scale);
     const w = composited.width;
     const h = composited.height;
@@ -132,6 +132,8 @@ export class ExportService {
       width: this.canvasState.canvasWidth(),
       height: this.canvasState.canvasHeight(),
       gridType: this.canvasState.gridType(),
+      triangularA: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularA() : undefined,
+      triangularD: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularD() : undefined,
       palette: this.colorService.palette().map((c) => ({ ...c })),
       layers: this.layerService.layers().map((l) => ({
         id: l.id,

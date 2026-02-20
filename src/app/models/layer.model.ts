@@ -6,13 +6,19 @@ export interface Layer {
   data: Uint8ClampedArray; // RGBA pixel data (width * height * 4)
 }
 
-export function createLayer(id: string, name: string, width: number, height: number): Layer {
+export function createLayer(
+  id: string,
+  name: string,
+  width: number,
+  height: number,
+  pixelCount?: number,
+): Layer {
   return {
     id,
     name,
     visible: true,
     opacity: 1,
-    data: new Uint8ClampedArray(width * height * 4),
+    data: new Uint8ClampedArray((pixelCount ?? width * height) * 4),
   };
 }
 

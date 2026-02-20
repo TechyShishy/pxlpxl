@@ -111,7 +111,7 @@ test.describe('Project rename – long-press to edit', () => {
 
     // Re-navigate so the app starts fresh with a clean DB
     await page.goto('/editor');
-    await page.locator('app-canvas-viewport canvas').waitFor({ state: 'visible' });
+    await page.locator('app-canvas-viewport canvas:not([aria-hidden])').waitFor({ state: 'visible' });
     await waitForRender(page);
 
     // Save the auto-created project so it appears in the load panel

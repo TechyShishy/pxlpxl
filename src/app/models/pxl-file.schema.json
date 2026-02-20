@@ -114,6 +114,21 @@
         "description": { "type": "string", "description": "Human-readable description of the operation." },
         "layerIndex": { "type": "integer", "minimum": 0, "description": "Index of the layer this command targets." },
         "canvasWidth": { "type": "integer", "minimum": 1, "description": "Canvas width at time of command (needed for pixel offset calculation)." },
+        "gridType": {
+          "type": "string",
+          "enum": ["square", "peyote", "triangular"],
+          "description": "Grid type at time of command (for correct pixel offset calculation)."
+        },
+        "triangularA": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "For triangular grids: first-row width at time of command."
+        },
+        "triangularD": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "For triangular grids: per-row growth at time of command."
+        },
         "modifiedPixels": {
           "type": "array",
           "items": { "$ref": "#/$defs/SerializedModifiedPixel" },
