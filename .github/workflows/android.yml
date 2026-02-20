@@ -7,7 +7,42 @@ on:
     branches: [main]
 
 jobs:
+  # On push: find the most recent tag reachable from HEAD.
+  # Outputs are empty when no tag exists, which cancels the release build.
+  find-release-tag:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      sha: ${{ steps.tag.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: tag
+        run: |
+          TAG=$(git describe --tags --abbrev=0 HEAD 2>/dev/null || true)
+          if [ -n "$TAG" ]; then
+            SHA=$(git rev-parse "${TAG}^{commit}")
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+            echo "Most recent reachable tag: $TAG ($SHA)"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "sha=" >> "$GITHUB_OUTPUT"
+            echo "No reachable tag found — release build will be skipped."
+          fi
+
   build-android:
+    # For push events: only run when find-release-tag found a tag.
+    # For pull_request events: always run (find-release-tag is skipped/absent).
+    needs: [find-release-tag]
+    if: |
+      always() &&
+      (
+        github.event_name == 'pull_request' ||
+        (github.event_name == 'push' && needs.find-release-tag.outputs.tag != '')
+      )
     runs-on: ubuntu-latest
 
     steps:
@@ -15,6 +50,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # For release builds check out the tagged commit, not the tip.
+          ref: ${{ github.event_name == 'push' && needs.find-release-tag.outputs.sha || '' }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
