@@ -123,6 +123,8 @@ export class CanvasViewportComponent {
       this.canvasState.canvasWidth();
       this.canvasState.canvasHeight();
       this.canvasState.gridType();
+      this.canvasState.triangularA();
+      this.canvasState.triangularD();
       this.requestRulerRender();
       this.requestCrosshairRender();
     });
@@ -239,6 +241,8 @@ export class CanvasViewportComponent {
       bgColor,
       textColor,
       gridType: this.canvasState.gridType(),
+      triangularA: this.canvasState.triangularA(),
+      triangularD: this.canvasState.triangularD(),
     };
 
     if (this.rulerTopCtx) renderColumnRuler(this.rulerTopCtx, params);
