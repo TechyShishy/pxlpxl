@@ -45,7 +45,7 @@ export class ProjectService {
       this.canvasState.setTriangularParams(triangularA, triangularD);
     }
     const pixelCount = computeBufferPixelCount(
-      this.canvasState.bufferWidth(), this.canvasState.bufferHeight(),
+      width, height,
       gridType, triangularA, triangularD,
     );
     this.layerService.initLayers(
