@@ -16,6 +16,10 @@ import {
   buildPaletteLetterMap,
   RgpProject,
   RgpRow,
+  resolveTriangularD,
+  triangularRowWidth,
+  triangularCumPixels,
+  computeBufferPixelCount,
 } from '../models';
 import { colorToHex } from '../models';
 import { serializeCommand } from '../commands/command-serialization';
@@ -168,7 +172,23 @@ export class ExportService {
   async exportAsRgp(): Promise<Blob> {
     const bufferWidth = this.canvasState.bufferWidth();
     const bufferHeight = this.canvasState.bufferHeight();
-    const bufferSize = bufferWidth * bufferHeight * 4;
+    const gridType = this.canvasState.gridType();
+
+    // For triangular grids, the buffer is packed (variable row widths),
+    // so we need the true pixel count rather than bufferWidth × bufferHeight.
+    const isTriangular = gridType === 'triangular';
+    const triangularA = isTriangular ? this.canvasState.triangularA() : 0;
+    const { dNum: triDNum, dDen: triDDen } = isTriangular
+      ? resolveTriangularD(
+          this.canvasState.triangularD(),
+          this.canvasState.triangularDNum(),
+          this.canvasState.triangularDDen(),
+        )
+      : { dNum: 0, dDen: 1 };
+
+    const bufferSize = isTriangular
+      ? computeBufferPixelCount(0, bufferHeight, 'triangular', triangularA, undefined, triDNum, triDDen) * 4
+      : bufferWidth * bufferHeight * 4;
 
     // Composite visible layers bottom-to-top using Porter-Duff 'over'
     const composited = new Uint8ClampedArray(bufferSize);
@@ -213,12 +233,22 @@ export class ExportService {
       let currentCount = 0;
       const steps: RgpRow['steps'] = [];
 
+      // Determine the width and base offset for this row.
+      // Triangular grids have variable row widths and packed offsets;
+      // square/peyote rows all have the same width and fixed stride.
+      const rowWidth = isTriangular
+        ? triangularRowWidth(by, triangularA, triDNum, triDDen)
+        : bufferWidth;
+      const rowBaseOffset = isTriangular
+        ? triangularCumPixels(by, triangularA, triDNum, triDDen)
+        : by * bufferWidth;
+
       // Even rows (0-indexed) are encoded right-to-left in the RGP format.
-      const bxStart = by % 2 === 0 ? bufferWidth - 1 : 0;
-      const bxEnd   = by % 2 === 0 ? -1 : bufferWidth;
+      const bxStart = by % 2 === 0 ? rowWidth - 1 : 0;
+      const bxEnd   = by % 2 === 0 ? -1 : rowWidth;
       const bxStep  = by % 2 === 0 ? -1 : 1;
       for (let bx = bxStart; bx !== bxEnd; bx += bxStep) {
-        const offset = (by * bufferWidth + bx) * 4;
+        const offset = (rowBaseOffset + bx) * 4;
         const r = composited[offset];
         const g = composited[offset + 1];
         const b = composited[offset + 2];

@@ -33,6 +33,31 @@ vi.mock('@capacitor/share', () => ({
     share: vi.fn(),
   },
 }));
+/** Decompress a gzip Blob produced by exportAsRgp back to a JSON string */
+async function decompressBlob(blob: Blob): Promise<string> {
+  const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(blob);
+  });
+  const ds = new DecompressionStream('gzip');
+  const writer = ds.writable.getWriter();
+  writer.write(new Uint8Array(buffer));
+  writer.close();
+  const reader = ds.readable.getReader();
+  const chunks: Uint8Array[] = [];
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+  const total = chunks.reduce((s, c) => s + c.length, 0);
+  const result = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) { result.set(c, offset); offset += c.length; }
+  return new TextDecoder().decode(result);
+}
 
 describe('ExportService', () => {
   let service: ExportService;
@@ -57,6 +82,10 @@ describe('ExportService', () => {
             bufferWidth: vi.fn(() => 2),
             bufferHeight: vi.fn(() => 2),
             gridType: vi.fn(() => 'square'),
+            triangularA: vi.fn(() => 1),
+            triangularD: vi.fn(() => 1),
+            triangularDNum: vi.fn(() => 1),
+            triangularDDen: vi.fn(() => 1),
           },
         },
         {
@@ -269,32 +298,6 @@ describe('ExportService', () => {
   });
 
   describe('exportAsRgp', () => {
-    /** Decompress a Blob produced by exportAsRgp back to a JSON string */
-    async function decompressBlob(blob: Blob): Promise<string> {
-      const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as ArrayBuffer);
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(blob);
-      });
-      const ds = new DecompressionStream('gzip');
-      const writer = ds.writable.getWriter();
-      writer.write(new Uint8Array(buffer));
-      writer.close();
-      const reader = ds.readable.getReader();
-      const chunks: Uint8Array[] = [];
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-      }
-      const total = chunks.reduce((s, c) => s + c.length, 0);
-      const result = new Uint8Array(total);
-      let offset = 0;
-      for (const c of chunks) { result.set(c, offset); offset += c.length; }
-      return new TextDecoder().decode(result);
-    }
-
     it('should return a Blob with the RGP MIME type', async () => {
       const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
       layerServiceMock.layers.mockReturnValue([]);
@@ -409,6 +412,144 @@ describe('ExportService', () => {
 
       expect(parsed.colorMapping).toBeDefined();
       expect(parsed.colorMapping['A']).toBeDefined();
+    });
+  });
+
+  describe('exportAsRgp — triangular grid', () => {
+    // Triangular grid: a=1, dNum=1, dDen=1, height=3
+    // Row 0: width 1, row 1: width 2, row 2: width 3  (total 6 pixels)
+    // Buffer is packed — offsets use triangularCumPixels, not by*bufferWidth.
+    const A = [0, 0, 0, 255];       // black
+    const B = [255, 0, 0, 255];     // red
+    const C = [0, 255, 0, 255];     // green
+
+    type CanvasMock = {
+      gridType: ReturnType<typeof vi.fn>;
+      bufferWidth: ReturnType<typeof vi.fn>;
+      bufferHeight: ReturnType<typeof vi.fn>;
+      triangularA: ReturnType<typeof vi.fn>;
+      triangularD: ReturnType<typeof vi.fn>;
+      triangularDNum: ReturnType<typeof vi.fn>;
+      triangularDDen: ReturnType<typeof vi.fn>;
+    };
+
+    function getCanvasMock(): CanvasMock {
+      return TestBed.inject(CanvasStateService) as unknown as CanvasMock;
+    }
+
+    beforeEach(() => {
+      const canvasMock = getCanvasMock();
+      canvasMock.gridType.mockReturnValue('triangular');
+      canvasMock.bufferWidth.mockReturnValue(3);
+      canvasMock.bufferHeight.mockReturnValue(3);
+      canvasMock.triangularA.mockReturnValue(1);
+      canvasMock.triangularD.mockReturnValue(1);
+      canvasMock.triangularDNum.mockReturnValue(1);
+      canvasMock.triangularDDen.mockReturnValue(1);
+    });
+
+    afterEach(() => {
+      const canvasMock = getCanvasMock();
+      canvasMock.gridType.mockReturnValue('square');
+      canvasMock.bufferWidth.mockReturnValue(2);
+      canvasMock.bufferHeight.mockReturnValue(2);
+      canvasMock.triangularA.mockReturnValue(1);
+      canvasMock.triangularD.mockReturnValue(1);
+      canvasMock.triangularDNum.mockReturnValue(1);
+      canvasMock.triangularDDen.mockReturnValue(1);
+    });
+
+    it('should produce exactly 3 rows matching the triangular row count', async () => {
+      // 6 packed pixels, all color A
+      const data = new Uint8ClampedArray(6 * 4);
+      for (let i = 0; i < data.length; i += 4) data.set(A, i);
+
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([{ visible: true, opacity: 1, data }]);
+      const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
+      colorServiceMock.palette.mockReturnValue([{ r: 0, g: 0, b: 0, a: 255 }]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      expect(parsed.rows).toHaveLength(3);
+    });
+
+    it('should produce exactly 1 step in row 0 (1 bead wide)', async () => {
+      // Row 0 = 1 pixel (A), row 1 = 2 pixels (A,A), row 2 = 3 pixels (A,A,A)
+      const data = new Uint8ClampedArray(6 * 4);
+      for (let i = 0; i < data.length; i += 4) data.set(A, i);
+
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([{ visible: true, opacity: 1, data }]);
+      const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
+      colorServiceMock.palette.mockReturnValue([{ r: 0, g: 0, b: 0, a: 255 }]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      expect(parsed.rows[0].steps).toHaveLength(1);
+      expect(parsed.rows[0].steps[0].count).toBe(1);
+    });
+
+    it('should produce steps whose count sums to the row width', async () => {
+      // Row 0 (width 1): A
+      // Row 1 (width 2): B, C  (2 steps, each count 1)
+      // Row 2 (width 3): A, B, C  (3 steps, each count 1)
+      const data = new Uint8ClampedArray([
+        ...A,              // row 0, bx 0
+        ...B, ...C,        // row 1, bx 0..1
+        ...A, ...B, ...C,  // row 2, bx 0..2
+      ]);
+
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([{ visible: true, opacity: 1, data }]);
+      const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
+      colorServiceMock.palette.mockReturnValue([
+        { r: 0, g: 0, b: 0, a: 255 },
+        { r: 255, g: 0, b: 0, a: 255 },
+        { r: 0, g: 255, b: 0, a: 255 },
+      ]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      const sumCounts = (row: { steps: { count: number }[] }) =>
+        row.steps.reduce((s: number, step: { count: number }) => s + step.count, 0);
+
+      expect(sumCounts(parsed.rows[0])).toBe(1);
+      expect(sumCounts(parsed.rows[1])).toBe(2);
+      expect(sumCounts(parsed.rows[2])).toBe(3);
+    });
+
+    it('should respect even-RTL / odd-LTR scan direction within each triangular row', async () => {
+      // Row 1 (odd, width 2, LTR): bx0=B, bx1=C → steps should be B then C
+      // Row 2 (even, width 3, RTL): bx0=A, bx1=B, bx2=C → read bx2..0 → C, B, A
+      const data = new Uint8ClampedArray([
+        ...A,              // row 0, bx 0
+        ...B, ...C,        // row 1, bx 0..1
+        ...A, ...B, ...C,  // row 2, bx 0..2
+      ]);
+
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([{ visible: true, opacity: 1, data }]);
+      const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
+      colorServiceMock.palette.mockReturnValue([
+        { r: 0, g: 0, b: 0, a: 255 },
+        { r: 255, g: 0, b: 0, a: 255 },
+        { r: 0, g: 255, b: 0, a: 255 },
+      ]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      // Row 1 (odd, LTR): first step = B ('B'), second step = C ('C')
+      expect(parsed.rows[1].steps[0]).toMatchObject({ count: 1, description: 'B' });
+      expect(parsed.rows[1].steps[1]).toMatchObject({ count: 1, description: 'C' });
+
+      // Row 2 (even, RTL): bx2=C first, then bx1=B, then bx0=A
+      expect(parsed.rows[2].steps[0]).toMatchObject({ count: 1, description: 'C' });
+      expect(parsed.rows[2].steps[2]).toMatchObject({ count: 1, description: 'A' });
     });
   });
 });
