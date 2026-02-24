@@ -73,8 +73,8 @@ describe('renderColumnRuler', () => {
   });
 
   describe('triangular odd-d grid', () => {
-    it('labels use stride-2 spacing (2 * scale per column)', () => {
-      // a=1, d=1, canvasHeight=5 → maxWidth = 1 + 1*4 = 5 columns
+    it('labels every visual column at stride-1 spacing', () => {
+      // a=1, d=1, canvasHeight=5 → maxWidth = 5, visualColumns = 2*5-1 = 9
       const { ctx, labels } = makeCtx(1000, 20);
       renderColumnRuler(ctx, {
         ...BASE_PARAMS,
@@ -84,19 +84,23 @@ describe('renderColumnRuler', () => {
         triangularA: 1,
         triangularD: 1,
       });
-      // 5 column labels expected
-      expect(labels.map((l) => l.text)).toEqual(['1', '2', '3', '4', '5']);
-      // Column c → screenX = c * 2 * 20 + 0 + 10 = c * 40 + 10
-      expect(labels[0].x).toBeCloseTo(10);   // c=0: 0*40+10 = 10
-      expect(labels[1].x).toBeCloseTo(50);   // c=1: 1*40+10 = 50
-      expect(labels[2].x).toBeCloseTo(90);   // c=2: 2*40+10 = 90
-      expect(labels[3].x).toBeCloseTo(130);  // c=3: 3*40+10 = 130
-      expect(labels[4].x).toBeCloseTo(170);  // c=4: 4*40+10 = 170
+      // 9 visual column labels expected
+      expect(labels.map((l) => l.text)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9']);
+      // Column c → screenX = c * 20 + 0 + 10 = c * 20 + 10
+      expect(labels[0].x).toBeCloseTo(10);   // c=0: 0*20+10 = 10
+      expect(labels[1].x).toBeCloseTo(30);   // c=1: 1*20+10 = 30
+      expect(labels[2].x).toBeCloseTo(50);   // c=2: 2*20+10 = 50
+      expect(labels[3].x).toBeCloseTo(70);   // c=3: 3*20+10 = 70
+      expect(labels[4].x).toBeCloseTo(90);   // c=4: 4*20+10 = 90
+      expect(labels[5].x).toBeCloseTo(110);  // c=5: 5*20+10 = 110
+      expect(labels[6].x).toBeCloseTo(130);  // c=6: 6*20+10 = 130
+      expect(labels[7].x).toBeCloseTo(150);  // c=7: 7*20+10 = 150
+      expect(labels[8].x).toBeCloseTo(170);  // c=8: 8*20+10 = 170
     });
 
     it('limits labels to viewport width', () => {
-      // Viewport only 100px wide; at scale=20, stride-2 spacing = 40px per col.
-      // Cols 0..4 at x=10,50,90,130,170 → only 0,1,2 fit in 100px wide viewport
+      // Viewport only 100px wide; at scale=20, stride-1 spacing = 20px per col.
+      // visualColumns = 9, cols at x=10,30,50,70,90,110,... → only 0..4 fit
       const { ctx, labels } = makeCtx(100, 20);
       renderColumnRuler(ctx, {
         ...BASE_PARAMS,
@@ -106,11 +110,11 @@ describe('renderColumnRuler', () => {
         triangularA: 1,
         triangularD: 1,
       });
-      expect(labels.map((l) => l.text)).toEqual(['1', '2', '3']);
+      expect(labels.map((l) => l.text)).toEqual(['1', '2', '3', '4', '5']);
     });
 
     it('computes column count from triangularA and triangularD, not canvasWidth', () => {
-      // a=3, d=3, canvasHeight=3 → maxWidth = 3 + 3*2 = 9 columns
+      // a=3, d=3, canvasHeight=3 → maxWidth = 9, visualColumns = 2*9-1 = 17
       const { ctx, labels } = makeCtx(2000, 20);
       renderColumnRuler(ctx, {
         ...BASE_PARAMS,
@@ -120,13 +124,13 @@ describe('renderColumnRuler', () => {
         triangularA: 3,
         triangularD: 3,
       });
-      expect(labels).toHaveLength(9);
+      expect(labels).toHaveLength(17);
       expect(labels[0].text).toBe('1');
-      expect(labels[8].text).toBe('9');
-      // Column 0 → 0*2*20+10 = 10
+      expect(labels[16].text).toBe('17');
+      // Column 0 → 0*20+10 = 10
       expect(labels[0].x).toBeCloseTo(10);
-      // Column 8 → 8*2*20+10 = 330
-      expect(labels[8].x).toBeCloseTo(330);
+      // Column 16 → 16*20+10 = 330
+      expect(labels[16].x).toBeCloseTo(330);
     });
   });
 });

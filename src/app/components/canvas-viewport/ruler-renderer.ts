@@ -95,8 +95,11 @@ export function renderColumnRuler(
     for (let r = 0; r < canvasHeight; r++) {
       maxWidth = Math.max(maxWidth, triangularRowWidth(r, triangularA!, resolved.dNum, resolved.dDen));
     }
-    for (let c = 0; c < maxWidth; c++) {
-      const screenX = c * 2 * scale + offsetX + scale / 2;
+    // Each bead occupies stride-2 positions; adjacent rows interleave,
+    // producing 2 * maxWidth - 1 distinct visual column slots.
+    const visualColumns = Math.max(2 * maxWidth - 1, 0);
+    for (let c = 0; c < visualColumns; c++) {
+      const screenX = c * scale + offsetX + scale / 2;
       if (screenX < 0 || screenX > vpWidth) continue;
       if (screenX - lastDrawnX < MIN_LABEL_SPACING) continue;
       ctx.fillText(String(c + 1), screenX, midY);
