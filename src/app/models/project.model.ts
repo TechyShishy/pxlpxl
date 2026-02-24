@@ -38,11 +38,10 @@ export function computeBufferDimensions(
   }
   if (gridType === 'triangular' && triangularA !== undefined) {
     const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
-    const maxRow = Math.max(0, height - 1);
-    // Max width: check last two rows to handle dip positions
-    const w1 = triangularRowWidth(maxRow, triangularA, dNum, dDen);
-    const w2 = maxRow > 0 ? triangularRowWidth(maxRow - 1, triangularA, dNum, dDen) : 0;
-    const bufferWidth = Math.max(w1, w2);
+    let bufferWidth = 0;
+    for (let r = 0; r < height; r++) {
+      bufferWidth = Math.max(bufferWidth, triangularRowWidth(r, triangularA, dNum, dDen));
+    }
     return { bufferWidth, bufferHeight: height };
   }
   return { bufferWidth: width, bufferHeight: height };
@@ -115,7 +114,7 @@ export function resolveTriangularSlowD(
  * This is the universal formula for all triangular grids:
  * - When dNum ≥ dDen (fast growth): simple Bresenham, monotonically wider each row.
  * - When dNum < dDen (slow growth): Bresenham-distributed fractional rate with
- *   alternating high/dip pattern within each cycle of L = 2·dDen − dNum rows.
+ *   alternating high/bump pattern within each cycle of L = 2·dDen − dNum rows.
  */
 export function triangularRowWidth(row: number, a: number, dNum: number, dDen: number): number {
   if (dNum >= dDen) {
@@ -133,9 +132,9 @@ export function triangularRowWidth(row: number, a: number, dNum: number, dDen: n
       const j = p / 2;
       return base + Math.floor(j * dNum / dDen);
     } else {
-      // Dip position
+      // Bump position
       const i = (p - 1) / 2;
-      return base + Math.floor((i + 1) * dNum / dDen) - 1;
+      return base + Math.floor((i + 1) * dNum / dDen) + 1;
     }
   } else {
     // Remaining high positions (no dips left in cycle)
@@ -179,7 +178,7 @@ export function triangularCumPixels(y: number, a: number, dNum: number, dDen: nu
   for (let j = 1; j <= dDen - dNum; j++) {
     G += Math.floor(j * dNum / dDen);
   }
-  const C = F + G - (dDen - dNum);
+  const C = F + G + (dDen - dNum);
 
   // Full cycles: Σ_{k=0}^{B-1} [L·(a + dNum·k) + C]
   const fullSum = L * B * a + L * dNum * B * (B - 1) / 2 + B * C;

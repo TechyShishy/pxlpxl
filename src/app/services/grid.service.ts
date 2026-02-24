@@ -452,10 +452,11 @@ export class GridService {
    */
   private getTriangularMaxWidth(totalRows: number, a: number, dNum: number, dDen: number): number {
     if (totalRows <= 0) return a;
-    const maxRow = totalRows - 1;
-    const w1 = triangularRowWidth(maxRow, a, dNum, dDen);
-    const w2 = maxRow > 0 ? triangularRowWidth(maxRow - 1, a, dNum, dDen) : 0;
-    return Math.max(w1, w2);
+    let max = 0;
+    for (let r = 0; r < totalRows; r++) {
+      max = Math.max(max, triangularRowWidth(r, a, dNum, dDen));
+    }
+    return max;
   }
 
   /**

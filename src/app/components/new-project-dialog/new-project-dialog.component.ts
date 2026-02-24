@@ -57,11 +57,11 @@ export class NewProjectDialogComponent {
 
   private computeMaxWidth(): number {
     if (this.gridType === 'triangular') {
-      const maxRow = Math.max(0, this.triangularRows - 1);
-      return Math.max(
-        triangularRowWidth(maxRow, this.triangularA, this.triangularDNum, this.triangularDDen),
-        maxRow > 0 ? triangularRowWidth(maxRow - 1, this.triangularA, this.triangularDNum, this.triangularDDen) : 0,
-      );
+      let max = 0;
+      for (let r = 0; r < this.triangularRows; r++) {
+        max = Math.max(max, triangularRowWidth(r, this.triangularA, this.triangularDNum, this.triangularDDen));
+      }
+      return max;
     }
     return this.width;
   }

@@ -91,11 +91,10 @@ export function renderColumnRuler(
 
   if (usesPeyoteStagger) {
     const resolved = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
-    const maxRow = Math.max(0, canvasHeight - 1);
-    const maxWidth = Math.max(
-      triangularRowWidth(maxRow, triangularA!, resolved.dNum, resolved.dDen),
-      maxRow > 0 ? triangularRowWidth(maxRow - 1, triangularA!, resolved.dNum, resolved.dDen) : 0,
-    );
+    let maxWidth = 0;
+    for (let r = 0; r < canvasHeight; r++) {
+      maxWidth = Math.max(maxWidth, triangularRowWidth(r, triangularA!, resolved.dNum, resolved.dDen));
+    }
     for (let c = 0; c < maxWidth; c++) {
       const screenX = c * 2 * scale + offsetX + scale / 2;
       if (screenX < 0 || screenX > vpWidth) continue;

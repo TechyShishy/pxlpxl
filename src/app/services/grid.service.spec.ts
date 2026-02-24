@@ -666,14 +666,14 @@ describe('GridService', () => {
   describe('triangular slow-growth grid (dNum < dDen)', () => {
     describe('isValidPixel (dNum=1, dDen=2)', () => {
       const a = 1, dNum = 1, dDen = 2, totalRows = 10;
-      // Row widths: [1,0,1,2,1,2,3,2,3,4]
+      // Row widths: [1,2,1,2,3,2,3,4,3,4]
 
       it('should accept (0, 0) — row 0 has width 1', () => {
         expect(service.isValidPixel(0, 0, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
       });
 
-      it('should reject (0, 1) — row 1 has width 0', () => {
-        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      it('should accept (0, 1) — row 1 has width 2', () => {
+        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
       });
 
       it('should accept (0, 2) — row 2 has width 1', () => {
@@ -707,18 +707,18 @@ describe('GridService', () => {
 
     describe('isValidPixel (dNum=1, dDen=4)', () => {
       const a = 1, dNum = 1, dDen = 4, totalRows = 10;
-      // Row widths: [1,0,1,0,1,0,1,2,1,2]
+      // Row widths: [1,2,1,2,1,2,1,2,3,2]
 
       it('should accept (0, 0)', () => {
         expect(service.isValidPixel(0, 0, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
       });
 
-      it('should reject (0, 1) — row 1 has width 0', () => {
-        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      it('should accept (0, 1) — row 1 has width 2', () => {
+        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
       });
 
-      it('should reject (0, 5) — row 5 has width 0', () => {
-        expect(service.isValidPixel(0, 5, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      it('should accept (0, 5) — row 5 has width 2', () => {
+        expect(service.isValidPixel(0, 5, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
       });
 
       it('should accept (1, 7) — row 7 has width 2', () => {
@@ -732,14 +732,14 @@ describe('GridService', () => {
 
     describe('isValidPixel (dNum=1, dDen=3)', () => {
       const a = 1, dNum = 1, dDen = 3, totalRows = 10;
-      // L=5: [1,0,1,0,1,2,1,2,1,2]
+      // L=5: [1,2,1,2,1,2,3,2,3,2]
 
       it('should accept (0, 0)', () => {
         expect(service.isValidPixel(0, 0, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
       });
 
-      it('should reject (0, 1) — row 1 has width 0', () => {
-        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      it('should accept (0, 1) — row 1 has width 2', () => {
+        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
       });
 
       it('should accept (1, 5) — row 5 has width 2', () => {
@@ -755,7 +755,7 @@ describe('GridService', () => {
           const L = 2 * dDen - dNum;
           const k = Math.floor(row / L);
           const p = row % L;
-          const w = a + k - (p % 2 === 1 ? 1 : 0);
+          const w = a + k + (p % 2 === 1 ? 1 : 0);
           for (let col = 0; col < w; col++) {
             const neighbors = service.getNeighbors(col, row, 'triangular', 0, totalRows, undefined, a, undefined, dNum, dDen);
             for (const n of neighbors) {
@@ -777,7 +777,7 @@ describe('GridService', () => {
           const L = 2 * dDen - dNum;
           const k = Math.floor(row / L);
           const p = row % L;
-          const w = a + k - (p % 2 === 1 ? 1 : 0);
+          const w = a + k + (p % 2 === 1 ? 1 : 0);
           for (let col = 0; col < w; col++) {
             const neighbors = service.getNeighbors(col, row, 'triangular', 0, totalRows, undefined, a, undefined, dNum, dDen);
             for (const n of neighbors) {
@@ -799,7 +799,7 @@ describe('GridService', () => {
           const L = 2 * dDen - dNum;
           const k = Math.floor(row / L);
           const p = row % L;
-          const w = a + k - (p % 2 === 1 ? 1 : 0);
+          const w = a + k + (p % 2 === 1 ? 1 : 0);
           for (let col = 0; col < w; col++) {
             const neighbors = service.getNeighbors(col, row, 'triangular', 0, totalRows, undefined, a, undefined, dNum, dDen);
             for (const n of neighbors) {
