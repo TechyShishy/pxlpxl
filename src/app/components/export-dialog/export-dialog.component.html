@@ -2,19 +2,60 @@
 <mat-dialog-content>
   <div class="export-options">
     <label id="format-label">Format</label>
-    <mat-radio-group aria-labelledby="format-label" [(ngModel)]="format">
-      <mat-radio-button value="png">PNG</mat-radio-button>
-      <mat-radio-button value="gif">GIF</mat-radio-button>
-      <mat-radio-button value="spritesheet">Sprite Sheet</mat-radio-button>
-      <mat-radio-button value="rgp">RGP (RowGuide Project)</mat-radio-button>
+    <mat-radio-group
+      aria-labelledby="format-label"
+      [ngModel]="selectedFormat()"
+      (ngModelChange)="selectedFormat.set($event)"
+    >
+      @for (fmt of formats; track fmt.value) {
+        <mat-radio-button [value]="fmt.value">{{ fmt.label }}</mat-radio-button>
+      }
     </mat-radio-group>
 
-    <label>Scale: {{ scale }}x</label>
-    <mat-slider [min]="1" [max]="16" [step]="1">
-      <input matSliderThumb [(ngModel)]="scale" aria-label="Export scale" />
-    </mat-slider>
-
-    <mat-checkbox [(ngModel)]="transparent">Transparent background</mat-checkbox>
+    <div class="format-options" aria-live="polite">
+      @switch (selectedFormat()) {
+        @case ('png') {
+          <div class="png-options">
+            <div class="option-row">
+              <label id="scale-label">Scale</label>
+              <mat-button-toggle-group
+                aria-labelledby="scale-label"
+                [ngModel]="pngScale()"
+                (ngModelChange)="pngScale.set($event)"
+              >
+                @for (s of pngScaleOptions; track s) {
+                  <mat-button-toggle [value]="s">{{ s }}×</mat-button-toggle>
+                }
+              </mat-button-toggle-group>
+            </div>
+            <div class="option-row">
+              <mat-checkbox
+                [ngModel]="pngTransparent()"
+                (ngModelChange)="pngTransparent.set($event)"
+              >Transparent background</mat-checkbox>
+            </div>
+          </div>
+        }
+        @case ('pxl') {
+          <!-- TODO: PXL export options -->
+        }
+        @case ('rgp') {
+          <div class="rgp-options">
+            <div class="option-row">
+              <label id="odd-rows-label">Odd rows</label>
+              <mat-button-toggle-group
+                aria-labelledby="odd-rows-label"
+                [ngModel]="rgpOddRowDirection()"
+                (ngModelChange)="rgpOddRowDirection.set($event)"
+              >
+                <mat-button-toggle value="rtl">RTL</mat-button-toggle>
+                <mat-button-toggle value="ltr">LTR</mat-button-toggle>
+              </mat-button-toggle-group>
+            </div>
+          </div>
+        }
+      }
+    </div>
   </div>
 </mat-dialog-content>
 <mat-dialog-actions align="end">

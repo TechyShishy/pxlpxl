@@ -25,6 +25,11 @@ import {
   NewProjectDialogComponent,
   NewProjectDialogResult,
 } from '../new-project-dialog/new-project-dialog.component';
+import {
+  ExportDialogComponent,
+  ExportDialogResult,
+} from '../export-dialog/export-dialog.component';
+import { ExportFormat } from '../../services/export.service';
 
 const LONG_PRESS_DELAY = 500;
 const MOVE_THRESHOLD = 5;
@@ -153,22 +158,25 @@ export class ToolbarComponent implements OnDestroy {
     await this.projectService.saveProject();
   }
 
-  async onExportProject(): Promise<void> {
-    const name = this.sanitizeFilename(this.projectService.currentProjectName());
-    await this.exportService.downloadExport(
-      { format: 'png', scale: 1, transparent: true },
-      `${name}.png`,
-    );
-  }
-
-  async onExportPxl(): Promise<void> {
-    const name = this.sanitizeFilename(this.projectService.currentProjectName());
-    await this.exportService.downloadPxl(`${name}.pxl`);
-  }
-
-  async onExportRgp(): Promise<void> {
-    const name = this.sanitizeFilename(this.projectService.currentProjectName());
-    await this.exportService.downloadRgp(`${name}.rgp`);
+  onExport(): void {
+    const dialogRef = this.dialog.open(ExportDialogComponent);
+    dialogRef.afterClosed().subscribe((result: ExportDialogResult | undefined) => {
+      if (!result) return;
+      const name = this.sanitizeFilename(this.projectService.currentProjectName());
+      switch (result.format) {
+        case 'pxl':
+          void this.exportService.downloadPxl(`${name}.pxl`);
+          break;
+        case 'rgp':
+          void this.exportService.downloadRgp(`${name}.rgp`, result.rgpOddRowDirection);
+          break;
+        default:
+          void this.exportService.downloadExport(
+            { format: result.format as ExportFormat, scale: result.scale, transparent: result.transparent },
+            `${name}.${result.format}`,
+          );
+      }
+    });
   }
 
   private sanitizeFilename(name: string): string {

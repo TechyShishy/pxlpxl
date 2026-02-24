@@ -169,7 +169,7 @@ export class ExportService {
    * Export the current project as an .rgp file (RowGuide Project, gzipped JSON).
    * Composites all visible layers and run-length encodes each buffer row.
    */
-  async exportAsRgp(): Promise<Blob> {
+  async exportAsRgp(oddRowDirection: 'ltr' | 'rtl' = 'rtl'): Promise<Blob> {
     const bufferWidth = this.canvasState.bufferWidth();
     const bufferHeight = this.canvasState.bufferHeight();
     const gridType = this.canvasState.gridType();
@@ -243,10 +243,12 @@ export class ExportService {
         ? triangularCumPixels(by, triangularA, triDNum, triDDen)
         : by * bufferWidth;
 
-      // Even rows (0-indexed) are encoded right-to-left in the RGP format.
-      const bxStart = by % 2 === 0 ? rowWidth - 1 : 0;
-      const bxEnd   = by % 2 === 0 ? -1 : rowWidth;
-      const bxStep  = by % 2 === 0 ? -1 : 1;
+      // 1-indexed odd rows correspond to by % 2 === 0.
+      // The oddRowDirection option controls only these rows; even rows always go LTR.
+      const isRtl = by % 2 === 0 && oddRowDirection === 'rtl';
+      const bxStart = isRtl ? rowWidth - 1 : 0;
+      const bxEnd   = isRtl ? -1 : rowWidth;
+      const bxStep  = isRtl ? -1 : 1;
       for (let bx = bxStart; bx !== bxEnd; bx += bxStep) {
         const offset = (rowBaseOffset + bx) * 4;
         const r = composited[offset];
@@ -290,8 +292,8 @@ export class ExportService {
   /**
    * Download the current project as an .rgp file.
    */
-  async downloadRgp(filename: string): Promise<void> {
-    const blob = await this.exportAsRgp();
+  async downloadRgp(filename: string, oddRowDirection: 'ltr' | 'rtl' = 'rtl'): Promise<void> {
+    const blob = await this.exportAsRgp(oddRowDirection);
     if (Capacitor.isNativePlatform()) {
       await this.shareFileNative(blob, filename, 'application/x-rowguide-project');
     } else {
