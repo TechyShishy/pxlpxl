@@ -31,6 +31,10 @@ export interface ToolContext {
   triangularA?: number;
   /** Per-row growth for triangular grids */
   triangularD?: number;
+  /** Fractional growth numerator for triangular grids */
+  triangularDNum?: number;
+  /** Fractional growth denominator for triangular grids */
+  triangularDDen?: number;
 }
 
 export enum ToolType {

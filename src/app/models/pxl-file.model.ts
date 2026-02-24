@@ -16,6 +16,10 @@ export interface PxlFile {
   triangularA?: number;
   /** Per-row growth for triangular grids. */
   triangularD?: number;
+  /** Fractional growth numerator for triangular grids. */
+  triangularDNum?: number;
+  /** Fractional growth denominator for triangular grids. */
+  triangularDDen?: number;
   palette: Color[];
   layers: PxlLayer[];
   history?: PxlHistory;
@@ -49,6 +53,10 @@ export interface SerializedHistoryEntry {
   triangularA?: number;
   /** For 'draw' and 'fill' commands — triangular per-row growth */
   triangularD?: number;
+  /** For 'draw' and 'fill' commands — triangular fractional numerator */
+  triangularDNum?: number;
+  /** For 'draw' and 'fill' commands — triangular fractional denominator */
+  triangularDDen?: number;
   /** For 'draw' and 'fill' commands */
   modifiedPixels?: SerializedModifiedPixel[];
   /** For 'layer' commands — base64-encoded Uint8ClampedArray */
@@ -78,9 +86,11 @@ export const PxlFileSchema = z.object({
   name: z.string(),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
-  gridType: z.enum(['square', 'peyote', 'triangular']),
+  gridType: z.enum(['square', 'peyote', 'triangular', 'triangular-slow']),
   triangularA: z.number().int().positive().optional(),
   triangularD: z.number().int().nonnegative().optional(),
+  triangularDNum: z.number().int().positive().optional(),
+  triangularDDen: z.number().int().positive().optional(),
   palette: z.array(
     z.object({ r: z.number(), g: z.number(), b: z.number(), a: z.number() }),
   ),

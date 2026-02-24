@@ -29,7 +29,7 @@ export class EyedropperTool implements Tool {
   }
 
   private pickColor(ctx: ToolContext, layerData: Uint8ClampedArray): void {
-    const offset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD);
+    const offset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen);
     const color: Color = {
       r: layerData[offset],
       g: layerData[offset + 1],

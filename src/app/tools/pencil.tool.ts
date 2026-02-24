@@ -41,7 +41,7 @@ export class PencilTool implements Tool {
     this.visitedPixels.add(key);
 
     const color = ctx.isSecondary ? ctx.secondaryColor : ctx.primaryColor;
-    const offset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD);
+    const offset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen);
     const oldColor: Color = {
       r: layerData[offset],
       g: layerData[offset + 1],

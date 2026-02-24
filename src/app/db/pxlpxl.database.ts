@@ -44,6 +44,52 @@ export class PxlpxlDatabase extends Dexie {
             }
           }),
       );
+    this.version(5)
+      .stores({
+        projects: '++id, name, createdAt, updatedAt',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('projects')
+          .toCollection()
+          .modify((project: any) => {
+            if (
+              project.gridType === 'triangular-slow' &&
+              project.triangularD !== undefined &&
+              project.triangularDNum === undefined
+            ) {
+              project.triangularDNum = 1;
+              project.triangularDDen = project.triangularD;
+            }
+          }),
+      );
+    this.version(6)
+      .stores({
+        projects: '++id, name, createdAt, updatedAt',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('projects')
+          .toCollection()
+          .modify((project: any) => {
+            if (project.gridType === 'triangular-slow') {
+              // Remap to unified 'triangular'
+              project.gridType = 'triangular';
+              // Ensure dNum/dDen are set (v5 migration should have handled this,
+              // but be defensive)
+              if (project.triangularDNum === undefined) {
+                project.triangularDNum = 1;
+                project.triangularDDen = project.triangularD ?? 2;
+              }
+            } else if (project.gridType === 'triangular') {
+              // Old fast-growth projects: set dNum = d, dDen = 1
+              if (project.triangularDNum === undefined && project.triangularD !== undefined) {
+                project.triangularDNum = project.triangularD;
+                project.triangularDDen = 1;
+              }
+            }
+          }),
+      );
   }
 
   async saveProject(project: Project): Promise<number> {

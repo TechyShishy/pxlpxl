@@ -27,6 +27,8 @@ export function computeBufferDimensions(
   gridType: GridType,
   triangularA?: number,
   triangularD?: number,
+  triangularDNum?: number,
+  triangularDDen?: number,
 ): { bufferWidth: number; bufferHeight: number } {
   if (gridType === 'peyote') {
     return {
@@ -34,12 +36,14 @@ export function computeBufferDimensions(
       bufferHeight: height,
     };
   }
-  if (gridType === 'triangular' && triangularA !== undefined && triangularD !== undefined) {
-    // bufferWidth = max row width (last row), bufferHeight = number of rows
-    return {
-      bufferWidth: triangularA + triangularD * Math.max(0, height - 1),
-      bufferHeight: height,
-    };
+  if (gridType === 'triangular' && triangularA !== undefined) {
+    const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
+    const maxRow = Math.max(0, height - 1);
+    // Max width: check last two rows to handle dip positions
+    const w1 = triangularRowWidth(maxRow, triangularA, dNum, dDen);
+    const w2 = maxRow > 0 ? triangularRowWidth(maxRow - 1, triangularA, dNum, dDen) : 0;
+    const bufferWidth = Math.max(w1, w2);
+    return { bufferWidth, bufferHeight: height };
   }
   return { bufferWidth: width, bufferHeight: height };
 }
@@ -56,14 +60,143 @@ export function computeBufferPixelCount(
   gridType: GridType,
   triangularA?: number,
   triangularD?: number,
+  triangularDNum?: number,
+  triangularDDen?: number,
 ): number {
-  if (gridType === 'triangular' && triangularA !== undefined && triangularD !== undefined) {
-    return height * triangularA + triangularD * height * (height - 1) / 2;
+  if (gridType === 'triangular' && triangularA !== undefined) {
+    const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
+    return triangularCumPixels(height, triangularA, dNum, dDen);
   }
   const { bufferWidth, bufferHeight } = computeBufferDimensions(
-    width, height, gridType, triangularA, triangularD,
+    width, height, gridType, triangularA, triangularD, triangularDNum, triangularDDen,
   );
   return bufferWidth * bufferHeight;
+}
+
+// ── Triangular helpers ─────────────────────────────────────────────────
+
+/**
+ * Resolve fractional d parameters for triangular grids.
+ *
+ * New projects use explicit dNum/dDen. Legacy projects store a single integer d,
+ * which is interpreted as dNum = d, dDen = 1 (fast growth) by default.
+ */
+export function resolveTriangularD(
+  triangularD?: number,
+  triangularDNum?: number,
+  triangularDDen?: number,
+): { dNum: number; dDen: number } {
+  if (triangularDNum !== undefined && triangularDDen !== undefined) {
+    return { dNum: triangularDNum, dDen: triangularDDen };
+  }
+  const d = triangularD ?? 2;
+  return { dNum: d, dDen: 1 };
+}
+
+/**
+ * Legacy alias — resolves fractional d for old triangular-slow projects
+ * where a bare integer d means dNum=1, dDen=d.
+ */
+export function resolveTriangularSlowD(
+  triangularD?: number,
+  triangularDNum?: number,
+  triangularDDen?: number,
+): { dNum: number; dDen: number } {
+  if (triangularDNum !== undefined && triangularDDen !== undefined) {
+    return { dNum: triangularDNum, dDen: triangularDDen };
+  }
+  const d = triangularD ?? 2;
+  return { dNum: 1, dDen: d };
+}
+
+/**
+ * Compute the width (number of beads) of a given row in a triangular grid.
+ *
+ * This is the universal formula for all triangular grids:
+ * - When dNum ≥ dDen (fast growth): simple Bresenham, monotonically wider each row.
+ * - When dNum < dDen (slow growth): Bresenham-distributed fractional rate with
+ *   alternating high/dip pattern within each cycle of L = 2·dDen − dNum rows.
+ */
+export function triangularRowWidth(row: number, a: number, dNum: number, dDen: number): number {
+  if (dNum >= dDen) {
+    // Fast growth: simple Bresenham, no dips
+    return a + Math.floor(row * dNum / dDen);
+  }
+  const L = 2 * dDen - dNum;
+  const k = Math.floor(row / L);
+  const p = row % L;
+  const dipRegionSize = 2 * (dDen - dNum);
+  const base = a + dNum * k;
+  if (p < dipRegionSize) {
+    if (p % 2 === 0) {
+      // High position in dip region
+      const j = p / 2;
+      return base + Math.floor(j * dNum / dDen);
+    } else {
+      // Dip position
+      const i = (p - 1) / 2;
+      return base + Math.floor((i + 1) * dNum / dDen) - 1;
+    }
+  } else {
+    // Remaining high positions (no dips left in cycle)
+    const j = (dDen - dNum) + (p - dipRegionSize);
+    return base + Math.floor(j * dNum / dDen);
+  }
+}
+
+/** Legacy alias for triangularRowWidth — used by old call sites during migration. */
+export function triangularSlowRowWidth(row: number, a: number, dNum: number, dDen: number): number {
+  return triangularRowWidth(row, a, dNum, dDen);
+}
+
+/**
+ * Compute the total number of pixels in rows 0..y-1 for a triangular grid.
+ * Uses hybrid closed-form (full cycles) + loop (remainder) approach.
+ */
+export function triangularCumPixels(y: number, a: number, dNum: number, dDen: number): number {
+  if (y <= 0) return 0;
+
+  if (dNum >= dDen) {
+    // Fast growth: iterate
+    let sum = 0;
+    for (let r = 0; r < y; r++) {
+      sum += a + Math.floor(r * dNum / dDen);
+    }
+    return sum;
+  }
+
+  const L = 2 * dDen - dNum;
+  const B = Math.floor(y / L);
+  const rem = y % L;
+
+  // F = Σ_{j=0}^{dDen-1} floor(j·dNum/dDen) — sum of Bresenham increments for high positions
+  let F = 0;
+  for (let j = 0; j < dDen; j++) {
+    F += Math.floor(j * dNum / dDen);
+  }
+  // G = Σ_{j=1}^{dDen-dNum} floor(j·dNum/dDen) — sum of dip-position Bresenham values
+  let G = 0;
+  for (let j = 1; j <= dDen - dNum; j++) {
+    G += Math.floor(j * dNum / dDen);
+  }
+  const C = F + G - (dDen - dNum);
+
+  // Full cycles: Σ_{k=0}^{B-1} [L·(a + dNum·k) + C]
+  const fullSum = L * B * a + L * dNum * B * (B - 1) / 2 + B * C;
+
+  // Remaining rows: iterate the partial cycle
+  let remSum = 0;
+  const remStart = B * L;
+  for (let p = 0; p < rem; p++) {
+    remSum += triangularRowWidth(remStart + p, a, dNum, dDen);
+  }
+
+  return fullSum + remSum;
+}
+
+/** Legacy alias for triangularCumPixels — used by old call sites during migration. */
+export function triangularSlowCumPixels(y: number, a: number, dNum: number, dDen: number): number {
+  return triangularCumPixels(y, a, dNum, dDen);
 }
 
 export interface Project {
@@ -74,8 +207,12 @@ export interface Project {
   gridType: GridType;
   /** First-row width for triangular grids. */
   triangularA?: number;
-  /** Per-row growth for triangular grids. */
+  /** Per-row growth for triangular grids (integer, used by regular triangular and as legacy fallback for triangular-slow). */
   triangularD?: number;
+  /** Fractional growth numerator for triangular grids (dNum increases per dDen rows). */
+  triangularDNum?: number;
+  /** Fractional growth denominator for triangular grids (dNum increases per dDen rows). */
+  triangularDDen?: number;
   layers: SerializedLayer[];
   palette: Color[];
   /** Serialized undo/redo history (optional for backward compatibility) */
@@ -123,8 +260,10 @@ export function createDefaultProject(
   gridType: GridType = 'square',
   triangularA?: number,
   triangularD?: number,
+  triangularDNum?: number,
+  triangularDDen?: number,
 ): Project {
-  const pixelCount = computeBufferPixelCount(width, height, gridType, triangularA, triangularD);
+  const pixelCount = computeBufferPixelCount(width, height, gridType, triangularA, triangularD, triangularDNum, triangularDDen);
   return {
     name,
     width,
@@ -132,6 +271,8 @@ export function createDefaultProject(
     gridType,
     triangularA,
     triangularD,
+    triangularDNum,
+    triangularDDen,
     layers: [
       {
         id: crypto.randomUUID(),

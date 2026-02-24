@@ -84,7 +84,7 @@ export class MoveTool implements Tool {
     // Clear the destination buffer to transparent.
     layerData.fill(0);
 
-    if (!gridService.isPeyote(ctx.gridType) && !gridService.isTriangular(ctx.gridType)) {
+    if (!gridService.isPeyote(ctx.gridType) && !gridService.isAnyTriangular(ctx.gridType)) {
       // Square grid: simple buffer-space shift
       for (let y = 0; y < height; y++) {
         const srcY = y - dy;
@@ -103,21 +103,23 @@ export class MoveTool implements Tool {
       return;
     }
 
-    if (gridService.isTriangular(ctx.gridType)) {
+    if (gridService.isAnyTriangular(ctx.gridType)) {
       // Triangular grid: shift in buffer space, per-row bounds
       const a = ctx.triangularA ?? 1;
       const d = ctx.triangularD ?? 1;
+      const dNum = ctx.triangularDNum;
+      const dDen = ctx.triangularDDen;
       const totalRows = height;
       for (let y = 0; y < totalRows; y++) {
-        const rowWidth = a + d * y;
+        const rowWidth = gridService.getAnyTriangularRowWidth(y, ctx.gridType, a, d, dNum, dDen);
         const srcY = y - dy;
         if (srcY < 0 || srcY >= totalRows) continue;
-        const srcRowWidth = a + d * srcY;
+        const srcRowWidth = gridService.getAnyTriangularRowWidth(srcY, ctx.gridType, a, d, dNum, dDen);
         for (let x = 0; x < rowWidth; x++) {
           const srcX = x - dx;
           if (srcX < 0 || srcX >= srcRowWidth) continue;
-          const srcOff = pixelOffset(srcX, srcY, width, 'triangular', a, d);
-          const dstOff = pixelOffset(x, y, width, 'triangular', a, d);
+          const srcOff = pixelOffset(srcX, srcY, width, ctx.gridType, a, d, dNum, dDen);
+          const dstOff = pixelOffset(x, y, width, ctx.gridType, a, d, dNum, dDen);
           layerData[dstOff] = src[srcOff];
           layerData[dstOff + 1] = src[srcOff + 1];
           layerData[dstOff + 2] = src[srcOff + 2];

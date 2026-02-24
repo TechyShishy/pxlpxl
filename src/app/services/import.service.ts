@@ -125,7 +125,7 @@ export class ImportService {
 
   private async importPng(buffer: ArrayBuffer, filename: string): Promise<void> {
     const gridType = this.canvasState.gridType();
-    if (this.gridService.isPeyote(gridType) || this.gridService.isTriangular(gridType)) {
+    if (this.gridService.isPeyote(gridType) || this.gridService.isAnyTriangular(gridType)) {
       // eslint-disable-next-line no-console
       console.warn('[ImportService] PNG import on peyote/triangular grids is not yet implemented.');
       return;
@@ -174,11 +174,29 @@ export class ImportService {
       );
     }
 
+    // Legacy: remap 'triangular-slow' → 'triangular'
+    let gridType = pxl.gridType;
+    let dNum = pxl.triangularDNum;
+    let dDen = pxl.triangularDDen;
+    if (gridType === 'triangular-slow' as string) {
+      gridType = 'triangular';
+      // Legacy triangular-slow: if no dNum/dDen, derive from integer d (dNum=1, dDen=d)
+      if (dNum === undefined || dDen === undefined) {
+        dNum = 1;
+        dDen = pxl.triangularD ?? 2;
+      }
+    }
+    // Legacy: old 'triangular' files had integer d but no dNum/dDen — convert to fast-growth
+    if (gridType === 'triangular' && dNum === undefined && dDen === undefined && pxl.triangularD !== undefined) {
+      dNum = pxl.triangularD;
+      dDen = 1;
+    }
+
     // Hydrate canvas
     this.canvasState.setCanvasSize(pxl.width, pxl.height);
-    this.canvasState.setGridType(pxl.gridType);
-    if (pxl.gridType === 'triangular' && pxl.triangularA !== undefined && pxl.triangularD !== undefined) {
-      this.canvasState.setTriangularParams(pxl.triangularA, pxl.triangularD);
+    this.canvasState.setGridType(gridType);
+    if (gridType === 'triangular' && pxl.triangularA !== undefined) {
+      this.canvasState.setTriangularParams(pxl.triangularA, pxl.triangularD ?? 1, dNum, dDen);
     }
     this.canvasState.resetZoom();
 

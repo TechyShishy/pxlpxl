@@ -94,10 +94,11 @@ export class LayerService {
   getPixel(
     layerIndex: number, x: number, y: number, width: number,
     gridType?: GridType, triangularA?: number, triangularD?: number,
+    triangularDNum?: number, triangularDDen?: number,
   ): Color {
     const layer = this.layers()[layerIndex];
     if (!layer) return { ...TRANSPARENT };
-    const offset = pixelOffset(x, y, width, gridType, triangularA, triangularD);
+    const offset = pixelOffset(x, y, width, gridType, triangularA, triangularD, triangularDNum, triangularDDen);
     return {
       r: layer.data[offset],
       g: layer.data[offset + 1],
@@ -110,10 +111,11 @@ export class LayerService {
   setPixel(
     layerIndex: number, x: number, y: number, width: number, color: Color,
     gridType?: GridType, triangularA?: number, triangularD?: number,
+    triangularDNum?: number, triangularDDen?: number,
   ): void {
     const layer = this.layers()[layerIndex];
     if (!layer) return;
-    const offset = pixelOffset(x, y, width, gridType, triangularA, triangularD);
+    const offset = pixelOffset(x, y, width, gridType, triangularA, triangularD, triangularDNum, triangularDDen);
     layer.data[offset] = color.r;
     layer.data[offset + 1] = color.g;
     layer.data[offset + 2] = color.b;

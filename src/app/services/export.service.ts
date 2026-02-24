@@ -44,7 +44,7 @@ export class ExportService {
   async exportAsBlob(options: ExportOptions): Promise<Blob> {
     const gridType = this.canvasState.gridType();
 
-    if (this.gridService.isPeyote(gridType) || this.gridService.isTriangular(gridType)) {
+    if (this.gridService.isPeyote(gridType) || this.gridService.isAnyTriangular(gridType)) {
       return this.exportNonSquare(options);
     }
 
@@ -134,6 +134,8 @@ export class ExportService {
       gridType: this.canvasState.gridType(),
       triangularA: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularA() : undefined,
       triangularD: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularD() : undefined,
+      triangularDNum: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularDNum() : undefined,
+      triangularDDen: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularDDen() : undefined,
       palette: this.colorService.palette().map((c) => ({ ...c })),
       layers: this.layerService.layers().map((l) => ({
         id: l.id,

@@ -41,10 +41,10 @@ export class EllipseTool implements Tool {
     const modifiedPixels: ModifiedPixel[] = [];
 
     for (const coord of pixels) {
-      if (!gridService.isValidPixel(coord.x, coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns, ctx.triangularA, ctx.triangularD))
+      if (!gridService.isValidPixel(coord.x, coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen))
         continue;
 
-      const offset = pixelOffset(coord.x, coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD);
+      const offset = pixelOffset(coord.x, coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen);
       const oldColor: Color = {
         r: layerData[offset],
         g: layerData[offset + 1],
@@ -70,13 +70,13 @@ export class EllipseTool implements Tool {
   }
 
   private computeEllipsePixels(from: PixelCoord, to: PixelCoord, ctx: ToolContext): PixelCoord[] {
-    if (!gridService.isPeyote(ctx.gridType) && !gridService.isTriangular(ctx.gridType)) {
+    if (!gridService.isPeyote(ctx.gridType) && !gridService.isAnyTriangular(ctx.gridType)) {
       return this.getEllipseOutline(from, to);
     }
     // Map to visual space, compute ellipse there, map back
     const scale = 100;
-    const fromV = gridService.pixelToScreen(from.x, from.y, scale, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.canvasHeight);
-    const toV = gridService.pixelToScreen(to.x, to.y, scale, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.canvasHeight);
+    const fromV = gridService.pixelToScreen(from.x, from.y, scale, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.canvasHeight, ctx.triangularDNum, ctx.triangularDDen);
+    const toV = gridService.pixelToScreen(to.x, to.y, scale, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.canvasHeight, ctx.triangularDNum, ctx.triangularDDen);
     const fromCenter = { x: fromV.sx + scale / 2, y: fromV.sy + scale / 2 };
     const toCenter = { x: toV.sx + scale / 2, y: toV.sy + scale / 2 };
 
@@ -88,7 +88,7 @@ export class EllipseTool implements Tool {
     const seen = new Set<string>();
     const result: PixelCoord[] = [];
     for (const vp of visualPoints) {
-      const lp = gridService.screenToPixel(vp.x, vp.y, scale, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns, ctx.triangularA, ctx.triangularD);
+      const lp = gridService.screenToPixel(vp.x, vp.y, scale, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen);
       if (!lp) continue;
       const key = `${lp.x},${lp.y}`;
       if (seen.has(key)) continue;

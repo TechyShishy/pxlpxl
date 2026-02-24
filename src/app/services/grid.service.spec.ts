@@ -296,17 +296,17 @@ describe('GridService', () => {
     });
   });
 
-  describe('triangularRowWidth', () => {
+  describe('getTriangularRowWidth', () => {
     it('should return a for row 0', () => {
-      expect(service.triangularRowWidth(0, 3, 2)).toBe(3);
+      expect(service.getTriangularRowWidth(0, 3, 2, 1)).toBe(3);
     });
 
     it('should return a + d for row 1', () => {
-      expect(service.triangularRowWidth(1, 3, 2)).toBe(5);
+      expect(service.getTriangularRowWidth(1, 3, 2, 1)).toBe(5);
     });
 
     it('should return a + d*r for arbitrary row', () => {
-      expect(service.triangularRowWidth(4, 1, 2)).toBe(9);
+      expect(service.getTriangularRowWidth(4, 1, 2, 1)).toBe(9);
     });
   });
 
@@ -612,6 +612,209 @@ describe('GridService', () => {
             }
           }
         }
+      });
+    });
+  });
+
+  describe('isAnyTriangular', () => {
+    it('should return false for square', () => {
+      expect(service.isAnyTriangular('square')).toBe(false);
+    });
+
+    it('should return false for peyote', () => {
+      expect(service.isAnyTriangular('peyote')).toBe(false);
+    });
+
+    it('should return true for triangular', () => {
+      expect(service.isAnyTriangular('triangular')).toBe(true);
+    });
+  });
+
+  describe('usesPeyoteStagger', () => {
+    it('should return true for triangular with odd d', () => {
+      expect(service.usesPeyoteStagger('triangular', 1)).toBe(true);
+      expect(service.usesPeyoteStagger('triangular', 3)).toBe(true);
+    });
+
+    it('should return false for triangular with even d', () => {
+      expect(service.usesPeyoteStagger('triangular', 2)).toBe(false);
+    });
+
+    it('should return true for triangular with dNum < dDen (fractional d < 1)', () => {
+      expect(service.usesPeyoteStagger('triangular', 0, 1, 2)).toBe(true);
+      expect(service.usesPeyoteStagger('triangular', 0, 1, 3)).toBe(true);
+      expect(service.usesPeyoteStagger('triangular', 0, 1, 4)).toBe(true);
+    });
+
+    it('should return true for triangular with odd floor(dNum/dDen)', () => {
+      expect(service.usesPeyoteStagger('triangular', 0, 3, 2)).toBe(true); // floor(3/2)=1, odd
+      expect(service.usesPeyoteStagger('triangular', 0, 7, 2)).toBe(true); // floor(7/2)=3, odd
+    });
+
+    it('should return false for triangular with even floor(dNum/dDen)', () => {
+      expect(service.usesPeyoteStagger('triangular', 0, 4, 2)).toBe(false); // floor(4/2)=2, even
+      expect(service.usesPeyoteStagger('triangular', 0, 2, 1)).toBe(false); // floor(2/1)=2, even
+      expect(service.usesPeyoteStagger('triangular', 0, 5, 2)).toBe(false); // floor(5/2)=2, even
+    });
+
+    it('should return false for non-triangular types', () => {
+      expect(service.usesPeyoteStagger('square', 2)).toBe(false);
+      expect(service.usesPeyoteStagger('peyote', 2)).toBe(false);
+    });
+  });
+
+  describe('triangular slow-growth grid (dNum < dDen)', () => {
+    describe('isValidPixel (dNum=1, dDen=2)', () => {
+      const a = 1, dNum = 1, dDen = 2, totalRows = 10;
+      // Row widths: [1,0,1,2,1,2,3,2,3,4]
+
+      it('should accept (0, 0) — row 0 has width 1', () => {
+        expect(service.isValidPixel(0, 0, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
+      });
+
+      it('should reject (0, 1) — row 1 has width 0', () => {
+        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      });
+
+      it('should accept (0, 2) — row 2 has width 1', () => {
+        expect(service.isValidPixel(0, 2, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
+      });
+
+      it('should accept (1, 3) — row 3 has width 2', () => {
+        expect(service.isValidPixel(1, 3, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
+      });
+
+      it('should reject (2, 3) — row 3 has width 2', () => {
+        expect(service.isValidPixel(2, 3, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      });
+
+      it('should accept (3, 9) — row 9 has width 4', () => {
+        expect(service.isValidPixel(3, 9, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
+      });
+
+      it('should reject (4, 9) — row 9 has width 4', () => {
+        expect(service.isValidPixel(4, 9, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      });
+
+      it('should reject negative y', () => {
+        expect(service.isValidPixel(0, -1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      });
+
+      it('should reject y >= totalRows', () => {
+        expect(service.isValidPixel(0, totalRows, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      });
+    });
+
+    describe('isValidPixel (dNum=1, dDen=4)', () => {
+      const a = 1, dNum = 1, dDen = 4, totalRows = 10;
+      // Row widths: [1,0,1,0,1,0,1,2,1,2]
+
+      it('should accept (0, 0)', () => {
+        expect(service.isValidPixel(0, 0, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
+      });
+
+      it('should reject (0, 1) — row 1 has width 0', () => {
+        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      });
+
+      it('should reject (0, 5) — row 5 has width 0', () => {
+        expect(service.isValidPixel(0, 5, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      });
+
+      it('should accept (1, 7) — row 7 has width 2', () => {
+        expect(service.isValidPixel(1, 7, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
+      });
+
+      it('should reject (2, 7) — row 7 has width 2', () => {
+        expect(service.isValidPixel(2, 7, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      });
+    });
+
+    describe('isValidPixel (dNum=1, dDen=3)', () => {
+      const a = 1, dNum = 1, dDen = 3, totalRows = 10;
+      // L=5: [1,0,1,0,1,2,1,2,1,2]
+
+      it('should accept (0, 0)', () => {
+        expect(service.isValidPixel(0, 0, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
+      });
+
+      it('should reject (0, 1) — row 1 has width 0', () => {
+        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
+      });
+
+      it('should accept (1, 5) — row 5 has width 2', () => {
+        expect(service.isValidPixel(1, 5, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
+      });
+    });
+
+    describe('getNeighbors (dNum=1, dDen=2) — all returned neighbors must be valid', () => {
+      const a = 1, dNum = 1, dDen = 2, totalRows = 10;
+
+      it('should return valid neighbors for all pixels', () => {
+        for (let row = 0; row < totalRows; row++) {
+          const L = 2 * dDen - dNum;
+          const k = Math.floor(row / L);
+          const p = row % L;
+          const w = a + k - (p % 2 === 1 ? 1 : 0);
+          for (let col = 0; col < w; col++) {
+            const neighbors = service.getNeighbors(col, row, 'triangular', 0, totalRows, undefined, a, undefined, dNum, dDen);
+            for (const n of neighbors) {
+              expect(
+                service.isValidPixel(n.x, n.y, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen),
+                `neighbor (${n.x},${n.y}) of (${col},${row}) should be valid`,
+              ).toBe(true);
+            }
+          }
+        }
+      });
+    });
+
+    describe('getNeighbors (dNum=1, dDen=4) — all returned neighbors must be valid', () => {
+      const a = 1, dNum = 1, dDen = 4, totalRows = 10;
+
+      it('should return valid neighbors for all pixels', () => {
+        for (let row = 0; row < totalRows; row++) {
+          const L = 2 * dDen - dNum;
+          const k = Math.floor(row / L);
+          const p = row % L;
+          const w = a + k - (p % 2 === 1 ? 1 : 0);
+          for (let col = 0; col < w; col++) {
+            const neighbors = service.getNeighbors(col, row, 'triangular', 0, totalRows, undefined, a, undefined, dNum, dDen);
+            for (const n of neighbors) {
+              expect(
+                service.isValidPixel(n.x, n.y, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen),
+                `neighbor (${n.x},${n.y}) of (${col},${row}) should be valid`,
+              ).toBe(true);
+            }
+          }
+        }
+      });
+    });
+
+    describe('getNeighbors (dNum=1, dDen=3) — all returned neighbors must be valid', () => {
+      const a = 1, dNum = 1, dDen = 3, totalRows = 10;
+
+      it('should return valid neighbors for all pixels', () => {
+        for (let row = 0; row < totalRows; row++) {
+          const L = 2 * dDen - dNum;
+          const k = Math.floor(row / L);
+          const p = row % L;
+          const w = a + k - (p % 2 === 1 ? 1 : 0);
+          for (let col = 0; col < w; col++) {
+            const neighbors = service.getNeighbors(col, row, 'triangular', 0, totalRows, undefined, a, undefined, dNum, dDen);
+            for (const n of neighbors) {
+              expect(
+                service.isValidPixel(n.x, n.y, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen),
+                `neighbor (${n.x},${n.y}) of (${col},${row}) should be valid`,
+              ).toBe(true);
+            }
+          }
+        }
+      });
+
+      it('should have at least 1 neighbor for interior pixels', () => {
+        const neighbors = service.getNeighbors(0, 5, 'triangular', 0, totalRows, undefined, a, undefined, dNum, dDen);
+        expect(neighbors.length).toBeGreaterThanOrEqual(1);
       });
     });
   });

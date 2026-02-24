@@ -1,10 +1,31 @@
 import { Command, SerializedHistoryEntry, uint8ArrayToBase64, base64ToUint8Array } from '../models';
+import { GridType } from '../models/project.model';
 import { DrawCommand } from './draw.command';
 import { FillCommand } from './fill.command';
 import { LayerCommand } from './layer.command';
 import { DuplicateLayerCommand } from './duplicate-layer.command';
 import { MoveLayerCommand } from './move-layer.command';
 import { LayerService } from '../services/layer.service';
+
+/**
+ * Remap legacy 'triangular-slow' gridType to unified 'triangular'
+ * and fix dNum/dDen parameters accordingly.
+ */
+function remapLegacyGridType(
+  entry: SerializedHistoryEntry,
+): { gridType?: GridType; dNum?: number; dDen?: number } {
+  const gt = entry.gridType as string | undefined;
+  if (gt === 'triangular-slow') {
+    const dNum = entry.triangularDNum ?? 1;
+    const dDen = entry.triangularDDen ?? (entry.triangularD ?? 2);
+    return { gridType: 'triangular', dNum, dDen };
+  }
+  // Old fast-growth triangular: convert integer d → dNum=d, dDen=1
+  if (gt === 'triangular' && entry.triangularDNum === undefined && entry.triangularD !== undefined) {
+    return { gridType: 'triangular', dNum: entry.triangularD, dDen: 1 };
+  }
+  return { gridType: entry.gridType, dNum: entry.triangularDNum, dDen: entry.triangularDDen };
+}
 
 /**
  * Serialize a Command instance into a plain object for .pxl file storage.
@@ -20,6 +41,8 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
       gridType: command.gridType,
       triangularA: command.triangularA,
       triangularD: command.triangularD,
+      triangularDNum: command.triangularDNum,
+      triangularDDen: command.triangularDDen,
       modifiedPixels: command.modifiedPixels.map((p) => ({
         coord: { x: p.coord.x, y: p.coord.y },
         oldColor: { ...p.oldColor },
@@ -37,6 +60,8 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
       gridType: command.gridType,
       triangularA: command.triangularA,
       triangularD: command.triangularD,
+      triangularDNum: command.triangularDNum,
+      triangularDDen: command.triangularDDen,
       modifiedPixels: command.modifiedPixels.map((p) => ({
         coord: { x: p.coord.x, y: p.coord.y },
         oldColor: { ...p.oldColor },
@@ -96,7 +121,8 @@ export function deserializeCommand(
   layerService: LayerService,
 ): Command {
   switch (entry.type) {
-    case 'draw':
+    case 'draw': {
+      const { gridType, dNum, dDen } = remapLegacyGridType(entry);
       return new DrawCommand(
         layerService,
         entry.layerIndex,
@@ -107,12 +133,16 @@ export function deserializeCommand(
           newColor: { ...p.newColor },
         })),
         entry.description,
-        entry.gridType,
+        gridType,
         entry.triangularA,
         entry.triangularD,
+        dNum,
+        dDen,
       );
+    }
 
-    case 'fill':
+    case 'fill': {
+      const { gridType, dNum, dDen } = remapLegacyGridType(entry);
       return new FillCommand(
         layerService,
         entry.layerIndex,
@@ -122,10 +152,13 @@ export function deserializeCommand(
           oldColor: { ...p.oldColor },
           newColor: { ...p.newColor },
         })),
-        entry.gridType,
+        gridType,
         entry.triangularA,
         entry.triangularD,
+        dNum,
+        dDen,
       );
+    }
 
     case 'layer':
       return new LayerCommand(

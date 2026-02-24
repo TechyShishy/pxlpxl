@@ -5,7 +5,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
-import { GridType } from '../../models';
+import { GridType, triangularRowWidth } from '../../models';
 
 export interface NewProjectDialogResult {
   name: string;
@@ -14,6 +14,8 @@ export interface NewProjectDialogResult {
   gridType: GridType;
   triangularA?: number;
   triangularD?: number;
+  triangularDNum?: number;
+  triangularDDen?: number;
 }
 
 @Component({
@@ -39,6 +41,8 @@ export class NewProjectDialogComponent {
   gridType: GridType = 'square';
   triangularA = 1;
   triangularD = 2;
+  triangularDNum = 1;
+  triangularDDen = 2;
   /** For triangular grids, height = number of rows (R). */
   triangularRows = 10;
 
@@ -47,21 +51,38 @@ export class NewProjectDialogComponent {
     this.height = h;
   }
 
+  private get isTriangularType(): boolean {
+    return this.gridType === 'triangular';
+  }
+
+  private computeMaxWidth(): number {
+    if (this.gridType === 'triangular') {
+      const maxRow = Math.max(0, this.triangularRows - 1);
+      return Math.max(
+        triangularRowWidth(maxRow, this.triangularA, this.triangularDNum, this.triangularDDen),
+        maxRow > 0 ? triangularRowWidth(maxRow - 1, this.triangularA, this.triangularDNum, this.triangularDDen) : 0,
+      );
+    }
+    return this.width;
+  }
+
   onCreate(): void {
     const result: NewProjectDialogResult = {
       name: this.name,
-      width: this.gridType === 'triangular' ? this.triangularA + this.triangularD * Math.max(0, this.triangularRows - 1) : this.width,
-      height: this.gridType === 'triangular' ? this.triangularRows : this.height,
+      width: this.isTriangularType ? this.computeMaxWidth() : this.width,
+      height: this.isTriangularType ? this.triangularRows : this.height,
       gridType: this.gridType,
-      triangularA: this.gridType === 'triangular' ? this.triangularA : undefined,
-      triangularD: this.gridType === 'triangular' ? this.triangularD : undefined,
+      triangularA: this.isTriangularType ? this.triangularA : undefined,
+      triangularD: undefined,
+      triangularDNum: this.isTriangularType ? this.triangularDNum : undefined,
+      triangularDDen: this.isTriangularType ? this.triangularDDen : undefined,
     };
     this.dialogRef.close(result);
   }
 
   get isCreateDisabled(): boolean {
     if (this.gridType === 'triangular') {
-      return this.triangularA < 1 || this.triangularD < 1 || this.triangularRows < 1;
+      return this.triangularA < 1 || this.triangularDNum < 1 || this.triangularDDen < 1 || this.triangularRows < 1;
     }
     return this.width < 1 || this.height < 1;
   }

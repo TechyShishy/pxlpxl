@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { GridType, PixelCoord } from '../models';
+import { GridType, PixelCoord, triangularRowWidth, resolveTriangularD } from '../models';
 
 /**
  * Utility service for grid-type-aware coordinate mapping and neighbor lookups.
@@ -62,11 +62,14 @@ export class GridService {
     visualColumns?: number,
     triangularA?: number,
     triangularD?: number,
+    triangularDNum?: number,
+    triangularDDen?: number,
   ): boolean {
     if (by < 0 || by >= bufferHeight) return false;
 
-    if (gridType === 'triangular' && triangularA !== undefined && triangularD !== undefined) {
-      const rowWidth = triangularA + triangularD * by;
+    if (gridType === 'triangular' && triangularA !== undefined) {
+      const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
+      const rowWidth = triangularRowWidth(by, triangularA, dNum, dDen);
       return bx >= 0 && bx < rowWidth;
     }
 
@@ -100,19 +103,22 @@ export class GridService {
     triangularA?: number,
     triangularD?: number,
     totalRows?: number,
+    triangularDNum?: number,
+    triangularDDen?: number,
   ): { sx: number; sy: number } {
-    if (gridType === 'triangular' && triangularA !== undefined && triangularD !== undefined && totalRows !== undefined) {
-      const maxWidth = triangularA + triangularD * Math.max(0, totalRows - 1);
-      const rowWidth = triangularA + triangularD * by;
-      if (triangularD % 2 !== 0) {
-        // Odd d: peyote-style layout with whole-pixel horizontal shift.
-        // Pixels have stride 2 (pixel + gap) and rows use half-scale Y.
+    if (gridType === 'triangular' && triangularA !== undefined && totalRows !== undefined) {
+      const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
+      const maxWidth = this.getTriangularMaxWidth(totalRows, triangularA, dNum, dDen);
+      const rowWidth = triangularRowWidth(by, triangularA, dNum, dDen);
+
+      if (this.usesPeyoteStagger(gridType, triangularD ?? 1, triangularDNum, triangularDDen)) {
+        // Peyote-style: 2-stride spacing + half-row interleaving
         const centerOffset = maxWidth - rowWidth;
         const sx = (centerOffset + bx * 2) * scale;
         const sy = by * (scale / 2);
         return { sx, sy };
       }
-      // Even d: uniform layout, no gaps.
+      // Even effective d: uniform layout, no gaps.
       const centerOffset = (maxWidth - rowWidth) / 2;
       const sx = (centerOffset + bx) * scale;
       return { sx, sy: by * scale };
@@ -152,10 +158,13 @@ export class GridService {
     visualColumns?: number,
     triangularA?: number,
     triangularD?: number,
+    triangularDNum?: number,
+    triangularDDen?: number,
   ): PixelCoord | null {
-    if (gridType === 'triangular' && triangularA !== undefined && triangularD !== undefined) {
+    if (gridType === 'triangular' && triangularA !== undefined) {
+      const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
       return this.screenToPixelTriangular(
-        localX, localY, scale, bufferHeight, triangularA, triangularD,
+        localX, localY, scale, bufferHeight, triangularA, dNum, dDen,
       );
     }
 
@@ -185,7 +194,9 @@ export class GridService {
   }
 
   /**
-   * screenToPixel implementation for triangular grids.
+   * screenToPixel implementation for triangular grids (unified).
+   * Uses dNum/dDen fractional growth. Dispatches to peyote-style or
+   * square-style layout based on usesPeyoteStagger.
    */
   private screenToPixelTriangular(
     localX: number,
@@ -193,33 +204,33 @@ export class GridService {
     scale: number,
     totalRows: number,
     a: number,
-    d: number,
+    dNum: number,
+    dDen: number,
   ): PixelCoord | null {
-    const maxWidth = a + d * Math.max(0, totalRows - 1);
+    const maxWidth = this.getTriangularMaxWidth(totalRows, a, dNum, dDen);
+    const effectiveD = Math.floor(dNum / dDen);
+    const usePeyote = dNum < dDen || effectiveD % 2 !== 0;
 
-    if (d % 2 === 0) {
-      // Even d: square-style uniform row height
+    if (!usePeyote) {
+      // Even effective d: square-style uniform row height
       const by = Math.floor(localY / scale);
       if (by < 0 || by >= totalRows) return null;
-      const rowWidth = a + d * by;
+      const rowWidth = triangularRowWidth(by, a, dNum, dDen);
       const centerOffset = (maxWidth - rowWidth) / 2;
       const bx = Math.floor(localX / scale - centerOffset);
       if (bx < 0 || bx >= rowWidth) return null;
       return { x: bx, y: by };
     }
 
-    // Odd d: peyote-style half-row interleaving with 2-stride pixel spacing.
-    // Each row is placed at y = row * (scale / 2) and occupies [y, y + scale).
-    // Pixels within a row sit at stride-2 positions (pixel + gap).
-    // A click in a gap returns null.
+    // Peyote-style half-row interleaving with 2-stride pixel spacing.
     const rowSpacing = scale / 2;
     const minRow = Math.max(0, Math.ceil((localY - scale) / rowSpacing));
-    const maxRow = Math.min(totalRows - 1, Math.floor(localY / rowSpacing));
+    const maxRowCandidate = Math.min(totalRows - 1, Math.floor(localY / rowSpacing));
 
-    for (let candidate = minRow; candidate <= maxRow; candidate++) {
+    for (let candidate = minRow; candidate <= maxRowCandidate; candidate++) {
       const rowY = candidate * rowSpacing;
       if (localY >= rowY && localY < rowY + scale) {
-        const rowWidth = a + d * candidate;
+        const rowWidth = triangularRowWidth(candidate, a, dNum, dDen);
         const centerOffset = maxWidth - rowWidth;
         const relativeCol = Math.floor(localX / scale) - centerOffset;
         if (relativeCol < 0 || relativeCol % 2 !== 0) continue;
@@ -254,11 +265,14 @@ export class GridService {
     visualColumns?: number,
     triangularA?: number,
     triangularD?: number,
+    triangularDNum?: number,
+    triangularDDen?: number,
   ): PixelCoord[] {
     const neighbors: PixelCoord[] = [];
 
-    if (gridType === 'triangular' && triangularA !== undefined && triangularD !== undefined) {
-      return this.getNeighborsTriangular(bx, by, triangularA, triangularD, bufferHeight);
+    if (gridType === 'triangular' && triangularA !== undefined) {
+      const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
+      return this.getNeighborsTriangular(bx, by, triangularA, dNum, dDen, bufferHeight);
     }
 
     if (gridType !== 'peyote') {
@@ -315,76 +329,78 @@ export class GridService {
   }
 
   /**
-   * getNeighbors implementation for triangular grids.
+   * getNeighbors implementation for triangular grids (unified).
    *
-   * Each row has `a + d * row` pixels, centered. Moving between rows shifts
-   * the x-coordinate by d/2 due to centering.
-   *
-   * Even d → 4-connected: left, right, one above (x - d/2), one below (x + d/2).
-   * Odd d → 6-connected with 2-stride layout: no same-row neighbors.
-   *   Instead: ±1 row diagonals (gridCol ± 1) and ±2 rows (same gridCol).
-   *   Formulas derived from gridCol = centerOffset + bx*2 where
-   *   centerOffset = maxWidth - rowWidth.
+   * Uses peyote stagger rule to decide between 4-connected and 6-connected.
+   * - Peyote stagger (6-connected): ±1 row diagonals and ±2 row same-gridCol.
+   * - No stagger (4-connected): left, right, one above, one below.
    */
   private getNeighborsTriangular(
     bx: number,
     by: number,
     a: number,
-    d: number,
+    dNum: number,
+    dDen: number,
     totalRows: number,
   ): PixelCoord[] {
     const neighbors: PixelCoord[] = [];
-    const rowWidth = a + d * by;
+    const usePeyote = this.usesPeyoteStagger('triangular', 0, dNum, dDen);
 
-    const isValid = (x: number, y: number): boolean => {
-      if (y < 0 || y >= totalRows) return false;
-      const rw = a + d * y;
-      return x >= 0 && x < rw;
-    };
+    if (usePeyote) {
+      // 6-connected: use visual-space center offsets
+      const w = triangularRowWidth(by, a, dNum, dDen);
+      const maxWidth = this.getTriangularMaxWidth(totalRows, a, dNum, dDen);
+      const co = maxWidth - w; // center offset for current row
 
-    if (d % 2 !== 0) {
-      // Odd d: 2-stride layout. Neighbors are at gridCol ± 1 (±1 row)
-      // and same gridCol (±2 rows). No same-row neighbors.
-
-      // 1 row above: bx' = (2*bx ∓ 1 - d) / 2
-      if (by > 0) {
-        const leftAbove = (2 * bx - 1 - d) / 2;
-        const rightAbove = (2 * bx + 1 - d) / 2;
-        if (isValid(leftAbove, by - 1)) neighbors.push({ x: leftAbove, y: by - 1 });
-        if (isValid(rightAbove, by - 1)) neighbors.push({ x: rightAbove, y: by - 1 });
+      // ±1 rows: visual x of bx is co + 2*bx, neighbor at co_n + 2*nbx = co + 2*bx ± 1
+      for (const dy of [-1, 1]) {
+        const ny = by + dy;
+        if (ny < 0 || ny >= totalRows) continue;
+        const nw = triangularRowWidth(ny, a, dNum, dDen);
+        const nco = maxWidth - nw;
+        for (const dx of [-1, 1]) {
+          const num = (co - nco) + 2 * bx + dx;
+          if (num % 2 !== 0) continue;
+          const nbx = num / 2;
+          if (nbx >= 0 && nbx < nw) {
+            neighbors.push({ x: nbx, y: ny });
+          }
+        }
       }
 
-      // 1 row below: bx' = (2*bx ∓ 1 + d) / 2
-      if (by < totalRows - 1) {
-        const leftBelow = (2 * bx - 1 + d) / 2;
-        const rightBelow = (2 * bx + 1 + d) / 2;
-        if (isValid(leftBelow, by + 1)) neighbors.push({ x: leftBelow, y: by + 1 });
-        if (isValid(rightBelow, by + 1)) neighbors.push({ x: rightBelow, y: by + 1 });
-      }
-
-      // 2 rows above: same gridCol → bx' = bx - d
-      if (by >= 2) {
-        const above2 = bx - d;
-        if (isValid(above2, by - 2)) neighbors.push({ x: above2, y: by - 2 });
-      }
-
-      // 2 rows below: same gridCol → bx' = bx + d
-      if (by < totalRows - 2) {
-        const below2 = bx + d;
-        if (isValid(below2, by + 2)) neighbors.push({ x: below2, y: by + 2 });
+      // ±2 rows: same visual x → nbx = bx + (nw - w) / 2
+      for (const dy of [-2, 2]) {
+        const ny = by + dy;
+        if (ny < 0 || ny >= totalRows) continue;
+        const nw = triangularRowWidth(ny, a, dNum, dDen);
+        const dw = nw - w;
+        if (dw % 2 !== 0) continue;
+        const nbx = bx + dw / 2;
+        if (nbx >= 0 && nbx < nw) {
+          neighbors.push({ x: nbx, y: ny });
+        }
       }
     } else {
-      // Even d: 4-connected. Same-row left/right + one above + one below.
+      // 4-connected with centering shift (even effective d)
+      const rowWidth = triangularRowWidth(by, a, dNum, dDen);
+      const effectiveD = Math.floor(dNum / dDen);
+
+      const isValid = (x: number, y: number): boolean => {
+        if (y < 0 || y >= totalRows) return false;
+        const rw = triangularRowWidth(y, a, dNum, dDen);
+        return x >= 0 && x < rw;
+      };
+
       if (bx - 1 >= 0) neighbors.push({ x: bx - 1, y: by });
       if (bx + 1 < rowWidth) neighbors.push({ x: bx + 1, y: by });
 
       if (by > 0) {
-        const aboveX = bx - d / 2;
+        const aboveX = bx - effectiveD / 2;
         if (isValid(aboveX, by - 1)) neighbors.push({ x: aboveX, y: by - 1 });
       }
 
       if (by < totalRows - 1) {
-        const belowX = bx + d / 2;
+        const belowX = bx + effectiveD / 2;
         if (isValid(belowX, by + 1)) neighbors.push({ x: belowX, y: by + 1 });
       }
     }
@@ -404,8 +420,55 @@ export class GridService {
     return gridType === 'triangular';
   }
 
-  /** Compute the width (number of pixels) of a given row in a triangular grid. */
-  triangularRowWidth(row: number, a: number, d: number): number {
-    return a + d * row;
+  /** Whether the grid type is any triangular variant (now just 'triangular'). */
+  isAnyTriangular(gridType: GridType): boolean {
+    return gridType === 'triangular';
   }
+
+  /** Compute the width (number of pixels) of a given row in a triangular grid. */
+  getTriangularRowWidth(row: number, a: number, dNum: number, dDen: number): number {
+    return triangularRowWidth(row, a, dNum, dDen);
+  }
+
+  /**
+   * Compute the row width for any triangular variant.
+   * Unified — always uses fractional dNum/dDen formula.
+   */
+  getAnyTriangularRowWidth(row: number, gridType: GridType, a: number, d: number, dNum?: number, dDen?: number): number {
+    const resolved = resolveTriangularD(d, dNum, dDen);
+    return triangularRowWidth(row, a, resolved.dNum, resolved.dDen);
+  }
+
+  /**
+   * Compute the max row width across all rows for any triangular variant.
+   */
+  getAnyTriangularMaxWidth(totalRows: number, gridType: GridType, a: number, d: number, dNum?: number, dDen?: number): number {
+    const resolved = resolveTriangularD(d, dNum, dDen);
+    return this.getTriangularMaxWidth(totalRows, a, resolved.dNum, resolved.dDen);
+  }
+
+  /**
+   * Compute the max row width for a triangular grid given resolved dNum/dDen.
+   */
+  private getTriangularMaxWidth(totalRows: number, a: number, dNum: number, dDen: number): number {
+    if (totalRows <= 0) return a;
+    const maxRow = totalRows - 1;
+    const w1 = triangularRowWidth(maxRow, a, dNum, dDen);
+    const w2 = maxRow > 0 ? triangularRowWidth(maxRow - 1, a, dNum, dDen) : 0;
+    return Math.max(w1, w2);
+  }
+
+  /**
+   * Whether the given triangular grid uses peyote-style stagger (half-height rows, 2-stride).
+   * - Effective d < 1 (dNum < dDen): always staggers.
+   * - Effective d ≥ 1: staggers if floor(dNum/dDen) is odd.
+   */
+  usesPeyoteStagger(gridType: GridType, d: number, dNum?: number, dDen?: number): boolean {
+    if (gridType !== 'triangular') return false;
+    const resolved = resolveTriangularD(d, dNum, dDen);
+    if (resolved.dNum < resolved.dDen) return true; // d < 1: always stagger
+    const effectiveD = Math.floor(resolved.dNum / resolved.dDen);
+    return effectiveD % 2 !== 0;
+  }
+
 }

@@ -54,13 +54,23 @@
           />
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>d (row growth)</mat-label>
+          <mat-label>dNum (increases per cycle)</mat-label>
           <input
             matInput
             type="number"
-            [(ngModel)]="triangularD"
+            [(ngModel)]="triangularDNum"
             [min]="1"
-            aria-label="Per-row growth (d)"
+            aria-label="Number of increases per cycle (dNum)"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>dDen (cycle length)</mat-label>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="triangularDDen"
+            [min]="1"
+            aria-label="Cycle length in rows (dDen)"
           />
         </mat-form-field>
         <mat-form-field appearance="outline">

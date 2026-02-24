@@ -36,17 +36,18 @@ export class ProjectService {
     name: string, width: number, height: number,
     gridType: GridType = 'square',
     triangularA?: number, triangularD?: number,
+    triangularDNum?: number, triangularDDen?: number,
   ): void {
     this.currentProjectId = undefined;
     this.currentProjectName.set(name);
     this.canvasState.setCanvasSize(width, height);
     this.canvasState.setGridType(gridType);
-    if (gridType === 'triangular' && triangularA !== undefined && triangularD !== undefined) {
-      this.canvasState.setTriangularParams(triangularA, triangularD);
+    if (gridType === 'triangular' && triangularA !== undefined) {
+      this.canvasState.setTriangularParams(triangularA, triangularD ?? 1, triangularDNum, triangularDDen);
     }
     const pixelCount = computeBufferPixelCount(
       width, height,
-      gridType, triangularA, triangularD,
+      gridType, triangularA, triangularD, triangularDNum, triangularDDen,
     );
     this.layerService.initLayers(
       this.canvasState.bufferWidth(), this.canvasState.bufferHeight(), pixelCount,
@@ -68,6 +69,8 @@ export class ProjectService {
       gridType: this.canvasState.gridType(),
       triangularA: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularA() : undefined,
       triangularD: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularD() : undefined,
+      triangularDNum: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularDNum() : undefined,
+      triangularDDen: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularDDen() : undefined,
       layers: this.layerService.layers().map(serializeLayer),
       palette: this.colorService.palette(),
       history: {
@@ -101,8 +104,8 @@ export class ProjectService {
     this.currentProjectName.set(project.name);
     this.canvasState.setCanvasSize(project.width, project.height);
     this.canvasState.setGridType(project.gridType ?? 'square');
-    if (project.gridType === 'triangular' && project.triangularA !== undefined && project.triangularD !== undefined) {
-      this.canvasState.setTriangularParams(project.triangularA, project.triangularD);
+    if (project.gridType === 'triangular' && project.triangularA !== undefined) {
+      this.canvasState.setTriangularParams(project.triangularA, project.triangularD ?? 1, project.triangularDNum, project.triangularDDen);
     }
     this.layerService.setLayers(project.layers.map(deserializeLayer));
     this.colorService.setPalette(project.palette);

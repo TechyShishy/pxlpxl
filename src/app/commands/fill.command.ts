@@ -17,6 +17,8 @@ export class FillCommand implements Command {
     readonly gridType?: GridType,
     readonly triangularA?: number,
     readonly triangularD?: number,
+    readonly triangularDNum?: number,
+    readonly triangularDDen?: number,
   ) {
     this.description = `Fill ${modifiedPixels.length} pixel(s)`;
   }
@@ -32,6 +34,8 @@ export class FillCommand implements Command {
         this.gridType,
         this.triangularA,
         this.triangularD,
+        this.triangularDNum,
+        this.triangularDDen,
       );
     }
     this.layerService.notifyLayersChanged();
@@ -48,6 +52,8 @@ export class FillCommand implements Command {
         this.gridType,
         this.triangularA,
         this.triangularD,
+        this.triangularDNum,
+        this.triangularDDen,
       );
     }
     this.layerService.notifyLayersChanged();

@@ -18,6 +18,8 @@ export class DrawCommand implements Command {
     readonly gridType?: GridType,
     readonly triangularA?: number,
     readonly triangularD?: number,
+    readonly triangularDNum?: number,
+    readonly triangularDDen?: number,
   ) {
     this.description = description ?? `Draw ${modifiedPixels.length} pixel(s)`;
   }
@@ -33,6 +35,8 @@ export class DrawCommand implements Command {
         this.gridType,
         this.triangularA,
         this.triangularD,
+        this.triangularDNum,
+        this.triangularDDen,
       );
     }
     this.layerService.notifyLayersChanged();
@@ -49,6 +53,8 @@ export class DrawCommand implements Command {
         this.gridType,
         this.triangularA,
         this.triangularD,
+        this.triangularDNum,
+        this.triangularDDen,
       );
     }
     this.layerService.notifyLayersChanged();

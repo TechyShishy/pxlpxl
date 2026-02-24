@@ -18,6 +18,10 @@ export class CanvasStateService {
   readonly triangularA = signal<number>(1);
   /** Per-row growth for triangular grids. */
   readonly triangularD = signal<number>(1);
+  /** Fractional growth numerator for triangular grids. */
+  readonly triangularDNum = signal<number>(1);
+  /** Fractional growth denominator for triangular grids. */
+  readonly triangularDDen = signal<number>(1);
 
   /** Buffer width — for peyote: ceil(visualColumns / 2); for square: same as canvasWidth. */
   readonly bufferWidth = computed(() => {
@@ -27,6 +31,8 @@ export class CanvasStateService {
       this.gridType(),
       this.triangularA(),
       this.triangularD(),
+      this.triangularDNum(),
+      this.triangularDDen(),
     );
     return bufferWidth;
   });
@@ -39,6 +45,8 @@ export class CanvasStateService {
       this.gridType(),
       this.triangularA(),
       this.triangularD(),
+      this.triangularDNum(),
+      this.triangularDDen(),
     );
     return bufferHeight;
   });
@@ -51,6 +59,8 @@ export class CanvasStateService {
       this.gridType(),
       this.triangularA(),
       this.triangularD(),
+      this.triangularDNum(),
+      this.triangularDDen(),
     ),
   );
 
@@ -71,9 +81,17 @@ export class CanvasStateService {
     this.gridType.set(type);
   }
 
-  setTriangularParams(a: number, d: number): void {
+  setTriangularParams(a: number, d: number, dNum?: number, dDen?: number): void {
     this.triangularA.set(a);
     this.triangularD.set(d);
+    if (dNum !== undefined && dDen !== undefined) {
+      this.triangularDNum.set(dNum);
+      this.triangularDDen.set(dDen);
+    } else {
+      // Legacy: integer d means dNum=d, dDen=1 (fast growth)
+      this.triangularDNum.set(d);
+      this.triangularDDen.set(1);
+    }
   }
 
   setZoom(scale: number): void {
@@ -133,6 +151,8 @@ export class CanvasStateService {
       this.canvasWidth(),
       this.triangularA(),
       this.triangularD(),
+      this.triangularDNum(),
+      this.triangularDDen(),
     );
   }
 }

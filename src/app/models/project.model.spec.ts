@@ -4,6 +4,8 @@ import {
   createDefaultProject,
   computeBufferDimensions,
   computeBufferPixelCount,
+  triangularSlowRowWidth,
+  triangularSlowCumPixels,
   SerializedLayer,
 } from './project.model';
 import { createLayer } from './layer.model';
@@ -229,6 +231,164 @@ describe('Project Model', () => {
       // 25 pixels → 100 bytes
       const project = createDefaultProject('Tri', 0, 5, 'triangular', 3, 1);
       expect(project.layers[0].data.length).toBe(25 * 4);
+    });
+  });
+
+  describe('triangularSlowRowWidth', () => {
+    it('should return a for row 0 (a=1, d=2)', () => {
+      expect(triangularSlowRowWidth(0, 1, 1, 2)).toBe(1);
+    });
+
+    it('should return a-1 for row 1 (dip, a=1, d=2)', () => {
+      expect(triangularSlowRowWidth(1, 1, 1, 2)).toBe(0);
+    });
+
+    it('should return a for row 2 (a=1, d=2)', () => {
+      expect(triangularSlowRowWidth(2, 1, 1, 2)).toBe(1);
+    });
+
+    it('should verify full sequence a=1, d=2, R=10', () => {
+      const expected = [1, 0, 1, 2, 1, 2, 3, 2, 3, 4];
+      for (let r = 0; r < 10; r++) {
+        expect(triangularSlowRowWidth(r, 1, 1, 2)).toBe(expected[r]);
+      }
+    });
+
+    it('should verify full sequence a=1, d=4, R=10', () => {
+      const expected = [1, 0, 1, 0, 1, 0, 1, 2, 1, 2];
+      for (let r = 0; r < 10; r++) {
+        expect(triangularSlowRowWidth(r, 1, 1, 4)).toBe(expected[r]);
+      }
+    });
+
+    it('should handle larger a (a=3, d=4)', () => {
+      // L=7, cycle 0: 3,2,3,2,3,2,3, cycle 1: 4,3,4,3,4,3,4
+      expect(triangularSlowRowWidth(0, 3, 1, 4)).toBe(3);
+      expect(triangularSlowRowWidth(1, 3, 1, 4)).toBe(2);
+      expect(triangularSlowRowWidth(6, 3, 1, 4)).toBe(3);
+      expect(triangularSlowRowWidth(7, 3, 1, 4)).toBe(4);
+      expect(triangularSlowRowWidth(8, 3, 1, 4)).toBe(3);
+    });
+
+    it('should verify full sequence a=1, d=3, R=10 (odd d, peyote)', () => {
+      // L=5: cycle 0: 1,0,1,0,1, cycle 1: 2,1,2,1,2
+      const expected = [1, 0, 1, 0, 1, 2, 1, 2, 1, 2];
+      for (let r = 0; r < 10; r++) {
+        expect(triangularSlowRowWidth(r, 1, 1, 3)).toBe(expected[r]);
+      }
+    });
+
+    it('should verify fractional d (dNum=2, dDen=3, a=1, R=20)', () => {
+      const expected = [1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 8, 9, 8, 9, 10];
+      for (let r = 0; r < 20; r++) {
+        expect(triangularSlowRowWidth(r, 1, 2, 3)).toBe(expected[r]);
+      }
+    });
+  });
+
+  describe('triangularSlowCumPixels', () => {
+    it('should return 0 for y=0', () => {
+      expect(triangularSlowCumPixels(0, 1, 1, 2)).toBe(0);
+    });
+
+    it('should return a for y=1 (even d)', () => {
+      expect(triangularSlowCumPixels(1, 1, 1, 2)).toBe(1);
+    });
+
+    it('should compute total for a=1, d=2, R=10', () => {
+      // widths = [1,0,1,2,1,2,3,2,3,4] → sum = 19
+      expect(triangularSlowCumPixels(10, 1, 1, 2)).toBe(19);
+    });
+
+    it('should match manual sum for small R (even d)', () => {
+      const a = 1, dNum = 1, dDen = 2;
+      for (let R = 1; R <= 12; R++) {
+        let manual = 0;
+        for (let r = 0; r < R; r++) manual += triangularSlowRowWidth(r, a, dNum, dDen);
+        expect(
+          triangularSlowCumPixels(R, a, dNum, dDen),
+          `cumPixels(${R}, ${a}, ${dNum}, ${dDen}) should be ${manual}`,
+        ).toBe(manual);
+      }
+    });
+
+    it('should match manual sum for small R (odd d)', () => {
+      const a = 2, dNum = 1, dDen = 3;
+      for (let R = 1; R <= 12; R++) {
+        let manual = 0;
+        for (let r = 0; r < R; r++) manual += triangularSlowRowWidth(r, a, dNum, dDen);
+        expect(
+          triangularSlowCumPixels(R, a, dNum, dDen),
+          `cumPixels(${R}, ${a}, ${dNum}, ${dDen}) should be ${manual}`,
+        ).toBe(manual);
+      }
+    });
+
+    it('should match manual sum for fractional d (dNum=2, dDen=3)', () => {
+      const a = 1, dNum = 2, dDen = 3;
+      for (let R = 1; R <= 20; R++) {
+        let manual = 0;
+        for (let r = 0; r < R; r++) manual += triangularSlowRowWidth(r, a, dNum, dDen);
+        expect(
+          triangularSlowCumPixels(R, a, dNum, dDen),
+          `cumPixels(${R}, ${a}, ${dNum}, ${dDen}) should be ${manual}`,
+        ).toBe(manual);
+      }
+    });
+  });
+
+  describe('computeBufferPixelCount (triangular slow-growth)', () => {
+    it('should compute pixel count for a=1, dNum=1, dDen=2, R=10', () => {
+      expect(computeBufferPixelCount(0, 10, 'triangular', 1, undefined, 1, 2)).toBe(19);
+    });
+
+    it('should compute pixel count for a=1, dNum=1, dDen=3, R=6', () => {
+      // L=5: rows 0-4 widths = 1,0,1,0,1, row 5 = 2 → sum = 5
+      expect(computeBufferPixelCount(0, 6, 'triangular', 1, undefined, 1, 3)).toBe(5);
+    });
+
+    it('should compute pixel count for a=1, dNum=1, dDen=4, R=10', () => {
+      // widths = [1,0,1,0,1,0,1,2,1,2] → sum = 9
+      expect(computeBufferPixelCount(0, 10, 'triangular', 1, undefined, 1, 4)).toBe(9);
+    });
+
+    it('should compute pixel count for single row', () => {
+      expect(computeBufferPixelCount(0, 1, 'triangular', 5, undefined, 5, 2)).toBe(5);
+    });
+  });
+
+  describe('computeBufferDimensions (triangular slow-growth)', () => {
+    it('should set bufferHeight to number of rows', () => {
+      const { bufferHeight } = computeBufferDimensions(0, 10, 'triangular', 1, undefined, 1, 2);
+      expect(bufferHeight).toBe(10);
+    });
+
+    it('should set bufferWidth to max row width (even dDen)', () => {
+      // a=1, dNum=1, dDen=2, R=10 → widths [1,0,1,2,1,2,3,2,3,4] → max=4
+      const { bufferWidth } = computeBufferDimensions(0, 10, 'triangular', 1, undefined, 1, 2);
+      expect(bufferWidth).toBe(4);
+    });
+
+    it('should set bufferWidth to max row width (odd dDen)', () => {
+      // a=1, dNum=1, dDen=3, R=10 → L=5, k=floor(9/5)=1, maxWidth=1+1=2
+      const { bufferWidth } = computeBufferDimensions(0, 10, 'triangular', 1, undefined, 1, 3);
+      expect(bufferWidth).toBe(2);
+    });
+  });
+
+  describe('createDefaultProject (triangular slow-growth)', () => {
+    it('should create project with triangular grid type', () => {
+      const project = createDefaultProject('TriSlow', 0, 10, 'triangular', 1, undefined, 1, 2);
+      expect(project.gridType).toBe('triangular');
+      expect(project.triangularA).toBe(1);
+      expect(project.triangularDNum).toBe(1);
+      expect(project.triangularDDen).toBe(2);
+    });
+
+    it('should allocate correct buffer size for triangular slow-growth layer', () => {
+      // a=1, dNum=1, dDen=2, R=10 → 19 pixels → 76 bytes
+      const project = createDefaultProject('TriSlow', 0, 10, 'triangular', 1, undefined, 1, 2);
+      expect(project.layers[0].data.length).toBe(19 * 4);
     });
   });
 });

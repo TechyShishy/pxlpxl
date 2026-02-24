@@ -18,6 +18,12 @@ export {
   createDefaultProject,
   computeBufferDimensions,
   computeBufferPixelCount,
+  triangularRowWidth,
+  triangularSlowRowWidth,
+  triangularCumPixels,
+  triangularSlowCumPixels,
+  resolveTriangularD,
+  resolveTriangularSlowD,
 } from './project.model';
 export { pixelOffset } from './pixel-offset';
 export type { Tool, ToolContext, ToolResult, ModifiedPixel, PixelCoord } from './tool.interface';

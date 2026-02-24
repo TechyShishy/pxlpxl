@@ -16,6 +16,7 @@ import { HistoryService } from '../../services/history.service';
 import { GestureService } from '../../services/gesture.service';
 import { RenderService } from '../../services/render.service';
 import { LayoutService } from '../../services/layout.service';
+import { GridService } from '../../services/grid.service';
 import { Color, ToolContext, GestureState, PixelCoord } from '../../models';
 import { renderColumnRuler, renderRowRuler, RulerParams } from './ruler-renderer';
 import { DrawCommand } from '../../commands/draw.command';
@@ -45,6 +46,7 @@ export class CanvasViewportComponent {
   private readonly gestureService = inject(GestureService);
   private readonly renderService = inject(RenderService);
   private readonly layoutService = inject(LayoutService);
+  private readonly gridService = inject(GridService);
   private readonly ngZone = inject(NgZone);
   private readonly elementRef = inject(ElementRef<HTMLElement>);
 
@@ -125,6 +127,8 @@ export class CanvasViewportComponent {
       this.canvasState.gridType();
       this.canvasState.triangularA();
       this.canvasState.triangularD();
+      this.canvasState.triangularDNum();
+      this.canvasState.triangularDDen();
       this.requestRulerRender();
       this.requestCrosshairRender();
     });
@@ -243,6 +247,8 @@ export class CanvasViewportComponent {
       gridType: this.canvasState.gridType(),
       triangularA: this.canvasState.triangularA(),
       triangularD: this.canvasState.triangularD(),
+      triangularDNum: this.canvasState.triangularDNum(),
+      triangularDDen: this.canvasState.triangularDDen(),
     };
 
     if (this.rulerTopCtx) renderColumnRuler(this.rulerTopCtx, params);
@@ -356,8 +362,10 @@ export class CanvasViewportComponent {
       secondaryColor: this.colorService.secondaryColor(),
       isSecondary: false,
       gridType: this.canvasState.gridType(),
-      triangularA: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularA() : undefined,
-      triangularD: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularD() : undefined,
+      triangularA: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularA() : undefined,
+      triangularD: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularD() : undefined,
+      triangularDNum: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularDNum() : undefined,
+      triangularDDen: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularDDen() : undefined,
     };
 
     let result;
@@ -405,6 +413,8 @@ export class CanvasViewportComponent {
                   ctx.gridType,
                   ctx.triangularA,
                   ctx.triangularD,
+                  ctx.triangularDNum,
+                  ctx.triangularDDen,
                 )
               : new DrawCommand(
                   this.layerService,
@@ -415,6 +425,8 @@ export class CanvasViewportComponent {
                   ctx.gridType,
                   ctx.triangularA,
                   ctx.triangularD,
+                  ctx.triangularDNum,
+                  ctx.triangularDDen,
                 );
           // Don't execute — pixels already applied by the tool
           this.historyService['undoStack'].update((s) => [...s, command]);

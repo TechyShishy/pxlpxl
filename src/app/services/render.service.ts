@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { LayerService } from './layer.service';
 import { CanvasStateService } from './canvas-state.service';
 import { GridService } from './grid.service';
-import { Color, GridType, PixelCoord, pixelOffset } from '../models';
+import { Color, GridType, PixelCoord, pixelOffset, triangularRowWidth } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class RenderService {
@@ -41,7 +41,7 @@ export class RenderService {
     // Composite visible layers
     if (this.gridService.isPeyote(gridType)) {
       this.renderPeyoteLayers(ctx, visualWidth, bufWidth, bufHeight, transform, gridType, layers);
-    } else if (this.gridService.isTriangular(gridType)) {
+    } else if (this.gridService.isAnyTriangular(gridType)) {
       this.renderTriangularLayers(ctx, bufHeight, transform, gridType, layers);
     } else {
       for (const layer of layers) {
@@ -119,14 +119,17 @@ export class RenderService {
     const gridType = this.canvasState.gridType();
     const triA = this.canvasState.triangularA();
     const triD = this.canvasState.triangularD();
+    const triDNum = this.canvasState.triangularDNum();
+    const triDDen = this.canvasState.triangularDDen();
 
     let canvasW: number;
     let canvasH: number;
 
     if (gridType === 'triangular') {
-      const maxRowWidth = triA + triD * Math.max(0, bufHeight - 1);
-      if (triD % 2 !== 0) {
-        // Odd d: 2-stride spacing + half-row interleaving
+      const maxRowWidth = this.gridService.getAnyTriangularMaxWidth(bufHeight, gridType, triA, triD, triDNum, triDDen);
+      const usesPeyote = this.gridService.usesPeyoteStagger(gridType, triD, triDNum, triDDen);
+      if (usesPeyote) {
+        // Peyote-style: 2-stride spacing + half-row interleaving
         canvasW = ((maxRowWidth - 1) * 2 + 1) * scale;
         canvasH = (bufHeight - 1) * Math.ceil(scale / 2) + scale;
       } else {
@@ -152,9 +155,9 @@ export class RenderService {
         ctx.globalAlpha = layer.opacity;
 
         for (let row = 0; row < bufHeight; row++) {
-          const rowWidth = triA + triD * row;
+          const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, triA, triD);
           for (let col = 0; col < rowWidth; col++) {
-            const offset = pixelOffset(col, row, bufWidth, 'triangular', triA, triD);
+            const offset = pixelOffset(col, row, bufWidth, gridType, triA, triD);
             const a = layer.data[offset + 3];
             if (a === 0) continue;
 
@@ -201,6 +204,8 @@ export class RenderService {
   ): void {
     const a = this.canvasState.triangularA();
     const d = this.canvasState.triangularD();
+    const dNum = this.canvasState.triangularDNum();
+    const dDen = this.canvasState.triangularDDen();
     ctx.save();
     ctx.translate(transform.offsetX, transform.offsetY);
     ctx.globalAlpha = 0.75;
@@ -208,7 +213,7 @@ export class RenderService {
 
     for (const { x, y } of pixels) {
       const { sx, sy } = this.gridService.pixelToScreen(
-        x, y, transform.scale, gridType, a, d, totalRows,
+        x, y, transform.scale, gridType, a, d, totalRows, dNum, dDen,
       );
       ctx.fillRect(sx, sy, transform.scale, transform.scale);
     }
@@ -227,6 +232,8 @@ export class RenderService {
   ): void {
     const a = this.canvasState.triangularA();
     const d = this.canvasState.triangularD();
+    const dNum = this.canvasState.triangularDNum();
+    const dDen = this.canvasState.triangularDDen();
     const bufWidth = this.canvasState.bufferWidth();
 
     ctx.save();
@@ -237,14 +244,14 @@ export class RenderService {
       ctx.globalAlpha = layer.opacity;
 
       for (let row = 0; row < totalRows; row++) {
-        const rowWidth = a + d * row;
+        const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen);
         for (let col = 0; col < rowWidth; col++) {
-          const offset = pixelOffset(col, row, bufWidth, 'triangular', a, d);
+          const offset = pixelOffset(col, row, bufWidth, gridType, a, d, dNum, dDen);
           const alpha = layer.data[offset + 3];
           if (alpha === 0) continue;
 
           const { sx, sy } = this.gridService.pixelToScreen(
-            col, row, transform.scale, gridType, a, d, totalRows,
+            col, row, transform.scale, gridType, a, d, totalRows, dNum, dDen,
           );
           ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${alpha / 255})`;
           ctx.fillRect(sx, sy, transform.scale, transform.scale);
@@ -315,17 +322,19 @@ export class RenderService {
           ctx.fillRect(sx, sy, transform.scale, transform.scale);
         }
       }
-    } else if (this.gridService.isTriangular(gridType)) {
+    } else if (this.gridService.isAnyTriangular(gridType)) {
       // Draw checkerboard bead-by-bead for triangular
       const a = this.canvasState.triangularA();
       const d = this.canvasState.triangularD();
+      const dNum = this.canvasState.triangularDNum();
+      const dDen = this.canvasState.triangularDDen();
       for (let row = 0; row < bufHeight; row++) {
-        const rowWidth = a + d * row;
+        const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen);
         for (let col = 0; col < rowWidth; col++) {
           const isLight = (col + row) % 2 === 0;
           ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
           const { sx, sy } = this.gridService.pixelToScreen(
-            col, row, transform.scale, gridType, a, d, bufHeight,
+            col, row, transform.scale, gridType, a, d, bufHeight, dNum, dDen,
           );
           ctx.fillRect(sx, sy, transform.scale, transform.scale);
         }
@@ -388,19 +397,21 @@ export class RenderService {
           ctx.stroke();
         }
       }
-    } else if (this.gridService.isTriangular(gridType)) {
+    } else if (this.gridService.isAnyTriangular(gridType)) {
       // Triangular grid: draw cell outlines per row
       const a = this.canvasState.triangularA();
       const d = this.canvasState.triangularD();
+      const dNum = this.canvasState.triangularDNum();
+      const dDen = this.canvasState.triangularDDen();
       const totalRows = bufHeight;
-      const maxWidth = a + d * Math.max(0, totalRows - 1);
-      const isOddD = d % 2 !== 0;
-      const rowSpacing = isOddD ? transform.scale / 2 : transform.scale;
+      const maxWidth = this.gridService.getAnyTriangularMaxWidth(totalRows, gridType, a, d, dNum, dDen);
+      const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
+      const rowSpacing = usesPeyote ? transform.scale / 2 : transform.scale;
 
-      if (isOddD) {
-        // Odd d: spaced layout — draw individual cell outlines
+      if (usesPeyote) {
+        // Peyote-stagger: draw individual cell outlines
         for (let row = 0; row < totalRows; row++) {
-          const rowWidth = a + d * row;
+          const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen);
           const centerOffset = maxWidth - rowWidth;
           const y = row * rowSpacing;
           for (let col = 0; col < rowWidth; col++) {
@@ -409,9 +420,9 @@ export class RenderService {
           }
         }
       } else {
-        // Even d: continuous rows
+        // Full-height centered: continuous rows
         for (let row = 0; row < totalRows; row++) {
-          const rowWidth = a + d * row;
+          const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen);
           const centerOffset = (maxWidth - rowWidth) / 2;
           const y = row * rowSpacing;
 
@@ -434,7 +445,7 @@ export class RenderService {
         // Bottom border of last row
         {
           const lastRow = totalRows - 1;
-          const lastRowWidth = a + d * lastRow;
+          const lastRowWidth = this.gridService.getAnyTriangularRowWidth(lastRow, gridType, a, d, dNum, dDen);
           const lastCenterOffset = (maxWidth - lastRowWidth) / 2;
           const bottomY = lastRow * rowSpacing + transform.scale;
           const startX = lastCenterOffset * transform.scale;
