@@ -5,13 +5,15 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "e2e": "playwright test",
+    "build:watch": "ng build --watch --configuration development",
     "build:android": "ng build && npx cap sync android",
+    "gradle:assembleDebug": "cd android && ./gradlew assembleDebug",
+    "gradle:bundleRelease": "cd android && ./gradlew bundleRelease",
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
-    "cap:run": "npx cap run android"
+    "cap:run": "npx cap run android",
+    "test:unit": "ng test",
+    "test:e2e": "playwright test"
   },
   "prettier": {
     "printWidth": 100,
