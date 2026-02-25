@@ -51,6 +51,13 @@ export class NewProjectDialogComponent {
     this.height = h;
   }
 
+  setTriangularPreset(a: number, dNum: number, dDen: number, rows: number): void {
+    this.triangularA = a;
+    this.triangularDNum = dNum;
+    this.triangularDDen = dDen;
+    this.triangularRows = rows;
+  }
+
   private get isTriangularType(): boolean {
     return this.gridType === 'triangular';
   }
