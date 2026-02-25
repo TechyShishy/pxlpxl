@@ -1,0 +1,33 @@
+<h2 mat-dialog-title>Import PNG</h2>
+
+<mat-dialog-content>
+  <canvas
+    #preview
+    [width]="480"
+    [height]="480"
+    class="preview-canvas"
+    aria-label="Import crop preview. Drag to pan the image, scroll to zoom."
+    (pointerdown)="onPointerDown($event)"
+    (pointermove)="onPointerMove($event)"
+    (pointerup)="onPointerUp()"
+    (pointercancel)="onPointerUp()"
+    (wheel)="onWheel($event)"
+  ></canvas>
+
+  <div class="options-row">
+    <label id="sampling-label">Sampling</label>
+    <mat-button-toggle-group
+      aria-labelledby="sampling-label"
+      [value]="samplingMode()"
+      (change)="samplingMode.set($event.value)"
+    >
+      <mat-button-toggle value="nearest">Nearest</mat-button-toggle>
+      <mat-button-toggle value="area">Area avg</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Cancel</button>
+  <button mat-flat-button (click)="onImport()">Import</button>
+</mat-dialog-actions>

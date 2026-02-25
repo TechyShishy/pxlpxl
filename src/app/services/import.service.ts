@@ -1,4 +1,6 @@
 import { Injectable, inject } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { MatDialog } from '@angular/material/dialog';
 import {
   PxlFile,
   PXL_FORMAT_VERSION,
@@ -14,9 +16,12 @@ import { LayerService } from './layer.service';
 import { CanvasStateService } from './canvas-state.service';
 import { ColorService } from './color.service';
 import { HistoryService } from './history.service';
-import { GridService } from './grid.service';
 import { deserializeCommand } from '../commands/command-serialization';
 import { LayerCommand } from '../commands/layer.command';
+import {
+  ImportPngDialogComponent,
+  type ImportPngDialogData,
+} from '../components/import-png-dialog/import-png-dialog.component';
 
 const ACCEPTED_TYPES = '.png,.pxl,.rgp';
 
@@ -31,7 +36,7 @@ export class ImportService {
   private readonly canvasState = inject(CanvasStateService);
   private readonly colorService = inject(ColorService);
   private readonly historyService = inject(HistoryService);
-  private readonly gridService = inject(GridService);
+  private readonly dialog = inject(MatDialog);
 
   /**
    * Open a native file picker filtered to PNG, PXL, and RGP files.
@@ -124,42 +129,49 @@ export class ImportService {
   // ── PNG import ────────────────────────────────────────────────────────
 
   private async importPng(buffer: ArrayBuffer, filename: string): Promise<void> {
-    const gridType = this.canvasState.gridType();
-    if (this.gridService.isPeyote(gridType) || this.gridService.isAnyTriangular(gridType)) {
-      // eslint-disable-next-line no-console
-      console.warn('[ImportService] PNG import on peyote/triangular grids is not yet implemented.');
-      return;
-    }
-
     const bitmap = await createImageBitmap(new Blob([buffer]));
+
     const canvasW = this.canvasState.canvasWidth();
     const canvasH = this.canvasState.canvasHeight();
+    const gridType = this.canvasState.gridType();
+    const bufferW = this.canvasState.bufferWidth();
+    const bufferH = this.canvasState.bufferHeight();
+    const bufferPixelCount = this.canvasState.bufferPixelCount();
 
-    // Draw the image onto an offscreen canvas to extract RGBA data
-    const drawW = Math.min(bitmap.width, canvasW);
-    const drawH = Math.min(bitmap.height, canvasH);
+    const dialogData: ImportPngDialogData = {
+      imageBitmap: bitmap,
+      canvasWidth: canvasW,
+      canvasHeight: canvasH,
+      gridType,
+      bufferWidth: bufferW,
+      bufferHeight: bufferH,
+      bufferPixelCount,
+      triangularA: this.canvasState.triangularA(),
+      triangularDNum: this.canvasState.triangularDNum(),
+      triangularDDen: this.canvasState.triangularDDen(),
+    };
 
-    const offscreen = new OffscreenCanvas(canvasW, canvasH);
-    const ctx = offscreen.getContext('2d')!;
-    ctx.drawImage(bitmap, 0, 0, drawW, drawH);
-    const imageData = ctx.getImageData(0, 0, canvasW, canvasH);
+    const dialogRef = this.dialog.open(ImportPngDialogComponent, { data: dialogData });
+    const result = await firstValueFrom(dialogRef.afterClosed());
+
     bitmap.close();
 
-    // Add a new layer and copy the pixel data into it
-    this.layerService.addLayer(canvasW, canvasH);
+    if (!(result instanceof Uint8ClampedArray)) return; // user cancelled
+
+    // Add a new layer and copy the mapped pixel data.
+    this.layerService.addLayer(canvasW, canvasH, bufferPixelCount);
     const newLayerIndex = this.layerService.activeLayerIndex();
     const previousData = this.layerService.getLayerData(newLayerIndex)!;
-    const newData = new Uint8ClampedArray(imageData.data);
 
-    this.layerService.setLayerData(newLayerIndex, newData);
+    this.layerService.setLayerData(newLayerIndex, result);
 
-    // Record as undoable LayerCommand
+    // Record as undoable LayerCommand.
     this.historyService.execute(
       new ImportLayerCommand(
         this.layerService,
         newLayerIndex,
         previousData,
-        newData,
+        result,
         `Import "${filename}"`,
       ),
     );

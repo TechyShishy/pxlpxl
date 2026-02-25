@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
+import { MatDialog } from '@angular/material/dialog';
 import { ImportService } from './import.service';
 import { LayerService } from './layer.service';
 import { CanvasStateService } from './canvas-state.service';
@@ -80,8 +82,22 @@ describe('ImportService', () => {
   let historyService: HistoryService;
   let gridService: GridService;
 
+  /**
+   * Build a MatDialog mock whose open() returns a dialog ref that emits
+   * `result` from afterClosed(). Pass `undefined` to simulate cancellation.
+   */
+  function makeDialogMock(result: Uint8ClampedArray | undefined = new Uint8ClampedArray(4 * 4 * 4)) {
+    const mockDialogRef = { afterClosed: () => of(result as Uint8ClampedArray | undefined) };
+    return { open: vi.fn(() => mockDialogRef) };
+  }
+
+  let dialogMock: ReturnType<typeof makeDialogMock>;
+
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    dialogMock = makeDialogMock();
+    TestBed.configureTestingModule({
+      providers: [{ provide: MatDialog, useValue: dialogMock }],
+    });
     service = TestBed.inject(ImportService);
     layerService = TestBed.inject(LayerService);
     canvasState = TestBed.inject(CanvasStateService);
@@ -127,12 +143,12 @@ describe('ImportService', () => {
         .rejects.toThrow('Unrecognised file format');
     });
 
-    it('should route PNG files to PNG import', async () => {
+    it('should route PNG files to PNG import (opens dialog)', async () => {
       const pngBuffer = createMinimalPng();
 
       await expect(service.importFromBuffer(pngBuffer, 'test.png'))
         .resolves.toBeUndefined();
-      expect(layerService.layerCount()).toBe(2);
+      expect(dialogMock.open).toHaveBeenCalledOnce();
     });
 
     it('should route gzip files to PXL import', async () => {
@@ -150,7 +166,8 @@ describe('ImportService', () => {
     beforeEach(() => mockCanvasApis());
     afterEach(() => vi.unstubAllGlobals());
 
-    it('should add a new layer on square grid', async () => {
+    it('should add a new layer after user confirms import in the dialog', async () => {
+      // dialogMock is configured to emit a 4×4 buffer (default)
       const pngBuffer = createMinimalPng();
 
       await service.importFromBuffer(pngBuffer, 'icon.png');
@@ -158,19 +175,30 @@ describe('ImportService', () => {
       expect(layerService.layerCount()).toBe(2);
     });
 
-    it('should warn and skip on peyote grids', async () => {
+    it('should open the dialog for peyote grids', async () => {
       canvasState.setGridType('peyote');
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // dialogMock returns a peyote-sized buffer (bufferPixelCount = 2×4 = 8)
+      dialogMock.open.mockReturnValueOnce({
+        afterClosed: () => of(new Uint8ClampedArray(8 * 4)),
+      });
 
       const pngBuffer = createMinimalPng();
+      await service.importFromBuffer(pngBuffer, 'beads.png');
 
+      expect(dialogMock.open).toHaveBeenCalledOnce();
+      expect(layerService.layerCount()).toBe(2);
+    });
+
+    it('should not add a layer when the dialog is cancelled', async () => {
+      // Override to simulate cancellation (result = undefined)
+      dialogMock.open.mockReturnValueOnce({
+        afterClosed: () => of(undefined as Uint8ClampedArray | undefined),
+      });
+
+      const pngBuffer = createMinimalPng();
       await service.importFromBuffer(pngBuffer, 'icon.png');
 
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('peyote'),
-      );
-      expect(layerService.layerCount()).toBe(1);
-      warnSpy.mockRestore();
+      expect(layerService.layerCount()).toBe(1); // no new layer
     });
 
     it('should record an undoable command for the import', async () => {

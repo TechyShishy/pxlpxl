@@ -1,0 +1,23 @@
+:host {
+  display: block;
+}
+
+.preview-canvas {
+  display: block;
+  width: 480px;
+  height: 480px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.options-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+}
