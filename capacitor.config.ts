@@ -7,6 +7,7 @@ const config: CapacitorConfig = {
   plugins: {
     StatusBar: {
       style: 'DARK',
+      overlay: false,
     },
     Keyboard: {
       resize: 'none',
