@@ -183,9 +183,26 @@ describe('FillTool', () => {
   });
 
   describe('onPointerUp', () => {
-    it('should always return null', () => {
+    it('should return null when called without a preceding onPointerDown', () => {
       const result = tool.onPointerUp(makeContext(), layerData);
       expect(result).toBeNull();
+    });
+
+    it('should return the modifiedPixels computed by onPointerDown', () => {
+      const ctx = makeContext({ coord: { x: 0, y: 0 } });
+      const downResult = tool.onPointerDown(ctx, layerData);
+      expect(downResult).not.toBeNull();
+      const upResult = tool.onPointerUp(makeContext(), layerData);
+      expect(upResult).not.toBeNull();
+      expect(upResult!.modifiedPixels).toBe(downResult!.modifiedPixels);
+    });
+
+    it('should clear pending result after onPointerUp', () => {
+      const ctx = makeContext({ coord: { x: 0, y: 0 } });
+      tool.onPointerDown(ctx, layerData);
+      tool.onPointerUp(makeContext(), layerData);
+      // Second call should return null — result was consumed
+      expect(tool.onPointerUp(makeContext(), layerData)).toBeNull();
     });
   });
 

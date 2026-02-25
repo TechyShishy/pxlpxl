@@ -19,6 +19,8 @@ export class FillTool implements Tool {
   readonly label = 'Fill';
   readonly cursor = 'crosshair';
 
+  private _pendingResult: ToolResult | null = null;
+
   onPointerDown(ctx: ToolContext, layerData: Uint8ClampedArray): ToolResult | null {
     const fillColor = ctx.isSecondary ? ctx.secondaryColor : ctx.primaryColor;
     const targetOffset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen);
@@ -47,7 +49,8 @@ export class FillTool implements Tool {
       ctx.triangularDDen,
     );
 
-    return modifiedPixels.length > 0 ? { modifiedPixels } : null;
+    this._pendingResult = modifiedPixels.length > 0 ? { modifiedPixels } : null;
+    return this._pendingResult;
   }
 
   onPointerMove(_ctx: ToolContext, _layerData: Uint8ClampedArray): ToolResult | null {
@@ -55,7 +58,9 @@ export class FillTool implements Tool {
   }
 
   onPointerUp(_ctx: ToolContext, _layerData: Uint8ClampedArray): ToolResult | null {
-    return null;
+    const result = this._pendingResult;
+    this._pendingResult = null;
+    return result;
   }
 
   private floodFill(
