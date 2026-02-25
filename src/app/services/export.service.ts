@@ -1,7 +1,9 @@
 import { Injectable, inject } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { FileSave } from '../plugins/file-save.plugin';
 import { RenderService } from './render.service';
 import { CanvasStateService } from './canvas-state.service';
 import { GridService } from './grid.service';
@@ -41,6 +43,7 @@ export class ExportService {
   private readonly colorService = inject(ColorService);
   private readonly historyService = inject(HistoryService);
   private readonly projectService = inject(ProjectService);
+  private readonly snackBar = inject(MatSnackBar);
 
   /**
    * Export the current canvas as a Blob in the specified format.
@@ -327,11 +330,34 @@ export class ExportService {
   }
 
   /**
-   * Write a blob to the Capacitor cache directory, then trigger the native
-   * share sheet so the user can save, send, or otherwise export the file.
+   * On Android: save the file directly to the device's Downloads folder using
+   * the MediaStore API (API 29+) or the legacy public Downloads directory
+   * (API 28 and below), then show a confirmation snackbar.
+   *
+   * On all other platforms: write to the Capacitor cache directory and trigger
+   * the native share sheet so the user can save or send the file.
    */
   private async shareFileNative(blob: Blob, filename: string, mimeType: string): Promise<void> {
     const base64 = await this.blobToBase64(blob);
+
+    if (Capacitor.getPlatform() === 'android') {
+      try {
+        const result = await FileSave.saveToDownloads({ filename, mimeType, data: base64 });
+        this.snackBar.open(`Saved to Downloads/${filename}`, 'OK', {
+          duration: 4000,
+          panelClass: 'snack-success',
+        });
+        // Unused but kept for future caller use.
+        void result;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.snackBar.open(`Export failed: ${message}`, 'Dismiss', {
+          duration: 6000,
+          panelClass: 'snack-error',
+        });
+      }
+      return;
+    }
 
     const writeResult = await Filesystem.writeFile({
       path: filename,
