@@ -112,10 +112,10 @@
 
     @if (gridType === 'triangular') {
       <div class="presets">
-        <button mat-stroked-button (click)="setTriangularPreset(1, 1, 1, 29)">Triangle box</button>
-        <button mat-stroked-button (click)="setTriangularPreset(1, 1, 2, 39)">Hexagonal box</button>
-        <button mat-stroked-button (click)="setTriangularPreset(1, 2, 3, 35)">Pentagon box</button>
-        <button mat-stroked-button (click)="setTriangularPreset(1, 3, 4, 50)">Square box</button>
+        <button mat-stroked-button (click)="setTriangularPreset(1, 1, 1, 29, 1)">Triangle box</button>
+        <button mat-stroked-button (click)="setTriangularPreset(1, 1, 2, 39, 0)">Hexagonal box</button>
+        <button mat-stroked-button (click)="setTriangularPreset(1, 2, 3, 35, 1)">Pentagon box</button>
+        <button mat-stroked-button (click)="setTriangularPreset(1, 3, 4, 50, 3)">Square box</button>
       </div>
     }
   </div>

@@ -57,11 +57,11 @@ export class NewProjectDialogComponent {
     this.height = h;
   }
 
-  setTriangularPreset(a: number, dNum: number, dDen: number, rows: number): void {
+  setTriangularPreset(a: number, dNum: number, dDen: number, rows: number, shift: number = 0): void {
     this.triangularA = a;
     this.triangularDNum = dNum;
     this.triangularDDen = dDen;
-    this.triangularShift = 0;
+    this.triangularShift = shift;
     this.triangularRows = rows;
   }
 
