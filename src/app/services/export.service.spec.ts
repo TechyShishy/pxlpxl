@@ -16,7 +16,9 @@ import * as CapacitorShare from '@capacitor/share';
 vi.mock('@capacitor/core', () => ({
   Capacitor: {
     isNativePlatform: vi.fn(() => false),
+    getPlatform: vi.fn(() => 'web'),
   },
+  registerPlugin: vi.fn(() => ({})),
 }));
 
 vi.mock('@capacitor/filesystem', () => ({
