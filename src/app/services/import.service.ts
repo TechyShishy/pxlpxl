@@ -149,6 +149,7 @@ export class ImportService {
       triangularA: this.canvasState.triangularA(),
       triangularDNum: this.canvasState.triangularDNum(),
       triangularDDen: this.canvasState.triangularDDen(),
+      triangularShift: this.canvasState.triangularShift(),
     };
 
     const dialogRef = this.dialog.open(ImportPngDialogComponent, { data: dialogData });

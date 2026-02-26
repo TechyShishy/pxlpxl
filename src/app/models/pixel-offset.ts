@@ -17,10 +17,11 @@ export function pixelOffset(
   triangularD?: number,
   triangularDNum?: number,
   triangularDDen?: number,
+  triangularShift?: number,
 ): number {
   if (gridType === 'triangular' && triangularA !== undefined) {
     const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
-    return (triangularCumPixels(y, triangularA, dNum, dDen) + x) * 4;
+    return (triangularCumPixels(y, triangularA, dNum, dDen, triangularShift ?? 0) + x) * 4;
   }
   return (y * bufferWidth + x) * 4;
 }

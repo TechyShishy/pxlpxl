@@ -4,6 +4,7 @@ import {
   createDefaultProject,
   computeBufferDimensions,
   computeBufferPixelCount,
+  triangularRowWidth,
   triangularSlowRowWidth,
   triangularSlowCumPixels,
   SerializedLayer,
@@ -339,17 +340,18 @@ describe('Project Model', () => {
 
   describe('computeBufferPixelCount (triangular slow-growth)', () => {
     it('should compute pixel count for a=1, dNum=1, dDen=2, R=10', () => {
-      expect(computeBufferPixelCount(0, 10, 'triangular', 1, undefined, 1, 2)).toBe(25);
+      // shift=0: widths [1,0,1,2,1,2,3,2,3,4] → sum=19
+      expect(computeBufferPixelCount(0, 10, 'triangular', 1, undefined, 1, 2)).toBe(19);
     });
 
     it('should compute pixel count for a=1, dNum=1, dDen=3, R=6', () => {
-      // L=5: rows 0-4 widths = 1,2,1,2,1, row 5 = 2 → sum = 9
-      expect(computeBufferPixelCount(0, 6, 'triangular', 1, undefined, 1, 3)).toBe(9);
+      // shift=0 (clamped): widths [1,0,0,0,1,2] → sum=4
+      expect(computeBufferPixelCount(0, 6, 'triangular', 1, undefined, 1, 3)).toBe(4);
     });
 
     it('should compute pixel count for a=1, dNum=1, dDen=4, R=10', () => {
-      // widths = [1,2,1,2,1,2,1,2,3,2] → sum = 17
-      expect(computeBufferPixelCount(0, 10, 'triangular', 1, undefined, 1, 4)).toBe(17);
+      // shift=0 (clamped): cycle0=[1,0,0,0,0,0,1]+rows7-9=[2,1,0] → sum=5
+      expect(computeBufferPixelCount(0, 10, 'triangular', 1, undefined, 1, 4)).toBe(5);
     });
 
     it('should compute pixel count for single row', () => {
@@ -364,15 +366,15 @@ describe('Project Model', () => {
     });
 
     it('should set bufferWidth to max row width (even dDen)', () => {
-      // a=1, dNum=1, dDen=2, R=10 → widths [1,2,1,2,3,2,3,4,3,4] → max=4
+      // a=1, dNum=1, dDen=2, R=10, shift=0 → widths [1,0,1,2,1,2,3,2,3,4] → max=4
       const { bufferWidth } = computeBufferDimensions(0, 10, 'triangular', 1, undefined, 1, 2);
       expect(bufferWidth).toBe(4);
     });
 
     it('should set bufferWidth to max row width (odd dDen)', () => {
-      // a=1, dNum=1, dDen=3, R=10 → widths [1,2,1,2,1,2,3,2,3,2] → max=3
+      // a=1, dNum=1, dDen=3, R=10, shift=0 (clamped) → max=2
       const { bufferWidth } = computeBufferDimensions(0, 10, 'triangular', 1, undefined, 1, 3);
-      expect(bufferWidth).toBe(3);
+      expect(bufferWidth).toBe(2);
     });
   });
 
@@ -386,9 +388,54 @@ describe('Project Model', () => {
     });
 
     it('should allocate correct buffer size for triangular slow-growth layer', () => {
-      // a=1, dNum=1, dDen=2, R=10 → 25 pixels → 100 bytes
+      // a=1, dNum=1, dDen=2, R=10, shift=0 → 19 pixels → 76 bytes
       const project = createDefaultProject('TriSlow', 0, 10, 'triangular', 1, undefined, 1, 2);
-      expect(project.layers[0].data.length).toBe(25 * 4);
+      expect(project.layers[0].data.length).toBe(19 * 4);
+    });
+  });
+
+  // Lookup table: a=1, dNum=3, dDen=4, R=9
+  // shift | row widths (rows 0-8)
+  //   0   | 1,0,1,2,3,4,3,4,5
+  //   1   | 1,2,1,2,3,4,5,4,5
+  //   2   | 1,2,3,2,3,4,5,6,5
+  //   3   | 1,2,3,4,3,4,5,6,7
+  describe('triangularRowWidth with shift (a=1, dNum=3, dDen=4)', () => {
+    const a = 1;
+    const dNum = 3;
+    const dDen = 4;
+    const R = 9;
+
+    const expected: Record<number, number[]> = {
+      0: [1, 0, 1, 2, 3, 4, 3, 4, 5],
+      1: [1, 2, 1, 2, 3, 4, 5, 4, 5],
+      2: [1, 2, 3, 2, 3, 4, 5, 6, 5],
+      3: [1, 2, 3, 4, 3, 4, 5, 6, 7],
+    };
+
+    for (const shift of [0, 1, 2, 3]) {
+      it(`shift=${shift}: produces correct row widths for all ${R} rows`, () => {
+        const actual = Array.from({ length: R }, (_, row) =>
+          triangularRowWidth(row, a, dNum, dDen, shift),
+        );
+        expect(actual).toEqual(expected[shift]);
+      });
+    }
+
+    it('shift is ignored for fast-growth (dNum >= dDen)', () => {
+      // a=1, dNum=4, dDen=4 → fast growth, shift should have no effect
+      const w0 = triangularRowWidth(0, 1, 4, 4, 0);
+      const w1 = triangularRowWidth(0, 1, 4, 4, 3);
+      expect(w0).toBe(w1);
+      // Also check a few rows are equal between shifts
+      for (let r = 0; r < 5; r++) {
+        expect(triangularRowWidth(r, 1, 5, 4, 0)).toBe(triangularRowWidth(r, 1, 5, 4, 2));
+      }
+    });
+
+    it('shift=0 matches width=0 row in lookup correctly', () => {
+      // Row 1 has width 0 for shift=0 (negative delta cancels preceding positive)
+      expect(triangularRowWidth(1, 1, 3, 4, 0)).toBe(0);
     });
   });
 });

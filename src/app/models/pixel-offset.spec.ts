@@ -115,18 +115,18 @@ describe('pixelOffset', () => {
     });
 
     it('should compute offset for (0, 2) with a=1, dNum=1, dDen=2', () => {
-      // cumPixels(2)=3 (row 0=1, row 1=2), +0 → 12
-      expect(pixelOffset(0, 2, 0, 'triangular', 1, undefined, 1, 2)).toBe(12);
+      // shift=0: widths [1,0,...] → cumPixels(2)=1, +0 → 4
+      expect(pixelOffset(0, 2, 0, 'triangular', 1, undefined, 1, 2)).toBe(4);
     });
 
     it('should compute offset for (1, 3) with a=1, dNum=1, dDen=2', () => {
-      // cumPixels(3)=4 (1+2+1), +1 → (4+1)*4 = 20
-      expect(pixelOffset(1, 3, 0, 'triangular', 1, undefined, 1, 2)).toBe(20);
+      // shift=0: widths [1,0,1,...] → cumPixels(3)=2, +1 → (2+1)*4 = 12
+      expect(pixelOffset(1, 3, 0, 'triangular', 1, undefined, 1, 2)).toBe(12);
     });
 
     it('should compute offset for (0, 9) with a=1, dNum=1, dDen=2 (last row, R=10)', () => {
-      // cumPixels(9)=21 (sum of rows 0-8: 1+2+1+2+3+2+3+4+3=21)
-      expect(pixelOffset(0, 9, 0, 'triangular', 1, undefined, 1, 2)).toBe(84);
+      // shift=0: widths [1,0,1,2,1,2,3,2,3,...] → cumPixels(9)=15 → 60
+      expect(pixelOffset(0, 9, 0, 'triangular', 1, undefined, 1, 2)).toBe(60);
     });
 
     it('should ignore bufferWidth when triangular', () => {
@@ -140,10 +140,10 @@ describe('pixelOffset', () => {
     });
 
     it('should compute offset for odd dDen (a=1, dNum=1, dDen=3)', () => {
-      // L=5: rows 0-4 widths = 1,2,1,2,1 → cumPixels(5)=7
-      expect(pixelOffset(0, 5, 0, 'triangular', 1, undefined, 1, 3)).toBe(28);
-      // row 5 has width=2, pixel at x=1 → offset (7+1)*4=32
-      expect(pixelOffset(1, 5, 0, 'triangular', 1, undefined, 1, 3)).toBe(32);
+      // shift=0: widths [1,0,0,0,1,...] → cumPixels(5)=2 → offset 8
+      expect(pixelOffset(0, 5, 0, 'triangular', 1, undefined, 1, 3)).toBe(8);
+      // row 5 = k=1,p=0, width=2; col=1 valid → (2+1)*4=12
+      expect(pixelOffset(1, 5, 0, 'triangular', 1, undefined, 1, 3)).toBe(12);
     });
   });
 });

@@ -64,12 +64,13 @@ export class GridService {
     triangularD?: number,
     triangularDNum?: number,
     triangularDDen?: number,
+    triangularShift?: number,
   ): boolean {
     if (by < 0 || by >= bufferHeight) return false;
 
     if (gridType === 'triangular' && triangularA !== undefined) {
       const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
-      const rowWidth = triangularRowWidth(by, triangularA, dNum, dDen);
+      const rowWidth = triangularRowWidth(by, triangularA, dNum, dDen, triangularShift ?? 0);
       return bx >= 0 && bx < rowWidth;
     }
 
@@ -105,11 +106,13 @@ export class GridService {
     totalRows?: number,
     triangularDNum?: number,
     triangularDDen?: number,
+    triangularShift?: number,
   ): { sx: number; sy: number } {
     if (gridType === 'triangular' && triangularA !== undefined && totalRows !== undefined) {
       const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
-      const maxWidth = this.getTriangularMaxWidth(totalRows, triangularA, dNum, dDen);
-      const rowWidth = triangularRowWidth(by, triangularA, dNum, dDen);
+      const shift = triangularShift ?? 0;
+      const maxWidth = this.getTriangularMaxWidth(totalRows, triangularA, dNum, dDen, shift);
+      const rowWidth = triangularRowWidth(by, triangularA, dNum, dDen, shift);
 
       if (this.usesPeyoteStagger(gridType, triangularD ?? 1, triangularDNum, triangularDDen)) {
         // Peyote-style: 2-stride spacing + half-row interleaving
@@ -160,11 +163,12 @@ export class GridService {
     triangularD?: number,
     triangularDNum?: number,
     triangularDDen?: number,
+    triangularShift?: number,
   ): PixelCoord | null {
     if (gridType === 'triangular' && triangularA !== undefined) {
       const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
       return this.screenToPixelTriangular(
-        localX, localY, scale, bufferHeight, triangularA, dNum, dDen,
+        localX, localY, scale, bufferHeight, triangularA, dNum, dDen, triangularShift ?? 0,
       );
     }
 
@@ -206,8 +210,9 @@ export class GridService {
     a: number,
     dNum: number,
     dDen: number,
+    shift = 0,
   ): PixelCoord | null {
-    const maxWidth = this.getTriangularMaxWidth(totalRows, a, dNum, dDen);
+    const maxWidth = this.getTriangularMaxWidth(totalRows, a, dNum, dDen, shift);
     const effectiveD = Math.floor(dNum / dDen);
     const usePeyote = dNum < dDen || effectiveD % 2 !== 0;
 
@@ -215,7 +220,7 @@ export class GridService {
       // Even effective d: square-style uniform row height
       const by = Math.floor(localY / scale);
       if (by < 0 || by >= totalRows) return null;
-      const rowWidth = triangularRowWidth(by, a, dNum, dDen);
+      const rowWidth = triangularRowWidth(by, a, dNum, dDen, shift);
       const centerOffset = (maxWidth - rowWidth) / 2;
       const bx = Math.floor(localX / scale - centerOffset);
       if (bx < 0 || bx >= rowWidth) return null;
@@ -230,7 +235,7 @@ export class GridService {
     for (let candidate = minRow; candidate <= maxRowCandidate; candidate++) {
       const rowY = candidate * rowSpacing;
       if (localY >= rowY && localY < rowY + scale) {
-        const rowWidth = triangularRowWidth(candidate, a, dNum, dDen);
+        const rowWidth = triangularRowWidth(candidate, a, dNum, dDen, shift);
         const centerOffset = maxWidth - rowWidth;
         const relativeCol = Math.floor(localX / scale) - centerOffset;
         if (relativeCol < 0 || relativeCol % 2 !== 0) continue;
@@ -267,12 +272,13 @@ export class GridService {
     triangularD?: number,
     triangularDNum?: number,
     triangularDDen?: number,
+    triangularShift?: number,
   ): PixelCoord[] {
     const neighbors: PixelCoord[] = [];
 
     if (gridType === 'triangular' && triangularA !== undefined) {
       const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
-      return this.getNeighborsTriangular(bx, by, triangularA, dNum, dDen, bufferHeight);
+      return this.getNeighborsTriangular(bx, by, triangularA, dNum, dDen, bufferHeight, triangularShift ?? 0);
     }
 
     if (gridType !== 'peyote') {
@@ -342,21 +348,22 @@ export class GridService {
     dNum: number,
     dDen: number,
     totalRows: number,
+    shift = 0,
   ): PixelCoord[] {
     const neighbors: PixelCoord[] = [];
     const usePeyote = this.usesPeyoteStagger('triangular', 0, dNum, dDen);
 
     if (usePeyote) {
       // 6-connected: use visual-space center offsets
-      const w = triangularRowWidth(by, a, dNum, dDen);
-      const maxWidth = this.getTriangularMaxWidth(totalRows, a, dNum, dDen);
+      const w = triangularRowWidth(by, a, dNum, dDen, shift);
+      const maxWidth = this.getTriangularMaxWidth(totalRows, a, dNum, dDen, shift);
       const co = maxWidth - w; // center offset for current row
 
       // ±1 rows: visual x of bx is co + 2*bx, neighbor at co_n + 2*nbx = co + 2*bx ± 1
       for (const dy of [-1, 1]) {
         const ny = by + dy;
         if (ny < 0 || ny >= totalRows) continue;
-        const nw = triangularRowWidth(ny, a, dNum, dDen);
+        const nw = triangularRowWidth(ny, a, dNum, dDen, shift);
         const nco = maxWidth - nw;
         for (const dx of [-1, 1]) {
           const num = (co - nco) + 2 * bx + dx;
@@ -372,7 +379,7 @@ export class GridService {
       for (const dy of [-2, 2]) {
         const ny = by + dy;
         if (ny < 0 || ny >= totalRows) continue;
-        const nw = triangularRowWidth(ny, a, dNum, dDen);
+        const nw = triangularRowWidth(ny, a, dNum, dDen, shift);
         const dw = nw - w;
         if (dw % 2 !== 0) continue;
         const nbx = bx + dw / 2;
@@ -382,12 +389,12 @@ export class GridService {
       }
     } else {
       // 4-connected with centering shift (even effective d)
-      const rowWidth = triangularRowWidth(by, a, dNum, dDen);
+      const rowWidth = triangularRowWidth(by, a, dNum, dDen, shift);
       const effectiveD = Math.floor(dNum / dDen);
 
       const isValid = (x: number, y: number): boolean => {
         if (y < 0 || y >= totalRows) return false;
-        const rw = triangularRowWidth(y, a, dNum, dDen);
+        const rw = triangularRowWidth(y, a, dNum, dDen, shift);
         return x >= 0 && x < rw;
       };
 
@@ -434,27 +441,27 @@ export class GridService {
    * Compute the row width for any triangular variant.
    * Unified — always uses fractional dNum/dDen formula.
    */
-  getAnyTriangularRowWidth(row: number, gridType: GridType, a: number, d: number, dNum?: number, dDen?: number): number {
+  getAnyTriangularRowWidth(row: number, gridType: GridType, a: number, d: number, dNum?: number, dDen?: number, shift?: number): number {
     const resolved = resolveTriangularD(d, dNum, dDen);
-    return triangularRowWidth(row, a, resolved.dNum, resolved.dDen);
+    return triangularRowWidth(row, a, resolved.dNum, resolved.dDen, shift ?? 0);
   }
 
   /**
    * Compute the max row width across all rows for any triangular variant.
    */
-  getAnyTriangularMaxWidth(totalRows: number, gridType: GridType, a: number, d: number, dNum?: number, dDen?: number): number {
+  getAnyTriangularMaxWidth(totalRows: number, gridType: GridType, a: number, d: number, dNum?: number, dDen?: number, shift?: number): number {
     const resolved = resolveTriangularD(d, dNum, dDen);
-    return this.getTriangularMaxWidth(totalRows, a, resolved.dNum, resolved.dDen);
+    return this.getTriangularMaxWidth(totalRows, a, resolved.dNum, resolved.dDen, shift ?? 0);
   }
 
   /**
    * Compute the max row width for a triangular grid given resolved dNum/dDen.
    */
-  private getTriangularMaxWidth(totalRows: number, a: number, dNum: number, dDen: number): number {
+  private getTriangularMaxWidth(totalRows: number, a: number, dNum: number, dDen: number, shift = 0): number {
     if (totalRows <= 0) return a;
     let max = 0;
     for (let r = 0; r < totalRows; r++) {
-      max = Math.max(max, triangularRowWidth(r, a, dNum, dDen));
+      max = Math.max(max, triangularRowWidth(r, a, dNum, dDen, shift));
     }
     return max;
   }

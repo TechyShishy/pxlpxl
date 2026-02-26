@@ -66,6 +66,19 @@
             aria-label="Cycle length in rows (dDen)"
           />
         </mat-form-field>
+        @if (triangularDNum < triangularDDen) {
+          <mat-form-field appearance="outline">
+            <mat-label>shift (cycle phase)</mat-label>
+            <input
+              matInput
+              type="number"
+              [(ngModel)]="triangularShift"
+              [min]="0"
+              [max]="shiftMax"
+              aria-label="Phase shift (shift)"
+            />
+          </mat-form-field>
+        }
         <mat-form-field appearance="outline">
           <mat-label>R (rows)</mat-label>
           <input

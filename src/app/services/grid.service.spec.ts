@@ -666,14 +666,14 @@ describe('GridService', () => {
   describe('triangular slow-growth grid (dNum < dDen)', () => {
     describe('isValidPixel (dNum=1, dDen=2)', () => {
       const a = 1, dNum = 1, dDen = 2, totalRows = 10;
-      // Row widths: [1,2,1,2,3,2,3,4,3,4]
+      // Row widths with shift=0 (default): [1,0,1,2,1,2,3,2,3,4]
 
       it('should accept (0, 0) — row 0 has width 1', () => {
         expect(service.isValidPixel(0, 0, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
       });
 
-      it('should accept (0, 1) — row 1 has width 2', () => {
-        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
+      it('should reject (0, 1) — row 1 has width 0 with default shift=0', () => {
+        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
       });
 
       it('should accept (0, 2) — row 2 has width 1', () => {
@@ -707,21 +707,21 @@ describe('GridService', () => {
 
     describe('isValidPixel (dNum=1, dDen=4)', () => {
       const a = 1, dNum = 1, dDen = 4, totalRows = 10;
-      // Row widths: [1,2,1,2,1,2,1,2,3,2]
+      // Row widths with shift=0 (default): cycle=[1,0,0,0,0,0,1], then [2,1,0,...]
 
       it('should accept (0, 0)', () => {
         expect(service.isValidPixel(0, 0, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
       });
 
-      it('should accept (0, 1) — row 1 has width 2', () => {
-        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
+      it('should reject (0, 1) — row 1 has width 0 with default shift=0', () => {
+        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
       });
 
-      it('should accept (0, 5) — row 5 has width 2', () => {
-        expect(service.isValidPixel(0, 5, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
+      it('should reject (0, 5) — row 5 has width 0 with default shift=0', () => {
+        expect(service.isValidPixel(0, 5, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
       });
 
-      it('should accept (1, 7) — row 7 has width 2', () => {
+      it('should accept (1, 7) — row 7 (k=1,p=0) has width=2', () => {
         expect(service.isValidPixel(1, 7, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
       });
 
@@ -732,17 +732,17 @@ describe('GridService', () => {
 
     describe('isValidPixel (dNum=1, dDen=3)', () => {
       const a = 1, dNum = 1, dDen = 3, totalRows = 10;
-      // L=5: [1,2,1,2,1,2,3,2,3,2]
+      // Row widths with shift=0 (clamped): [1,0,0,0,1,2,...]
 
       it('should accept (0, 0)', () => {
         expect(service.isValidPixel(0, 0, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
       });
 
-      it('should accept (0, 1) — row 1 has width 2', () => {
-        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
+      it('should reject (0, 1) — row 1 has width 0 with default shift=0', () => {
+        expect(service.isValidPixel(0, 1, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(false);
       });
 
-      it('should accept (1, 5) — row 5 has width 2', () => {
+      it('should accept (1, 5) — row 5 (k=1,p=0) has width 2', () => {
         expect(service.isValidPixel(1, 5, 0, totalRows, 'triangular', undefined, a, undefined, dNum, dDen)).toBe(true);
       });
     });

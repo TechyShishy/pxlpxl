@@ -43,6 +43,7 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
       triangularD: command.triangularD,
       triangularDNum: command.triangularDNum,
       triangularDDen: command.triangularDDen,
+      triangularShift: command.triangularShift,
       modifiedPixels: command.modifiedPixels.map((p) => ({
         coord: { x: p.coord.x, y: p.coord.y },
         oldColor: { ...p.oldColor },
@@ -62,6 +63,7 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
       triangularD: command.triangularD,
       triangularDNum: command.triangularDNum,
       triangularDDen: command.triangularDDen,
+      triangularShift: command.triangularShift,
       modifiedPixels: command.modifiedPixels.map((p) => ({
         coord: { x: p.coord.x, y: p.coord.y },
         oldColor: { ...p.oldColor },
@@ -138,6 +140,7 @@ export function deserializeCommand(
         entry.triangularD,
         dNum,
         dDen,
+        entry.triangularShift,
       );
     }
 
@@ -157,6 +160,7 @@ export function deserializeCommand(
         entry.triangularD,
         dNum,
         dDen,
+        entry.triangularShift,
       );
     }
 

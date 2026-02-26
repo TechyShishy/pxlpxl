@@ -35,6 +35,8 @@ export interface ToolContext {
   triangularDNum?: number;
   /** Fractional growth denominator for triangular grids */
   triangularDDen?: number;
+  /** Phase shift (0..dDen-1) for triangular grids */
+  triangularShift?: number;
 }
 
 export enum ToolType {

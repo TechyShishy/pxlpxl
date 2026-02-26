@@ -51,6 +51,10 @@ export interface RulerParams {
    * Fractional d denominator for triangular grids.
    */
   triangularDDen?: number;
+  /**
+   * Phase shift (0..dDen-1) for triangular grids.
+   */
+  triangularShift?: number;
 }
 
 /**
@@ -64,7 +68,7 @@ export function renderColumnRuler(
   const { canvas } = ctx;
   if (canvas.width === 0 || canvas.height === 0) return;
 
-  const { scale, offsetX, canvasWidth, canvasHeight, bgColor, textColor, gridType, triangularA, triangularD, triangularDNum, triangularDDen } = params;
+  const { scale, offsetX, canvasWidth, canvasHeight, bgColor, textColor, gridType, triangularA, triangularD, triangularDNum, triangularDDen, triangularShift } = params;
   const vpWidth = canvas.width;
   const rulerHeight = canvas.height;
 
@@ -93,7 +97,7 @@ export function renderColumnRuler(
     const resolved = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
     let maxWidth = 0;
     for (let r = 0; r < canvasHeight; r++) {
-      maxWidth = Math.max(maxWidth, triangularRowWidth(r, triangularA!, resolved.dNum, resolved.dDen));
+      maxWidth = Math.max(maxWidth, triangularRowWidth(r, triangularA!, resolved.dNum, resolved.dDen, triangularShift ?? 0));
     }
     // Each bead occupies stride-2 positions; adjacent rows interleave,
     // producing 2 * maxWidth - 1 distinct visual column slots.

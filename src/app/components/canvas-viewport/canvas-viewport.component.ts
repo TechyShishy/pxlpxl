@@ -129,6 +129,7 @@ export class CanvasViewportComponent {
       this.canvasState.triangularD();
       this.canvasState.triangularDNum();
       this.canvasState.triangularDDen();
+      this.canvasState.triangularShift();
       this.requestRulerRender();
       this.requestCrosshairRender();
     });
@@ -249,6 +250,7 @@ export class CanvasViewportComponent {
       triangularD: this.canvasState.triangularD(),
       triangularDNum: this.canvasState.triangularDNum(),
       triangularDDen: this.canvasState.triangularDDen(),
+      triangularShift: this.canvasState.triangularShift(),
     };
 
     if (this.rulerTopCtx) renderColumnRuler(this.rulerTopCtx, params);
@@ -366,6 +368,7 @@ export class CanvasViewportComponent {
       triangularD: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularD() : undefined,
       triangularDNum: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularDNum() : undefined,
       triangularDDen: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularDDen() : undefined,
+      triangularShift: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularShift() : undefined,
     };
 
     let result;
@@ -415,6 +418,7 @@ export class CanvasViewportComponent {
                   ctx.triangularD,
                   ctx.triangularDNum,
                   ctx.triangularDDen,
+                  ctx.triangularShift,
                 )
               : new DrawCommand(
                   this.layerService,
@@ -427,6 +431,7 @@ export class CanvasViewportComponent {
                   ctx.triangularD,
                   ctx.triangularDNum,
                   ctx.triangularDDen,
+                  ctx.triangularShift,
                 );
           // Don't execute — pixels already applied by the tool
           this.historyService['undoStack'].update((s) => [...s, command]);

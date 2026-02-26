@@ -29,6 +29,7 @@ export function computeBufferDimensions(
   triangularD?: number,
   triangularDNum?: number,
   triangularDDen?: number,
+  triangularShift?: number,
 ): { bufferWidth: number; bufferHeight: number } {
   if (gridType === 'peyote') {
     return {
@@ -40,7 +41,7 @@ export function computeBufferDimensions(
     const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
     let bufferWidth = 0;
     for (let r = 0; r < height; r++) {
-      bufferWidth = Math.max(bufferWidth, triangularRowWidth(r, triangularA, dNum, dDen));
+      bufferWidth = Math.max(bufferWidth, triangularRowWidth(r, triangularA, dNum, dDen, triangularShift ?? 0));
     }
     return { bufferWidth, bufferHeight: height };
   }
@@ -61,13 +62,14 @@ export function computeBufferPixelCount(
   triangularD?: number,
   triangularDNum?: number,
   triangularDDen?: number,
+  triangularShift?: number,
 ): number {
   if (gridType === 'triangular' && triangularA !== undefined) {
     const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
-    return triangularCumPixels(height, triangularA, dNum, dDen);
+    return triangularCumPixels(height, triangularA, dNum, dDen, triangularShift ?? 0);
   }
   const { bufferWidth, bufferHeight } = computeBufferDimensions(
-    width, height, gridType, triangularA, triangularD, triangularDNum, triangularDDen,
+    width, height, gridType, triangularA, triangularD, triangularDNum, triangularDDen, triangularShift,
   );
   return bufferWidth * bufferHeight;
 }
@@ -109,54 +111,103 @@ export function resolveTriangularSlowD(
 }
 
 /**
+ * Count how many of the first `count` deltas in the rotated canonical array are negative.
+ *
+ * The canonical delta array for slow-growth triangular grids has:
+ *   - (dDen-1) positive deltas at positions [0, dDen-2]
+ *   - D = (dDen-dNum) negative deltas at positions [dDen-1, n-1]  (n = L-1)
+ * After rotating left by `rotateBy`, the negative block lands at
+ * [(rotateBy + negStart) mod n, ...]. We count how many of the positions
+ * 0..count-1 fall in that range.
+ */
+function triangularNegDeltaCount(
+  rotateBy: number,
+  count: number,
+  negStart: number,
+  n: number,
+): number {
+  if (count <= 0) return 0;
+  if (count >= n) return n - negStart; // full cycle — all D negatives appear
+  const end = rotateBy + count - 1;
+  if (end < n) {
+    // No wrap
+    return Math.max(0, end - Math.max(rotateBy, negStart) + 1);
+  } else {
+    // Wraps around 0
+    const wrapEnd = end - n;
+    const part1 = Math.max(0, (n - 1) - Math.max(rotateBy, negStart) + 1);
+    const part2 = Math.max(0, wrapEnd - negStart + 1);
+    return part1 + part2;
+  }
+}
+
+/**
  * Compute the width (number of beads) of a given row in a triangular grid.
  *
- * This is the universal formula for all triangular grids:
- * - When dNum ≥ dDen (fast growth): simple Bresenham, monotonically wider each row.
- * - When dNum < dDen (slow growth): Bresenham-distributed fractional rate with
- *   alternating high/bump pattern within each cycle of L = 2·dDen − dNum rows.
+ * - When dNum ≥ dDen (fast growth): simple Bresenham, `shift` is ignored.
+ * - When dNum < dDen (slow growth): the cycle of L = 2·dDen − dNum rows
+ *   has (dDen−1) +1 deltas and D = (dDen−dNum) −1 deltas. The `shift`
+ *   parameter rotates where in the cycle the dip(s) occur:
+ *     shift=0  dip(s) come first in the cycle  (rotateBy = dDen-1)
+ *     shift=max  dip(s) come last  (rotateBy = 0, classic trailing-dip)
+ *   shiftMax = dDen − 1.
  */
-export function triangularRowWidth(row: number, a: number, dNum: number, dDen: number): number {
+export function triangularRowWidth(
+  row: number,
+  a: number,
+  dNum: number,
+  dDen: number,
+  shift = 0,
+): number {
   if (dNum >= dDen) {
-    // Fast growth: simple Bresenham, no dips
+    // Fast growth: simple Bresenham, shift ignored
     return a + Math.floor(row * dNum / dDen);
   }
   const L = 2 * dDen - dNum;
   const k = Math.floor(row / L);
   const p = row % L;
-  const dipRegionSize = 2 * (dDen - dNum);
   const base = a + dNum * k;
-  if (p < dipRegionSize) {
-    if (p % 2 === 0) {
-      // High position in dip region
-      const j = p / 2;
-      return base + Math.floor(j * dNum / dDen);
-    } else {
-      // Bump position
-      const i = (p - 1) / 2;
-      return base + Math.floor((i + 1) * dNum / dDen) + 1;
-    }
-  } else {
-    // Remaining high positions (no dips left in cycle)
-    const j = (dDen - dNum) + (p - dipRegionSize);
-    return base + Math.floor(j * dNum / dDen);
-  }
+  if (p === 0) return base;
+
+  const n = L - 1; // number of deltas per cycle
+  const negStart = dDen - 1; // canonical start of negative-delta block
+  const clampedShift = Math.min(Math.max(shift, 0), dDen - 1);
+  const rotateBy = (dDen - 1 - clampedShift) % n;
+  const negCount = triangularNegDeltaCount(rotateBy, p, negStart, n);
+  return Math.max(0, base + p - 2 * negCount);
 }
 
-/** Legacy alias for triangularRowWidth — used by old call sites during migration. */
+/**
+ * Legacy row-width algorithm: within each cycle of L = 2·dDen − dNum rows,
+ * widths alternate between `base` and `base+1` (interleaved +1/−1 delta pattern).
+ * Used by old call sites; does NOT accept a shift parameter.
+ */
 export function triangularSlowRowWidth(row: number, a: number, dNum: number, dDen: number): number {
-  return triangularRowWidth(row, a, dNum, dDen);
+  const L = 2 * dDen - dNum;
+  const k = Math.floor(row / L);
+  const p = row % L;
+  const base = a + dNum * k;
+  return p === 0 ? base : base + (p % 2);
 }
 
 /**
  * Compute the total number of pixels in rows 0..y-1 for a triangular grid.
  * Uses hybrid closed-form (full cycles) + loop (remainder) approach.
+ *
+ * The per-cycle sum constant C = Σ_{p=0}^{L-1} offset(p, shift) is computed
+ * in O(L) by iterating one cycle with the shift-aware formula.
  */
-export function triangularCumPixels(y: number, a: number, dNum: number, dDen: number): number {
+export function triangularCumPixels(
+  y: number,
+  a: number,
+  dNum: number,
+  dDen: number,
+  shift = 0,
+): number {
   if (y <= 0) return 0;
 
   if (dNum >= dDen) {
-    // Fast growth: iterate
+    // Fast growth: closed-form (shift ignored)
     let sum = 0;
     for (let r = 0; r < y; r++) {
       sum += a + Math.floor(r * dNum / dDen);
@@ -164,38 +215,52 @@ export function triangularCumPixels(y: number, a: number, dNum: number, dDen: nu
     return sum;
   }
 
+  // Slow growth: use full-cycle acceleration + remainder loop.
+  // Iterate one cycle to compute C = per-cycle width sum (with clamping).
   const L = 2 * dDen - dNum;
   const B = Math.floor(y / L);
   const rem = y % L;
 
-  // F = Σ_{j=0}^{dDen-1} floor(j·dNum/dDen) — sum of Bresenham increments for high positions
-  let F = 0;
-  for (let j = 0; j < dDen; j++) {
-    F += Math.floor(j * dNum / dDen);
+  let C = 0;
+  for (let p = 0; p < L; p++) {
+    C += triangularRowWidth(p, a, dNum, dDen, shift); // k=0 so base=a
   }
-  // G = Σ_{j=1}^{dDen-dNum} floor(j·dNum/dDen) — sum of dip-position Bresenham values
-  let G = 0;
-  for (let j = 1; j <= dDen - dNum; j++) {
-    G += Math.floor(j * dNum / dDen);
-  }
-  const C = F + G + (dDen - dNum);
+  // C above is for base=a. For cycle k, base=a+dNum*k, so sum = C + L*dNum*k.
+  // Σ_{k=0}^{B-1} [C + L*dNum*k] = B*C + L*dNum*B*(B-1)/2
+  const fullSum = B * C + L * dNum * B * (B - 1) / 2;
 
-  // Full cycles: Σ_{k=0}^{B-1} [L·(a + dNum·k) + C]
-  const fullSum = L * B * a + L * dNum * B * (B - 1) / 2 + B * C;
-
-  // Remaining rows: iterate the partial cycle
+  // Remaining rows at base = a + dNum*B
   let remSum = 0;
-  const remStart = B * L;
   for (let p = 0; p < rem; p++) {
-    remSum += triangularRowWidth(remStart + p, a, dNum, dDen);
+    remSum += triangularRowWidth(p + B * L, a, dNum, dDen, shift);
   }
-
   return fullSum + remSum;
 }
 
-/** Legacy alias for triangularCumPixels — used by old call sites during migration. */
+/**
+ * Legacy cum-pixel accumulator using the old interleaved row-width algorithm.
+ * Used by old call sites; does NOT accept a shift parameter.
+ */
 export function triangularSlowCumPixels(y: number, a: number, dNum: number, dDen: number): number {
-  return triangularCumPixels(y, a, dNum, dDen);
+  if (y <= 0) return 0;
+  const L = 2 * dDen - dNum;
+  const B = Math.floor(y / L);
+  const rem = y % L;
+
+  // Sum over one full cycle at base = a + dNum*k:
+  //   sum_p=0..L-1 of (base + (p%2)) = L*base + floor(L/2)
+  // Across B complete cycles (k=0..B-1):
+  //   Σ_k=0..B-1 [L*(a+dNum*k) + floor(L/2)]
+  //   = L*B*a + L*dNum*(B*(B-1)/2) + B*floor(L/2)
+  const halfL = Math.floor(L / 2);
+  let total = L * B * a + L * dNum * ((B * (B - 1)) / 2) + B * halfL;
+
+  // Remainder rows (k=B, base=a+dNum*B):
+  const remBase = a + dNum * B;
+  for (let p = 0; p < rem; p++) {
+    total += p === 0 ? remBase : remBase + (p % 2);
+  }
+  return total;
 }
 
 export interface Project {
@@ -212,6 +277,8 @@ export interface Project {
   triangularDNum?: number;
   /** Fractional growth denominator for triangular grids (dNum increases per dDen rows). */
   triangularDDen?: number;
+  /** Phase shift (0..dDen-1) controlling where in the cycle the dip(s) occur. */
+  triangularShift?: number;
   layers: SerializedLayer[];
   palette: Color[];
   /** Serialized undo/redo history (optional for backward compatibility) */
@@ -261,8 +328,9 @@ export function createDefaultProject(
   triangularD?: number,
   triangularDNum?: number,
   triangularDDen?: number,
+  triangularShift?: number,
 ): Project {
-  const pixelCount = computeBufferPixelCount(width, height, gridType, triangularA, triangularD, triangularDNum, triangularDDen);
+  const pixelCount = computeBufferPixelCount(width, height, gridType, triangularA, triangularD, triangularDNum, triangularDDen, triangularShift);
   return {
     name,
     width,
@@ -272,6 +340,7 @@ export function createDefaultProject(
     triangularD,
     triangularDNum,
     triangularDDen,
+    triangularShift,
     layers: [
       {
         id: crypto.randomUUID(),

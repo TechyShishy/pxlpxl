@@ -16,6 +16,7 @@ export interface NewProjectDialogResult {
   triangularD?: number;
   triangularDNum?: number;
   triangularDDen?: number;
+  triangularShift?: number;
 }
 
 @Component({
@@ -43,8 +44,13 @@ export class NewProjectDialogComponent {
   triangularD = 2;
   triangularDNum = 1;
   triangularDDen = 2;
+  triangularShift = 0;
   /** For triangular grids, height = number of rows (R). */
   triangularRows = 10;
+
+  get shiftMax(): number {
+    return Math.max(0, this.triangularDDen - 1);
+  }
 
   setPreset(w: number, h: number): void {
     this.width = w;
@@ -55,6 +61,7 @@ export class NewProjectDialogComponent {
     this.triangularA = a;
     this.triangularDNum = dNum;
     this.triangularDDen = dDen;
+    this.triangularShift = 0;
     this.triangularRows = rows;
   }
 
@@ -66,7 +73,7 @@ export class NewProjectDialogComponent {
     if (this.gridType === 'triangular') {
       let max = 0;
       for (let r = 0; r < this.triangularRows; r++) {
-        max = Math.max(max, triangularRowWidth(r, this.triangularA, this.triangularDNum, this.triangularDDen));
+        max = Math.max(max, triangularRowWidth(r, this.triangularA, this.triangularDNum, this.triangularDDen, this.triangularShift));
       }
       return max;
     }
@@ -83,6 +90,7 @@ export class NewProjectDialogComponent {
       triangularD: undefined,
       triangularDNum: this.isTriangularType ? this.triangularDNum : undefined,
       triangularDDen: this.isTriangularType ? this.triangularDDen : undefined,
+      triangularShift: this.isTriangularType ? this.triangularShift : undefined,
     };
     this.dialogRef.close(result);
   }

@@ -19,6 +19,7 @@ export class FillCommand implements Command {
     readonly triangularD?: number,
     readonly triangularDNum?: number,
     readonly triangularDDen?: number,
+    readonly triangularShift?: number,
   ) {
     this.description = `Fill ${modifiedPixels.length} pixel(s)`;
   }
@@ -36,6 +37,7 @@ export class FillCommand implements Command {
         this.triangularD,
         this.triangularDNum,
         this.triangularDDen,
+        this.triangularShift,
       );
     }
     this.layerService.notifyLayersChanged();
@@ -54,6 +56,7 @@ export class FillCommand implements Command {
         this.triangularD,
         this.triangularDNum,
         this.triangularDDen,
+        this.triangularShift,
       );
     }
     this.layerService.notifyLayersChanged();

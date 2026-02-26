@@ -27,6 +27,7 @@ export interface ImportPngDialogData {
   triangularA?: number;
   triangularDNum?: number;
   triangularDDen?: number;
+  triangularShift?: number;
 }
 
 export type SamplingMode = 'nearest' | 'area';
@@ -98,18 +99,20 @@ export class ImportPngDialogComponent {
       triangularA,
       triangularDNum,
       triangularDDen,
+      triangularShift,
       bufferHeight,
     } = this.data;
 
     const dNum = triangularDNum ?? 1;
     const dDen = triangularDDen ?? 1;
+    const shift = triangularShift ?? 0;
 
     // Compute the visual bounding box of the grid in abstract "grid units".
     if (gridType === 'triangular' && triangularA !== undefined) {
       const usePeyote = this.gridService.usesPeyoteStagger(gridType, 0, dNum, dDen);
       let maxRowWidth = 0;
       for (let r = 0; r < bufferHeight; r++) {
-        maxRowWidth = Math.max(maxRowWidth, triangularRowWidth(r, triangularA, dNum, dDen));
+        maxRowWidth = Math.max(maxRowWidth, triangularRowWidth(r, triangularA, dNum, dDen, shift));
       }
       if (usePeyote) {
         // 2-stride horizontal layout, half-height rows.
@@ -267,10 +270,12 @@ export class ImportPngDialogComponent {
       triangularA,
       triangularDNum,
       triangularDDen,
+      triangularShift,
     } = this.data;
 
     const dNum = triangularDNum ?? 1;
     const dDen = triangularDDen ?? 1;
+    const shift = triangularShift ?? 0;
 
     // Render the image into an OffscreenCanvas where 1px = 1 virtual grid unit.
     // The grid virtual-unit canvas has dimensions gridVisualW × gridVisualH.
@@ -345,7 +350,7 @@ export class ImportPngDialogComponent {
       const [r, g, b, a] = sample(vx, vy);
       const off =
         gridType === 'triangular' && triangularA !== undefined
-          ? pixelOffset(bx, by, bufW, gridType, triangularA, undefined, dNum, dDen)
+          ? pixelOffset(bx, by, bufW, gridType, triangularA, undefined, dNum, dDen, shift)
           : (by * bufW + bx) * 4;
       outputBuffer[off] = r;
       outputBuffer[off + 1] = g;
@@ -357,10 +362,10 @@ export class ImportPngDialogComponent {
       const usePeyote = this.gridService.usesPeyoteStagger(gridType, 0, dNum, dDen);
       let maxRowWidth = 0;
       for (let r = 0; r < bufferHeight; r++) {
-        maxRowWidth = Math.max(maxRowWidth, triangularRowWidth(r, triangularA, dNum, dDen));
+        maxRowWidth = Math.max(maxRowWidth, triangularRowWidth(r, triangularA, dNum, dDen, shift));
       }
       for (let by = 0; by < bufferHeight; by++) {
-        const rowWidth = triangularRowWidth(by, triangularA, dNum, dDen);
+        const rowWidth = triangularRowWidth(by, triangularA, dNum, dDen, shift);
         for (let bx = 0; bx < rowWidth; bx++) {
           let vx: number, vy: number;
           if (usePeyote) {

@@ -137,7 +137,7 @@ export class ToolbarComponent implements OnDestroy {
         this.projectService.newProject(
           result.name, result.width, result.height, result.gridType,
           result.triangularA, result.triangularD,
-          result.triangularDNum, result.triangularDDen,
+          result.triangularDNum, result.triangularDDen, result.triangularShift,
         );
       }
     });

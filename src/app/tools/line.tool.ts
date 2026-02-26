@@ -41,7 +41,7 @@ export class LineTool implements Tool {
     const modifiedPixels: ModifiedPixel[] = [];
 
     for (const coord of pixels) {
-      const offset = pixelOffset(coord.x, coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen);
+      const offset = pixelOffset(coord.x, coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift);
       const oldColor: Color = {
         r: layerData[offset],
         g: layerData[offset + 1],
@@ -72,8 +72,8 @@ export class LineTool implements Tool {
     }
     // Map buffer coords to visual center positions, run Bresenham there, map back
     const scale = 100; // arbitrary unit scale for visual-space computation
-    const fromV = gridService.pixelToScreen(from.x, from.y, scale, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.canvasHeight, ctx.triangularDNum, ctx.triangularDDen);
-    const toV = gridService.pixelToScreen(to.x, to.y, scale, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.canvasHeight, ctx.triangularDNum, ctx.triangularDDen);
+    const fromV = gridService.pixelToScreen(from.x, from.y, scale, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.canvasHeight, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift);
+    const toV = gridService.pixelToScreen(to.x, to.y, scale, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.canvasHeight, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift);
     // Offset to bead center
     const fromCenter = { x: fromV.sx + scale / 2, y: fromV.sy + scale / 2 };
     const toCenter = { x: toV.sx + scale / 2, y: toV.sy + scale / 2 };
@@ -99,6 +99,7 @@ export class LineTool implements Tool {
         ctx.triangularD,
         ctx.triangularDNum,
         ctx.triangularDDen,
+        ctx.triangularShift,
       );
       if (!lp) continue;
       const key = `${lp.x},${lp.y}`;

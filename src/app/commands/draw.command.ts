@@ -20,6 +20,7 @@ export class DrawCommand implements Command {
     readonly triangularD?: number,
     readonly triangularDNum?: number,
     readonly triangularDDen?: number,
+    readonly triangularShift?: number,
   ) {
     this.description = description ?? `Draw ${modifiedPixels.length} pixel(s)`;
   }
@@ -37,6 +38,7 @@ export class DrawCommand implements Command {
         this.triangularD,
         this.triangularDNum,
         this.triangularDDen,
+        this.triangularShift,
       );
     }
     this.layerService.notifyLayersChanged();
@@ -55,6 +57,7 @@ export class DrawCommand implements Command {
         this.triangularD,
         this.triangularDNum,
         this.triangularDDen,
+        this.triangularShift,
       );
     }
     this.layerService.notifyLayersChanged();

@@ -20,6 +20,8 @@ export interface PxlFile {
   triangularDNum?: number;
   /** Fractional growth denominator for triangular grids. */
   triangularDDen?: number;
+  /** Phase shift (0..dDen-1) for triangular grids. */
+  triangularShift?: number;
   palette: Color[];
   layers: PxlLayer[];
   history?: PxlHistory;
@@ -57,6 +59,8 @@ export interface SerializedHistoryEntry {
   triangularDNum?: number;
   /** For 'draw' and 'fill' commands — triangular fractional denominator */
   triangularDDen?: number;
+  /** For 'draw' and 'fill' commands — triangular phase shift */
+  triangularShift?: number;
   /** For 'draw' and 'fill' commands */
   modifiedPixels?: SerializedModifiedPixel[];
   /** For 'layer' commands — base64-encoded Uint8ClampedArray */
@@ -91,6 +95,7 @@ export const PxlFileSchema = z.object({
   triangularD: z.number().int().nonnegative().optional(),
   triangularDNum: z.number().int().positive().optional(),
   triangularDDen: z.number().int().positive().optional(),
+  triangularShift: z.number().int().nonnegative().optional(),
   palette: z.array(
     z.object({ r: z.number(), g: z.number(), b: z.number(), a: z.number() }),
   ),
