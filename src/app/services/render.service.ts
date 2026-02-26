@@ -407,15 +407,16 @@ export class RenderService {
       const d = this.canvasState.triangularD();
       const dNum = this.canvasState.triangularDNum();
       const dDen = this.canvasState.triangularDDen();
+      const shift = this.canvasState.triangularShift();
       const totalRows = bufHeight;
-      const maxWidth = this.gridService.getAnyTriangularMaxWidth(totalRows, gridType, a, d, dNum, dDen);
+      const maxWidth = this.gridService.getAnyTriangularMaxWidth(totalRows, gridType, a, d, dNum, dDen, shift);
       const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
       const rowSpacing = usesPeyote ? transform.scale / 2 : transform.scale;
 
       if (usesPeyote) {
         // Peyote-stagger: draw individual cell outlines
         for (let row = 0; row < totalRows; row++) {
-          const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen);
+          const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen, shift);
           const centerOffset = maxWidth - rowWidth;
           const y = row * rowSpacing;
           for (let col = 0; col < rowWidth; col++) {
@@ -426,7 +427,7 @@ export class RenderService {
       } else {
         // Full-height centered: continuous rows
         for (let row = 0; row < totalRows; row++) {
-          const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen);
+          const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen, shift);
           const centerOffset = (maxWidth - rowWidth) / 2;
           const y = row * rowSpacing;
 
@@ -449,7 +450,7 @@ export class RenderService {
         // Bottom border of last row
         {
           const lastRow = totalRows - 1;
-          const lastRowWidth = this.gridService.getAnyTriangularRowWidth(lastRow, gridType, a, d, dNum, dDen);
+          const lastRowWidth = this.gridService.getAnyTriangularRowWidth(lastRow, gridType, a, d, dNum, dDen, shift);
           const lastCenterOffset = (maxWidth - lastRowWidth) / 2;
           const bottomY = lastRow * rowSpacing + transform.scale;
           const startX = lastCenterOffset * transform.scale;

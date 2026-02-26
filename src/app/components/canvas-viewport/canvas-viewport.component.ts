@@ -114,6 +114,12 @@ export class CanvasViewportComponent {
       this.canvasState.showGrid();
       this.canvasState.canvasWidth();
       this.canvasState.canvasHeight();
+      this.canvasState.gridType();
+      this.canvasState.triangularA();
+      this.canvasState.triangularD();
+      this.canvasState.triangularDNum();
+      this.canvasState.triangularDDen();
+      this.canvasState.triangularShift();
       this.layerService.layers();
       this.requestRender();
     });
