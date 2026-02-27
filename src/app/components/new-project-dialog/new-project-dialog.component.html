@@ -127,12 +127,21 @@
       </mat-select>
     </mat-form-field>
 
-    @if (gridType === 'square' || gridType === 'peyote') {
+    @if (gridType === 'square') {
       <div class="presets">
         <button mat-stroked-button (click)="setPreset(16, 16)">16×16</button>
         <button mat-stroked-button (click)="setPreset(32, 32)">32×32</button>
         <button mat-stroked-button (click)="setPreset(64, 64)">64×64</button>
         <button mat-stroked-button (click)="setPreset(128, 128)">128×128</button>
+      </div>
+    }
+
+    @if (gridType === 'peyote') {
+      <div class="presets">
+        <button mat-stroked-button (click)="setPreset(16, 32)">16×32</button>
+        <button mat-stroked-button (click)="setPreset(32, 64)">32×64</button>
+        <button mat-stroked-button (click)="setPreset(64, 128)">64×128</button>
+        <button mat-stroked-button (click)="setPreset(128, 256)">128×256</button>
       </div>
     }
 
