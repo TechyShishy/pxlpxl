@@ -74,6 +74,19 @@ function createMinimalPng(): ArrayBuffer {
   return bytes.buffer;
 }
 
+/** Create a minimal valid 1x1 JPEG as an ArrayBuffer */
+function createMinimalJpg(): ArrayBuffer {
+  // Smallest valid 1x1 white JPEG
+  const base64Jpg =
+    '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVIP/2Q==';
+  const binary = atob(base64Jpg);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
 describe('ImportService', () => {
   let service: ImportService;
   let layerService: LayerService;
@@ -151,6 +164,22 @@ describe('ImportService', () => {
       expect(dialogMock.open).toHaveBeenCalledOnce();
     });
 
+    it('should route JPG files to PNG import (opens dialog)', async () => {
+      const jpgBuffer = createMinimalJpg();
+
+      await expect(service.importFromBuffer(jpgBuffer, 'test.jpg'))
+        .resolves.toBeUndefined();
+      expect(dialogMock.open).toHaveBeenCalledOnce();
+    });
+
+    it('should route JPEG files with .jpeg extension to PNG import (opens dialog)', async () => {
+      const jpgBuffer = createMinimalJpg();
+
+      await expect(service.importFromBuffer(jpgBuffer, 'test.jpeg'))
+        .resolves.toBeUndefined();
+      expect(dialogMock.open).toHaveBeenCalledOnce();
+    });
+
     it('should route gzip files to PXL import', async () => {
       const pxl = makePxlFile();
       const gzipped = await compressToGzip(JSON.stringify(pxl));
@@ -205,6 +234,41 @@ describe('ImportService', () => {
       const pngBuffer = createMinimalPng();
 
       await service.importFromBuffer(pngBuffer, 'icon.png');
+
+      expect(historyService.canUndo()).toBe(true);
+      historyService.undo();
+    });
+  });
+
+  // ── JPG import ────────────────────────────────────────────────────────
+
+  describe('importJpg', () => {
+    beforeEach(() => mockCanvasApis());
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('should add a new layer after user confirms import in the dialog', async () => {
+      const jpgBuffer = createMinimalJpg();
+
+      await service.importFromBuffer(jpgBuffer, 'photo.jpg');
+
+      expect(layerService.layerCount()).toBe(2);
+    });
+
+    it('should not add a layer when the dialog is cancelled', async () => {
+      dialogMock.open.mockReturnValueOnce({
+        afterClosed: () => of(undefined as Uint8ClampedArray | undefined),
+      });
+
+      const jpgBuffer = createMinimalJpg();
+      await service.importFromBuffer(jpgBuffer, 'photo.jpg');
+
+      expect(layerService.layerCount()).toBe(1); // no new layer
+    });
+
+    it('should record an undoable command for the import', async () => {
+      const jpgBuffer = createMinimalJpg();
+
+      await service.importFromBuffer(jpgBuffer, 'photo.jpg');
 
       expect(historyService.canUndo()).toBe(true);
       historyService.undo();

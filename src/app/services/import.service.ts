@@ -23,10 +23,12 @@ import {
   type ImportPngDialogData,
 } from '../components/import-png-dialog/import-png-dialog.component';
 
-const ACCEPTED_TYPES = '.png,.pxl,.rgp';
+const ACCEPTED_TYPES = '.png,.jpg,.jpeg,.pxl,.rgp';
 
 /** PNG magic bytes: 0x89 P N G */
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47];
+/** JPEG magic bytes: 0xFF 0xD8 0xFF */
+const JPG_MAGIC = [0xff, 0xd8, 0xff];
 /** Gzip magic bytes: 0x1F 0x8B */
 const GZIP_MAGIC = [0x1f, 0x8b];
 
@@ -87,13 +89,13 @@ export class ImportService {
   async importFromBuffer(buffer: ArrayBuffer, filename: string): Promise<void> {
     const header = new Uint8Array(buffer, 0, Math.min(4, buffer.byteLength));
 
-    if (matchesMagic(header, PNG_MAGIC)) {
+    if (matchesMagic(header, PNG_MAGIC) || matchesMagic(header, JPG_MAGIC)) {
       await this.importPng(buffer, filename);
     } else if (matchesMagic(header, GZIP_MAGIC)) {
       await this.importGzip(buffer, filename);
     } else {
       throw new Error(
-        `Unrecognised file format for "${filename}". Expected a PNG image, a .pxl project file, or a .rgp RowGuide project file.`,
+        `Unrecognised file format for "${filename}". Expected a PNG or JPEG image, a .pxl project file, or a .rgp RowGuide project file.`,
       );
     }
   }
