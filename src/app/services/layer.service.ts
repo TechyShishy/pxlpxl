@@ -144,6 +144,28 @@ export class LayerService {
     );
   }
 
+  /**
+   * Returns true if any pixel in any layer matches the given color exactly.
+   * Fully transparent pixels (a === 0) are ignored.
+   */
+  isColorInUse(color: Color): boolean {
+    for (const layer of this.layers()) {
+      const data = layer.data;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] === 0) continue;
+        if (
+          data[i] === color.r &&
+          data[i + 1] === color.g &&
+          data[i + 2] === color.b &&
+          data[i + 3] === color.a
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   /** Set layers from deserialized project data */
   setLayers(layers: Layer[]): void {
     this.layers.set(layers);

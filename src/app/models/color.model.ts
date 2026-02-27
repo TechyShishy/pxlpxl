@@ -28,6 +28,33 @@ export function colorsEqual(a: Color, b: Color): boolean {
   return a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a;
 }
 
+/**
+ * Extract all unique non-transparent colors from a flat RGBA Uint8ClampedArray buffer.
+ * Fully transparent pixels (a === 0) are skipped.
+ */
+export function extractUniqueColors(data: Uint8ClampedArray): Color[] {
+  const seen = new Set<string>();
+  const result: Color[] = [];
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3];
+    if (a === 0) continue;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const key = `${r},${g},${b},${a}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push({ r, g, b, a });
+    }
+  }
+  return result;
+}
+
+/** Returns true if the given color already exists in the palette. */
+export function colorInPalette(color: Color, palette: Color[]): boolean {
+  return palette.some((p) => colorsEqual(p, color));
+}
+
 export const TRANSPARENT: Color = { r: 0, g: 0, b: 0, a: 0 };
 export const BLACK: Color = { r: 0, g: 0, b: 0, a: 255 };
 export const WHITE: Color = { r: 255, g: 255, b: 255, a: 255 };

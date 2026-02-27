@@ -14,6 +14,7 @@ import {
   BLACK,
   WHITE,
 } from '../models';
+import type { ImportPngResult } from '../components/import-png-dialog/import-png-dialog.component';
 
 /** Build a minimal valid PxlFile object */
 function makePxlFile(
@@ -99,8 +100,8 @@ describe('ImportService', () => {
    * Build a MatDialog mock whose open() returns a dialog ref that emits
    * `result` from afterClosed(). Pass `undefined` to simulate cancellation.
    */
-  function makeDialogMock(result: Uint8ClampedArray | undefined = new Uint8ClampedArray(4 * 4 * 4)) {
-    const mockDialogRef = { afterClosed: () => of(result as Uint8ClampedArray | undefined) };
+  function makeDialogMock(result: ImportPngResult | undefined = { buffer: new Uint8ClampedArray(4 * 4 * 4), palette: [] }) {
+    const mockDialogRef = { afterClosed: () => of(result as ImportPngResult | undefined) };
     return { open: vi.fn(() => mockDialogRef) };
   }
 
@@ -208,7 +209,7 @@ describe('ImportService', () => {
       canvasState.setGridType('peyote');
       // dialogMock returns a peyote-sized buffer (bufferPixelCount = 2×4 = 8)
       dialogMock.open.mockReturnValueOnce({
-        afterClosed: () => of(new Uint8ClampedArray(8 * 4)),
+        afterClosed: () => of({ buffer: new Uint8ClampedArray(8 * 4), palette: [] } satisfies ImportPngResult),
       });
 
       const pngBuffer = createMinimalPng();
@@ -221,7 +222,7 @@ describe('ImportService', () => {
     it('should not add a layer when the dialog is cancelled', async () => {
       // Override to simulate cancellation (result = undefined)
       dialogMock.open.mockReturnValueOnce({
-        afterClosed: () => of(undefined as Uint8ClampedArray | undefined),
+        afterClosed: () => of(undefined as ImportPngResult | undefined),
       });
 
       const pngBuffer = createMinimalPng();
@@ -256,7 +257,7 @@ describe('ImportService', () => {
 
     it('should not add a layer when the dialog is cancelled', async () => {
       dialogMock.open.mockReturnValueOnce({
-        afterClosed: () => of(undefined as Uint8ClampedArray | undefined),
+        afterClosed: () => of(undefined as ImportPngResult | undefined),
       });
 
       const jpgBuffer = createMinimalJpg();

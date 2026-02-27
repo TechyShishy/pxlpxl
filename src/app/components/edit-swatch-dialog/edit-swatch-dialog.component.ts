@@ -21,6 +21,8 @@ export interface EditSwatchDialogData {
   index: number;
   color: Color;
   paletteLength: number;
+  /** True when this color is currently referenced by at least one pixel in the project. */
+  isInUse: boolean;
 }
 
 export interface EditSwatchDialogResult {
@@ -73,7 +75,11 @@ export class EditSwatchDialogComponent {
     Math.round((this.alphaValue() / 255) * 100),
   );
 
-  protected readonly canRemove = computed<boolean>(() => this.data.paletteLength > 1);
+  protected readonly canRemove = computed<boolean>(
+    () => this.data.paletteLength > 1 && !this.data.isInUse,
+  );
+
+  protected readonly inUse = this.data.isInUse;
 
   onHexChange(value: string): void {
     this.hexValue.set(value);

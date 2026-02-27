@@ -21,6 +21,7 @@ import { LayerCommand } from '../commands/layer.command';
 import {
   ImportPngDialogComponent,
   type ImportPngDialogData,
+  type ImportPngResult,
 } from '../components/import-png-dialog/import-png-dialog.component';
 
 const ACCEPTED_TYPES = '.png,.jpg,.jpeg,.pxl,.rgp';
@@ -155,18 +156,21 @@ export class ImportService {
     };
 
     const dialogRef = this.dialog.open(ImportPngDialogComponent, { data: dialogData });
-    const result = await firstValueFrom(dialogRef.afterClosed());
+    const result = await firstValueFrom(dialogRef.afterClosed()) as ImportPngResult | undefined;
 
     bitmap.close();
 
-    if (!(result instanceof Uint8ClampedArray)) return; // user cancelled
+    if (!(result?.buffer instanceof Uint8ClampedArray)) return; // user cancelled
+
+    // Populate the palette with all colors from the imported (and possibly quantized) layer.
+    this.colorService.setPalette(result.palette);
 
     // Add a new layer and copy the mapped pixel data.
     this.layerService.addLayer(canvasW, canvasH, bufferPixelCount);
     const newLayerIndex = this.layerService.activeLayerIndex();
     const previousData = this.layerService.getLayerData(newLayerIndex)!;
 
-    this.layerService.setLayerData(newLayerIndex, result);
+    this.layerService.setLayerData(newLayerIndex, result.buffer);
 
     // Record as undoable LayerCommand.
     this.historyService.execute(
@@ -174,7 +178,7 @@ export class ImportService {
         this.layerService,
         newLayerIndex,
         previousData,
-        result,
+        result.buffer,
         `Import "${filename}"`,
       ),
     );

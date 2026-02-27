@@ -7,11 +7,16 @@ import {
   ElementRef,
   viewChild,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { GridService } from '../../services/grid.service';
-import { GridType, triangularRowWidth, pixelOffset } from '../../models';
+import { GridType, triangularRowWidth, pixelOffset, extractUniqueColors } from '../../models';
+import type { Color } from '../../models';
+import { medianCut, kMeans, quantizeBuffer } from '../../utils/color-quantize';
 
 /** Data passed into the dialog from ImportService. */
 export interface ImportPngDialogData {
@@ -31,6 +36,14 @@ export interface ImportPngDialogData {
 }
 
 export type SamplingMode = 'nearest' | 'area';
+export type QuantizeAlgorithm = 'median-cut' | 'k-means';
+
+/** Value returned when the user confirms the import dialog. */
+export interface ImportPngResult {
+  buffer: Uint8ClampedArray;
+  /** All unique colors present in the (possibly quantized) buffer. */
+  palette: Color[];
+}
 
 /** Pixel size of the square preview container inside the dialog. */
 const CONTAINER = 480;
@@ -46,7 +59,7 @@ const CONTAINER = 480;
 @Component({
   selector: 'app-import-png-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatDialogModule, MatButtonModule, MatButtonToggleModule],
+  imports: [MatDialogModule, MatButtonModule, MatButtonToggleModule, MatFormFieldModule, MatInputModule, FormsModule],
   templateUrl: './import-png-dialog.component.html',
   styleUrl: './import-png-dialog.component.scss',
 })
@@ -59,6 +72,8 @@ export class ImportPngDialogComponent {
     viewChild.required<ElementRef<HTMLCanvasElement>>('preview');
 
   readonly samplingMode = signal<SamplingMode>('nearest');
+  readonly maxColors = signal<number>(32);
+  readonly quantizeAlgorithm = signal<QuantizeAlgorithm>('median-cut');
 
   // Image pan/zoom state
   private readonly imageOffsetX = signal(0);
@@ -247,7 +262,24 @@ export class ImportPngDialogComponent {
   // ── Dialog actions ────────────────────────────────────────────────
 
   onImport(): void {
-    this.dialogRef.close(this.produceLayerData());
+    const buffer = this.produceLayerData();
+    const uniqueColors = extractUniqueColors(buffer);
+    const max = this.maxColors();
+    let finalBuffer: Uint8ClampedArray;
+    let palette: Color[];
+
+    if (max > 0 && uniqueColors.length > max) {
+      palette =
+        this.quantizeAlgorithm() === 'k-means'
+          ? kMeans(uniqueColors, max)
+          : medianCut(uniqueColors, max);
+      finalBuffer = quantizeBuffer(buffer, palette);
+    } else {
+      finalBuffer = buffer;
+      palette = uniqueColors;
+    }
+
+    this.dialogRef.close({ buffer: finalBuffer, palette } satisfies ImportPngResult);
   }
 
   onCancel(): void {

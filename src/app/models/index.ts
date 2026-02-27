@@ -4,6 +4,8 @@ export {
   colorToHex,
   hexToColor,
   colorsEqual,
+  extractUniqueColors,
+  colorInPalette,
   TRANSPARENT,
   BLACK,
   WHITE,

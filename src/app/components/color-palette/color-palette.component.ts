@@ -4,12 +4,15 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { ColorService } from '../../services/color.service';
+import { LayerService } from '../../services/layer.service';
+import { HistoryService } from '../../services/history.service';
 import { BackButtonService } from '../../services/back-button.service';
 import { Color, colorToRgba } from '../../models';
 import {
   EditSwatchDialogComponent,
   EditSwatchDialogResult,
 } from '../edit-swatch-dialog/edit-swatch-dialog.component';
+import { ReplaceColorCommand } from '../../commands/replace-color.command';
 
 const LONG_PRESS_DELAY = 500;
 const MOVE_THRESHOLD = 5;
@@ -23,6 +26,8 @@ const MOVE_THRESHOLD = 5;
 })
 export class ColorPaletteComponent {
   protected readonly colorService = inject(ColorService);
+  private readonly layerService = inject(LayerService);
+  private readonly historyService = inject(HistoryService);
   private readonly dialog = inject(MatDialog);
   private readonly backButtonService = inject(BackButtonService);
 
@@ -96,8 +101,9 @@ export class ColorPaletteComponent {
   private openEditDialog(index: number): void {
     const palette = this.colorService.palette();
     const color = palette[index];
+    const isInUse = this.layerService.isColorInUse(color);
     const ref = this.dialog.open(EditSwatchDialogComponent, {
-      data: { index, color, paletteLength: palette.length },
+      data: { index, color, paletteLength: palette.length, isInUse },
     });
 
     const deregister = this.backButtonService.push(() => {
@@ -111,7 +117,15 @@ export class ColorPaletteComponent {
         if (result.deleted) {
           this.colorService.removeFromPalette(result.index);
         } else {
-          this.colorService.updatePaletteColor(result.index, result.color);
+          this.historyService.execute(
+            new ReplaceColorCommand(
+              this.layerService,
+              this.colorService,
+              result.index,
+              color,
+              result.color,
+            ),
+          );
         }
       }
     });

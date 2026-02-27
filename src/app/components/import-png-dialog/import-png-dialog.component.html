@@ -1,4 +1,4 @@
-<h2 mat-dialog-title>Import PNG</h2>
+<h2 mat-dialog-title>Import Image</h2>
 
 <mat-dialog-content>
   <canvas
@@ -24,6 +24,35 @@
       <mat-button-toggle value="nearest">Nearest</mat-button-toggle>
       <mat-button-toggle value="area">Area avg</mat-button-toggle>
     </mat-button-toggle-group>
+  </div>
+
+  <div class="options-row">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Max colors</mat-label>
+      <input
+        matInput
+        type="number"
+        min="0"
+        [ngModel]="maxColors()"
+        (ngModelChange)="maxColors.set($event)"
+        aria-describedby="max-colors-hint"
+      />
+      <mat-hint id="max-colors-hint">0 = unlimited</mat-hint>
+    </mat-form-field>
+
+    @if (maxColors() > 0) {
+      <div>
+        <label id="algorithm-label">Algorithm</label>
+        <mat-button-toggle-group
+          aria-labelledby="algorithm-label"
+          [value]="quantizeAlgorithm()"
+          (change)="quantizeAlgorithm.set($event.value)"
+        >
+          <mat-button-toggle value="median-cut">Median cut</mat-button-toggle>
+          <mat-button-toggle value="k-means">K-means</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+    }
   </div>
 </mat-dialog-content>
 

@@ -17,7 +17,7 @@ import { GestureService } from '../../services/gesture.service';
 import { RenderService } from '../../services/render.service';
 import { LayoutService } from '../../services/layout.service';
 import { GridService } from '../../services/grid.service';
-import { Color, ToolContext, GestureState, PixelCoord } from '../../models';
+import { Color, ToolContext, GestureState, PixelCoord, colorInPalette } from '../../models';
 import { renderColumnRuler, renderRowRuler, RulerParams } from './ruler-renderer';
 import { DrawCommand } from '../../commands/draw.command';
 import { FillCommand } from '../../commands/fill.command';
@@ -445,6 +445,20 @@ export class CanvasViewportComponent {
           // Don't execute — pixels already applied by the tool
           this.historyService['undoStack'].update((s) => [...s, command]);
           this.historyService['redoStack'].set([]);
+
+          // Auto-add any new colors painted in this stroke to the palette.
+          const palette = this.colorService.palette();
+          const seen = new Set<string>();
+          for (const pixel of result.modifiedPixels) {
+            const c = pixel.newColor;
+            const key = `${c.r},${c.g},${c.b},${c.a}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              if (!colorInPalette(c, palette)) {
+                this.colorService.addToPalette(c);
+              }
+            }
+          }
         }
         break;
     }

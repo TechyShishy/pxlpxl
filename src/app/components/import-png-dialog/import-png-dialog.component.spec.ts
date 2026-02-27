@@ -5,6 +5,7 @@ import {
   ImportPngDialogComponent,
   ImportPngDialogData,
   SamplingMode,
+  type ImportPngResult,
 } from './import-png-dialog.component';
 
 // ── OffscreenCanvas shim for test environment ────────────────────────
@@ -85,8 +86,9 @@ describe('ImportPngDialogComponent', () => {
       const { component, closeSpy } = setup();
       (component as unknown as { onImport: () => void }).onImport();
       expect(closeSpy).toHaveBeenCalled();
-      const [result] = closeSpy.mock.calls[0] as [unknown];
-      expect(result).toBeInstanceOf(Uint8ClampedArray);
+      const [result] = closeSpy.mock.calls[0] as [ImportPngResult];
+      expect(result.buffer).toBeInstanceOf(Uint8ClampedArray);
+      expect(Array.isArray(result.palette)).toBe(true);
     } finally {
       (globalThis as Record<string, unknown>)['OffscreenCanvas'] = originalOffscreen;
     }
@@ -111,9 +113,9 @@ describe('ImportPngDialogComponent', () => {
       const data = makeDialogData({ canvasWidth: 2, canvasHeight: 2, bufferWidth: 2, bufferHeight: 2, bufferPixelCount: 4 });
       const { component, closeSpy } = setup(data);
       (component as unknown as { onImport: () => void }).onImport();
-      const [result] = closeSpy.mock.calls[0] as [Uint8ClampedArray];
+      const [result] = closeSpy.mock.calls[0] as [ImportPngResult];
       // bufferPixelCount * 4 RGBA bytes
-      expect(result.length).toBe(4 * 4);
+      expect(result.buffer.length).toBe(4 * 4);
     } finally {
       (globalThis as Record<string, unknown>)['OffscreenCanvas'] = originalOffscreen;
     }
@@ -146,8 +148,8 @@ describe('ImportPngDialogComponent', () => {
       });
       const { component, closeSpy } = setup(data);
       (component as unknown as { onImport: () => void }).onImport();
-      const [result] = closeSpy.mock.calls[0] as [Uint8ClampedArray];
-      expect(result.length).toBe(8 * 4); // 8 pixels × 4 RGBA bytes
+      const [result] = closeSpy.mock.calls[0] as [ImportPngResult];
+      expect(result.buffer.length).toBe(8 * 4); // 8 pixels × 4 RGBA bytes
     } finally {
       (globalThis as Record<string, unknown>)['OffscreenCanvas'] = originalOffscreen;
     }

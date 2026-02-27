@@ -47,6 +47,9 @@
   >
     Remove
   </button>
+  @if (inUse) {
+    <span class="in-use-hint" aria-live="polite">Color is in use — replace all pixels first</span>
+  }
   <span class="spacer"></span>
   <button mat-button mat-dialog-close>Cancel</button>
   <button mat-flat-button (click)="onConfirm()">Apply</button>

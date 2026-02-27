@@ -95,3 +95,9 @@ mat-dialog-content {
 .alpha-slider {
   width: 100%;
 }
+
+.in-use-hint {
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant, var(--mat-sys-on-surface));
+  padding: 0 4px;
+}
