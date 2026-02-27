@@ -5,9 +5,11 @@ Pxlpxl is a pixel-art editor built with Angular 21+, Angular Material, and Capac
 
 - **Always use `yarn` scripts** — only invoke `ng`, `npx`, or other binaries directly if there's no corresponding `yarn` script.
 - `yarn start` — dev server at `http://localhost:4200/`
-- `yarn test` — unit tests (Vitest, not Jasmine/Karma)
+- `yarn test:unit` — unit tests (Vitest, not Jasmine/Karma)
+- `yarn test:e2e` — Playwright end-to-end tests
 - `yarn build` — production build to `dist/pxlpxl/browser/`
-- `yarn e2e` — Playwright end-to-end tests
+- `yarn build:android` — build web app + sync to native Android project
+- `yarn cap:run` — build and run on a connected Android device/emulator
 - Uses SCSS with Angular Material theme tokens (`var(--mat-sys-*)`)
 
 ## Architecture Overview
@@ -50,22 +52,24 @@ Tools implement the `Tool` interface: `onPointerDown`/`onPointerMove`/`onPointer
 
 ### Pixel Data Format
 
-Layer pixel data is a flat `Uint8ClampedArray` of RGBA bytes. Offset for pixel `(x, y)` = `(y * bufferWidth + x) * 4`. The `Color` model is `{ r, g, b, a }` with `a` in 0–255 range. Use helpers from `src/app/models/color.model.ts` (`colorsEqual`, `colorToHex`, `hexToColor`).
+Layer pixel data is a flat `Uint8ClampedArray` of RGBA bytes. The `Color` model is `{ r, g, b, a }` with `a` in 0–255 range. Use helpers from `src/app/models/color.model.ts` (`colorsEqual`, `colorToHex`, `hexToColor`).
 
-For square grids, buffer dimensions equal the visual canvas dimensions. For peyote grids, use `computeBufferDimensions()` from `project.model.ts` and the `bufferWidth()`/`bufferHeight()` signals on `CanvasStateService`.
+**Always use `pixelOffset(x, y, bufferWidth, gridType, ...)` from `src/app/models/pixel-offset.ts`** to compute byte offsets — never inline `(y * bufferWidth + x) * 4` directly, as triangular grids use a different formula.
+
+For square and peyote grids: `(y * bufferWidth + x) * 4`. For triangular grids: cumulative row-width formula via `triangularCumPixels()`.
+
+Buffer dimensions for any grid: use `computeBufferDimensions()` from `project.model.ts` and the `bufferWidth()`/`bufferHeight()` signals on `CanvasStateService`.
 
 ### Grid Types
 
-Two grid types: `'square'` (standard) and `'peyote'` (bead patterns with hex-offset columns). Use `GridService` for all coordinate math — never hard-code square-grid assumptions.
+Three grid types: `'square'` (standard), `'peyote'` (hex-offset bead columns), `'triangular'` (growing-row triangle patterns). Use `GridService` for all coordinate math — never hard-code square-grid assumptions.
 
-**Peyote dense-row buffer layout**: Each visual row of beads maps to one buffer row. Even buffer rows (0, 2, 4…) hold beads from even visual columns (0, 2, 4…); odd buffer rows (1, 3, 5…) hold beads from odd visual columns (1, 3, 5…). The buffer dimensions are:
-- `bufferWidth = Math.ceil(visualColumns / 2)`
-- `bufferHeight = visibleRows` (same as `canvasHeight`)
-- `beadsPerColumn = Math.ceil(bufferHeight / 2)` for even columns, `Math.floor(bufferHeight / 2)` for odd columns
+**Peyote dense-row buffer layout**: Even buffer rows (0, 2, 4…) hold beads from even visual columns; odd buffer rows hold odd visual columns.
+- `bufferWidth = Math.ceil(visualColumns / 2)`, `bufferHeight = visibleRows`
+- `GridService.bufferToVisual(bx, by)` / `GridService.visualToBuffer(col, beadRow)` to convert
+- 6-connected neighbor connectivity
 
-Entering 32×32 in the new-project dialog produces a 32-column × 32-visible-row peyote grid (16 beads per column).
-
-Use `GridService.bufferToVisual(bx, by)` and `GridService.visualToBuffer(col, beadRow)` to convert between coordinate spaces. Peyote grids use 6-connected neighbor connectivity.
+**Triangular buffer layout**: Row `r` has `(a + d·r)` pixels packed contiguously (variable-width rows). Parameters: `triangularA` (first-row width), `triangularDNum`/`triangularDDen` (fractional per-row growth), `triangularShift` (phase). Even `d` → 4-connected neighbors; odd `d` → 6-connected (peyote-like stagger). These parameters flow through `ToolContext`, `DrawCommand`, `CanvasStateService`, and `pixelOffset()`.
 
 ### Persistence
 
@@ -117,6 +121,14 @@ Test user-click-based actions and observe outcomes on the DOM using **Playwright
 - Interact via user-visible affordances (click buttons, drag on canvas, open dialogs)
 - Assert against DOM state (element presence, text content, canvas pixel sampling)
 - E2E tests live in a top-level `e2e/` directory
+
+## File Formats
+
+`ImportService` handles three file formats (`.pxl`, `.png`, `.rgp`). Detection is by magic bytes, not extension.
+
+- **`.pxl`** — native JSON format validated by `PxlFileSchema` (Zod). Layers stored as base64-encoded RGBA `Uint8ClampedArray`. History serialized via `serializeCommand`/`deserializeCommand` in `src/app/commands/command-serialization.ts`. Handles legacy `triangular-slow` grid type migration via `remapLegacyGridType()`.
+- **`.png`** — imported via `<canvas>` decode; prompts user to choose target layer/dimensions.
+- **`.rgp`** — bead pattern format; parsed by `RgpProjectSchema` (Zod) from `src/app/models/rgp-file.model.ts`.
 
 ## Accessibility
 
