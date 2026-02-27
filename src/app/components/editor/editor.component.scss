@@ -22,7 +22,7 @@
   min-width: 240px;
   background: var(--mat-sys-surface-container);
   border-left: 1px solid var(--mat-sys-outline-variant);
-  overflow-y: auto;
+  overflow: hidden auto;
   display: flex;
   flex-direction: column;
 }

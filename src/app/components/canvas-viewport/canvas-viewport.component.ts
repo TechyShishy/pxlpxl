@@ -155,8 +155,11 @@ export class CanvasViewportComponent {
 
     this.resizeCanvas();
 
+    // Observe the main canvas element (not just the host) so that internal
+    // grid-track changes (e.g. toggling rulers) trigger a buffer resize even
+    // when the host element's outer dimensions haven't changed.
     const observer = new ResizeObserver(() => this.resizeCanvas());
-    observer.observe(this.elementRef.nativeElement);
+    observer.observe(canvas);
   }
 
   private resizeCanvas(): void {
