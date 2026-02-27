@@ -51,6 +51,28 @@ describe('renderColumnRuler', () => {
       expect(labels[2].x).toBeCloseTo(50);
       expect(labels[3].x).toBeCloseTo(70);
     });
+
+    it('respects columnParity filter', () => {
+      const { ctx: ctxOdd, labels: labelsOdd } = makeCtx(1000, 20);
+      renderColumnRuler(ctxOdd, {
+        ...BASE_PARAMS,
+        canvasWidth: 6,
+        canvasHeight: 4,
+        gridType: 'square',
+        columnParity: 'odd',
+      });
+      expect(labelsOdd.map((l) => l.text)).toEqual(['1', '3', '5']);
+
+      const { ctx: ctxEven, labels: labelsEven } = makeCtx(1000, 20);
+      renderColumnRuler(ctxEven, {
+        ...BASE_PARAMS,
+        canvasWidth: 6,
+        canvasHeight: 4,
+        gridType: 'square',
+        columnParity: 'even',
+      });
+      expect(labelsEven.map((l) => l.text)).toEqual(['2', '4', '6']);
+    });
   });
 
   describe('triangular even-d grid', () => {
@@ -109,6 +131,7 @@ describe('renderColumnRuler', () => {
         gridType: 'triangular',
         triangularA: 1,
         triangularD: 1,
+        columnParity: 'all',
       });
       expect(labels.map((l) => l.text)).toEqual(['1', '2', '3', '4', '5']);
     });
@@ -123,6 +146,7 @@ describe('renderColumnRuler', () => {
         gridType: 'triangular',
         triangularA: 3,
         triangularD: 3,
+        columnParity: 'all',
       });
       expect(labels).toHaveLength(17);
       expect(labels[0].text).toBe('1');
@@ -131,6 +155,32 @@ describe('renderColumnRuler', () => {
       expect(labels[0].x).toBeCloseTo(10);
       // Column 16 → 16*20+10 = 330
       expect(labels[16].x).toBeCloseTo(330);
+    });
+
+    it('respects columnParity filter', () => {
+      const { ctx: ctxOdd, labels: labelsOdd } = makeCtx(1000, 20);
+      renderColumnRuler(ctxOdd, {
+        ...BASE_PARAMS,
+        canvasWidth: 5,
+        canvasHeight: 5,
+        gridType: 'triangular',
+        triangularA: 1,
+        triangularD: 1,
+        columnParity: 'odd',
+      });
+      expect(labelsOdd.map((l) => l.text)).toEqual(['1', '3', '5', '7', '9']);
+
+      const { ctx: ctxEven, labels: labelsEven } = makeCtx(1000, 20);
+      renderColumnRuler(ctxEven, {
+        ...BASE_PARAMS,
+        canvasWidth: 5,
+        canvasHeight: 5,
+        gridType: 'triangular',
+        triangularA: 1,
+        triangularD: 1,
+        columnParity: 'even',
+      });
+      expect(labelsEven.map((l) => l.text)).toEqual(['2', '4', '6', '8']);
     });
   });
 });

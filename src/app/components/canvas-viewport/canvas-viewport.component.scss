@@ -42,6 +42,7 @@ canvas {
 
 .ruler-corner {
   overflow: hidden;
+  background-color: var(--mat-sys-surface-variant);
 }
 
 .crosshair-overlay {

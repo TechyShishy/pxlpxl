@@ -262,8 +262,8 @@ export class CanvasViewportComponent {
       triangularShift: this.canvasState.triangularShift(),
     };
 
-    if (this.rulerTopCtx) renderColumnRuler(this.rulerTopCtx, params);
-    if (this.rulerBottomCtx) renderColumnRuler(this.rulerBottomCtx, params);
+    if (this.rulerTopCtx) renderColumnRuler(this.rulerTopCtx, { ...params, columnParity: 'odd' });
+    if (this.rulerBottomCtx) renderColumnRuler(this.rulerBottomCtx, { ...params, columnParity: 'even' });
     if (this.rulerLeftCtx) renderRowRuler(this.rulerLeftCtx, { ...params, rowParity: 'odd' });
     if (this.rulerRightCtx) renderRowRuler(this.rulerRightCtx, { ...params, rowParity: 'even' });
   }

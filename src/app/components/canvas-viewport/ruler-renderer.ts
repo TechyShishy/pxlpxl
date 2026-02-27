@@ -34,6 +34,13 @@ export interface RulerParams {
    */
   rowParity?: 'all' | 'odd' | 'even';
   /**
+   * Which column numbers to display on this ruler strip.
+   * 'odd'  → top ruler    (1, 3, 5 …)
+   * 'even' → bottom ruler (2, 4, 6 …)
+   * 'all'  → show every label (default)
+   */
+  columnParity?: 'all' | 'odd' | 'even';
+  /**
    * First-row pixel count for triangular grids (triangularA parameter).
    * Required for correct ruler rendering on triangular grids.
    */
@@ -82,6 +89,7 @@ export function renderColumnRuler(
   ctx.fillStyle = textColor;
 
   const midY = rulerHeight / 2;
+  const colParity = params.columnParity ?? 'all';
   let lastDrawnX = -Infinity;
 
   // Triangular with peyote stagger: stride-2 horizontal pixel spacing
@@ -103,21 +111,27 @@ export function renderColumnRuler(
     // producing 2 * maxWidth - 1 distinct visual column slots.
     const visualColumns = Math.max(2 * maxWidth - 1, 0);
     for (let c = 0; c < visualColumns; c++) {
+      const colNumber = c + 1;
+      if (colParity === 'odd' && colNumber % 2 === 0) continue;
+      if (colParity === 'even' && colNumber % 2 === 1) continue;
       const screenX = c * scale + offsetX + scale / 2;
       if (screenX < 0 || screenX > vpWidth) continue;
       if (screenX - lastDrawnX < MIN_LABEL_SPACING) continue;
-      ctx.fillText(String(c + 1), screenX, midY);
+      ctx.fillText(String(colNumber), screenX, midY);
       lastDrawnX = screenX;
     }
     return;
   }
 
   for (let c = 0; c < canvasWidth; c++) {
+    const colNumber = c + 1;
+    if (colParity === 'odd' && colNumber % 2 === 0) continue;
+    if (colParity === 'even' && colNumber % 2 === 1) continue;
     const screenX = c * scale + offsetX + scale / 2;
     if (screenX < 0 || screenX > vpWidth) continue;
     if (screenX - lastDrawnX < MIN_LABEL_SPACING) continue;
 
-    ctx.fillText(String(c + 1), screenX, midY);
+    ctx.fillText(String(colNumber), screenX, midY);
     lastDrawnX = screenX;
   }
 }
