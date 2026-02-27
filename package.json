@@ -1,6 +1,7 @@
 {
   "name": "pxlpxl",
   "version": "1.4.4",
+  "license": "MIT",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
