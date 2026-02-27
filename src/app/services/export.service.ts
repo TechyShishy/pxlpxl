@@ -359,17 +359,35 @@ export class ExportService {
       return;
     }
 
-    const writeResult = await Filesystem.writeFile({
+    const writeResult = await this.writeToFilesystem({
       path: filename,
       data: base64,
       directory: Directory.Cache,
     });
 
-    await Share.share({
+    await this.shareNative({
       title: filename,
       url: writeResult.uri,
       dialogTitle: `Share ${filename}`,
     });
+  }
+
+  /**
+   * Write a file to the Capacitor filesystem. Protected to allow test spying.
+   */
+  protected writeToFilesystem(
+    options: Parameters<typeof Filesystem.writeFile>[0],
+  ): ReturnType<typeof Filesystem.writeFile> {
+    return Filesystem.writeFile(options);
+  }
+
+  /**
+   * Share a file via the Capacitor Share plugin. Protected to allow test spying.
+   */
+  protected shareNative(
+    options: Parameters<typeof Share.share>[0],
+  ): ReturnType<typeof Share.share> {
+    return Share.share(options);
   }
 
   /**

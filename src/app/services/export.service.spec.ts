@@ -8,33 +8,8 @@ import { LayerService } from './layer.service';
 import { ColorService } from './color.service';
 import { HistoryService } from './history.service';
 import { ProjectService } from './project.service';
-import * as CapacitorCore from '@capacitor/core';
-import * as CapacitorFilesystem from '@capacitor/filesystem';
-import * as CapacitorShare from '@capacitor/share';
-
-// Mock Capacitor modules
-vi.mock('@capacitor/core', () => ({
-  Capacitor: {
-    isNativePlatform: vi.fn(() => false),
-    getPlatform: vi.fn(() => 'web'),
-  },
-  registerPlugin: vi.fn(() => ({})),
-}));
-
-vi.mock('@capacitor/filesystem', () => ({
-  Filesystem: {
-    writeFile: vi.fn(),
-  },
-  Directory: {
-    Cache: 'CACHE',
-  },
-}));
-
-vi.mock('@capacitor/share', () => ({
-  Share: {
-    share: vi.fn(),
-  },
-}));
+import { Capacitor } from '@capacitor/core';
+import { Directory } from '@capacitor/filesystem';
 /** Decompress a gzip Blob produced by exportAsRgp back to a JSON string */
 async function decompressBlob(blob: Blob): Promise<string> {
   const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
@@ -63,9 +38,16 @@ async function decompressBlob(blob: Blob): Promise<string> {
 
 describe('ExportService', () => {
   let service: ExportService;
+  let isNativePlatformSpy: ReturnType<typeof vi.spyOn>;
+  let getPlatformSpy: ReturnType<typeof vi.spyOn>;
+  let writeFileSpy: ReturnType<typeof vi.spyOn>;
+  let shareSpy: ReturnType<typeof vi.spyOn>;
   const testBlob = new Blob(['test'], { type: 'image/png' });
 
   beforeEach(() => {
+    isNativePlatformSpy = vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(false);
+    getPlatformSpy = vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('web');
+
     TestBed.configureTestingModule({
       providers: [
         ExportService,
@@ -94,6 +76,7 @@ describe('ExportService', () => {
           provide: GridService,
           useValue: {
             isPeyote: vi.fn(() => false),
+            isAnyTriangular: vi.fn(() => false),
           },
         },
         {
@@ -125,6 +108,8 @@ describe('ExportService', () => {
     });
 
     service = TestBed.inject(ExportService);
+    writeFileSpy = vi.spyOn(service as any, 'writeToFilesystem').mockResolvedValue({ uri: '' });
+    shareSpy = vi.spyOn(service as any, 'shareNative').mockResolvedValue({ activityType: undefined });
   });
 
   afterEach(() => {
@@ -133,7 +118,7 @@ describe('ExportService', () => {
 
   describe('downloadExport (browser)', () => {
     it('should create an anchor element and trigger click on web', async () => {
-      vi.mocked(CapacitorCore.Capacitor.isNativePlatform).mockReturnValue(false);
+      isNativePlatformSpy.mockReturnValue(false);
 
       // Stub exportAsBlob to avoid OffscreenCanvas
       vi.spyOn(service, 'exportAsBlob').mockResolvedValue(testBlob);
@@ -156,7 +141,7 @@ describe('ExportService', () => {
     });
 
     it('should not call native APIs on web', async () => {
-      vi.mocked(CapacitorCore.Capacitor.isNativePlatform).mockReturnValue(false);
+      isNativePlatformSpy.mockReturnValue(false);
       vi.spyOn(service, 'exportAsBlob').mockResolvedValue(testBlob);
       vi.spyOn(document, 'createElement').mockReturnValue({
         set href(_: string) { /* noop */ },
@@ -170,32 +155,30 @@ describe('ExportService', () => {
         'test.png',
       );
 
-      expect(CapacitorFilesystem.Filesystem.writeFile).not.toHaveBeenCalled();
-      expect(CapacitorShare.Share.share).not.toHaveBeenCalled();
+      expect(writeFileSpy).not.toHaveBeenCalled();
+      expect(shareSpy).not.toHaveBeenCalled();
     });
   });
 
   describe('downloadExport (native)', () => {
     it('should write file and share on native platform', async () => {
-      vi.mocked(CapacitorCore.Capacitor.isNativePlatform).mockReturnValue(true);
+      isNativePlatformSpy.mockReturnValue(true);
       vi.spyOn(service, 'exportAsBlob').mockResolvedValue(testBlob);
-      vi.mocked(CapacitorFilesystem.Filesystem.writeFile).mockResolvedValue({
-        uri: 'file:///cache/test.png',
-      });
-      vi.mocked(CapacitorShare.Share.share).mockResolvedValue({ activityType: undefined });
+      writeFileSpy.mockResolvedValue({ uri: 'file:///cache/test.png' });
+      shareSpy.mockResolvedValue({ activityType: undefined });
 
       await service.downloadExport(
         { format: 'png', scale: 1, transparent: true },
         'test.png',
       );
 
-      expect(CapacitorFilesystem.Filesystem.writeFile).toHaveBeenCalledWith({
+      expect(writeFileSpy).toHaveBeenCalledWith({
         path: 'test.png',
         data: expect.any(String),
-        directory: CapacitorFilesystem.Directory.Cache,
+        directory: Directory.Cache,
       });
 
-      expect(CapacitorShare.Share.share).toHaveBeenCalledWith({
+      expect(shareSpy).toHaveBeenCalledWith({
         title: 'test.png',
         url: 'file:///cache/test.png',
         dialogTitle: 'Share test.png',
@@ -203,12 +186,10 @@ describe('ExportService', () => {
     });
 
     it('should not create an anchor element on native', async () => {
-      vi.mocked(CapacitorCore.Capacitor.isNativePlatform).mockReturnValue(true);
+      isNativePlatformSpy.mockReturnValue(true);
       vi.spyOn(service, 'exportAsBlob').mockResolvedValue(testBlob);
-      vi.mocked(CapacitorFilesystem.Filesystem.writeFile).mockResolvedValue({
-        uri: 'file:///cache/test.png',
-      });
-      vi.mocked(CapacitorShare.Share.share).mockResolvedValue({ activityType: undefined });
+      writeFileSpy.mockResolvedValue({ uri: 'file:///cache/test.png' });
+      shareSpy.mockResolvedValue({ activityType: undefined });
 
       const createElementSpy = vi.spyOn(document, 'createElement');
 
@@ -223,7 +204,7 @@ describe('ExportService', () => {
 
   describe('downloadPxl (browser)', () => {
     it('should create an anchor element on web', async () => {
-      vi.mocked(CapacitorCore.Capacitor.isNativePlatform).mockReturnValue(false);
+      isNativePlatformSpy.mockReturnValue(false);
       vi.spyOn(service, 'exportAsPxl').mockResolvedValue(testBlob);
 
       const clickSpy = vi.fn();
@@ -242,22 +223,20 @@ describe('ExportService', () => {
 
   describe('downloadPxl (native)', () => {
     it('should write file and share on native platform', async () => {
-      vi.mocked(CapacitorCore.Capacitor.isNativePlatform).mockReturnValue(true);
+      isNativePlatformSpy.mockReturnValue(true);
       vi.spyOn(service, 'exportAsPxl').mockResolvedValue(testBlob);
-      vi.mocked(CapacitorFilesystem.Filesystem.writeFile).mockResolvedValue({
-        uri: 'file:///cache/test.pxl',
-      });
-      vi.mocked(CapacitorShare.Share.share).mockResolvedValue({ activityType: undefined });
+      writeFileSpy.mockResolvedValue({ uri: 'file:///cache/test.pxl' });
+      shareSpy.mockResolvedValue({ activityType: undefined });
 
       await service.downloadPxl('test.pxl');
 
-      expect(CapacitorFilesystem.Filesystem.writeFile).toHaveBeenCalledWith({
+      expect(writeFileSpy).toHaveBeenCalledWith({
         path: 'test.pxl',
         data: expect.any(String),
-        directory: CapacitorFilesystem.Directory.Cache,
+        directory: Directory.Cache,
       });
 
-      expect(CapacitorShare.Share.share).toHaveBeenCalledWith({
+      expect(shareSpy).toHaveBeenCalledWith({
         title: 'test.pxl',
         url: 'file:///cache/test.pxl',
         dialogTitle: 'Share test.pxl',
@@ -267,7 +246,7 @@ describe('ExportService', () => {
 
   describe('downloadRgp (browser)', () => {
     it('should create an anchor element and trigger click on web', async () => {
-      vi.mocked(CapacitorCore.Capacitor.isNativePlatform).mockReturnValue(false);
+      isNativePlatformSpy.mockReturnValue(false);
       vi.spyOn(service, 'exportAsRgp').mockResolvedValue(
         new Blob(['{}'], { type: 'application/x-rowguide-project' }),
       );
@@ -288,7 +267,7 @@ describe('ExportService', () => {
 
   describe('downloadExport with rgp format', () => {
     it('should call downloadRgp and replace extension with .rgp', async () => {
-      vi.mocked(CapacitorCore.Capacitor.isNativePlatform).mockReturnValue(false);
+      isNativePlatformSpy.mockReturnValue(false);
       const downloadRgpSpy = vi
         .spyOn(service, 'downloadRgp')
         .mockResolvedValue(undefined);
@@ -444,17 +423,6 @@ describe('ExportService', () => {
       canvasMock.gridType.mockReturnValue('triangular');
       canvasMock.bufferWidth.mockReturnValue(3);
       canvasMock.bufferHeight.mockReturnValue(3);
-      canvasMock.triangularA.mockReturnValue(1);
-      canvasMock.triangularD.mockReturnValue(1);
-      canvasMock.triangularDNum.mockReturnValue(1);
-      canvasMock.triangularDDen.mockReturnValue(1);
-    });
-
-    afterEach(() => {
-      const canvasMock = getCanvasMock();
-      canvasMock.gridType.mockReturnValue('square');
-      canvasMock.bufferWidth.mockReturnValue(2);
-      canvasMock.bufferHeight.mockReturnValue(2);
       canvasMock.triangularA.mockReturnValue(1);
       canvasMock.triangularD.mockReturnValue(1);
       canvasMock.triangularDNum.mockReturnValue(1);
