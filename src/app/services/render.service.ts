@@ -71,7 +71,7 @@ export class RenderService {
     }
 
     // Draw pixel grid
-    if (this.canvasState.showGrid() && transform.scale >= 4) {
+    if (this.canvasState.showGrid()) {
       this.drawGrid(ctx, visualWidth, visualHeight, bufWidth, bufHeight, transform, gridType);
     }
   }
@@ -367,8 +367,8 @@ export class RenderService {
   ): void {
     ctx.save();
     ctx.translate(transform.offsetX, transform.offsetY);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1;
 
     if (this.gridService.isPeyote(gridType)) {
       // beadsPerColumn for even/odd visual columns
