@@ -6,7 +6,7 @@
       <input matInput [(ngModel)]="name" placeholder="Untitled" aria-label="Project name" />
     </mat-form-field>
 
-    @if (gridType === 'square' || gridType === 'peyote') {
+    @if (gridType === 'square') {
       <div class="dimensions">
         <mat-form-field appearance="outline">
           <mat-label>Width</mat-label>
@@ -30,6 +30,32 @@
             aria-label="Canvas height in pixels"
           />
           <span matSuffix>px</span>
+        </mat-form-field>
+      </div>
+    }
+
+    @if (gridType === 'peyote') {
+      <div class="dimensions">
+        <mat-form-field appearance="outline">
+          <mat-label>Columns</mat-label>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="width"
+            [min]="1"
+            aria-label="Number of bead columns"
+          />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Rows</mat-label>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="height"
+            [min]="1"
+            aria-label="Number of bead rows"
+          />
         </mat-form-field>
       </div>
     }
