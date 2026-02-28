@@ -276,9 +276,9 @@ describe('ImportService', () => {
     });
   });
 
-  // ── PNG/JPG import — palette merge behavior ───────────────────────────
+  // ── PNG/JPG import — palette behavior ─────────────────────────────────
 
-  describe('importPng/Jpg – palette merge', () => {
+  describe('importPng/Jpg – palette behavior', () => {
     beforeEach(() => mockCanvasApis());
     afterEach(() => vi.unstubAllGlobals());
 
@@ -288,6 +288,8 @@ describe('ImportService', () => {
 
       // Set up an existing single-color palette
       colorService.setPalette([RED]);
+      // Seed the undo stack — non-empty undo stack triggers merge behavior.
+      historyService.execute({ description: 'seed', execute: () => {}, undo: () => {} });
       const paletteBefore = colorService.palette().length;
 
       // Dialog returns a buffer with BLUE pixels
@@ -309,6 +311,8 @@ describe('ImportService', () => {
     it('should not duplicate palette entries already present', async () => {
       const RED = { r: 255, g: 0, b: 0, a: 255 };
       colorService.setPalette([RED]);
+      // Seed the undo stack — non-empty undo stack triggers merge behavior.
+      historyService.execute({ description: 'seed', execute: () => {}, undo: () => {} });
 
       // Dialog returns a palette that includes RED again
       dialogMock.open.mockReturnValueOnce({
@@ -324,6 +328,8 @@ describe('ImportService', () => {
 
     it('should not modify the palette when all imported colors are transparent (empty palette list)', async () => {
       const ORIGINAL = colorService.palette().slice();
+      // Seed the undo stack — non-empty undo stack triggers merge behavior (empty list → no change).
+      historyService.execute({ description: 'seed', execute: () => {}, undo: () => {} });
 
       // Dialog returns an empty palette (all-transparent image)
       dialogMock.open.mockReturnValueOnce({
@@ -333,6 +339,39 @@ describe('ImportService', () => {
       await service.importFromBuffer(createMinimalPng(), 'import.png');
 
       expect(colorService.palette().length).toBe(ORIGINAL.length);
+    });
+
+    // ── Replace behavior (empty undo stack) ────────────────────────────
+
+    describe('palette replace on empty undo stack', () => {
+      it('should replace the palette with imported colors when undo stack is empty', async () => {
+        const RED = { r: 255, g: 0, b: 0, a: 255 };
+        const BLUE = { r: 0, g: 0, b: 255, a: 255 };
+        colorService.setPalette([RED]);
+
+        // No commands executed — undo stack stays empty → replace behavior.
+        dialogMock.open.mockReturnValueOnce({
+          afterClosed: () => of({ buffer: new Uint8ClampedArray(4 * 4 * 4), palette: [BLUE] } satisfies ImportPngResult),
+        });
+
+        await service.importFromBuffer(createMinimalPng(), 'import.png');
+
+        const palette = colorService.palette();
+        expect(palette.some((c) => c.r === 0 && c.g === 0 && c.b === 255)).toBe(true);
+        // RED was not preserved — palette was replaced, not merged.
+        expect(palette.some((c) => c.r === 255 && c.g === 0 && c.b === 0)).toBe(false);
+      });
+
+      it('should result in an empty palette when imported colors are all transparent and undo stack is empty', async () => {
+        // Empty palette list + replace behavior = palette cleared.
+        dialogMock.open.mockReturnValueOnce({
+          afterClosed: () => of({ buffer: new Uint8ClampedArray(4 * 4 * 4), palette: [] } satisfies ImportPngResult),
+        });
+
+        await service.importFromBuffer(createMinimalPng(), 'import.png');
+
+        expect(colorService.palette().length).toBe(0);
+      });
     });
   });
 
