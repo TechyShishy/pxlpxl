@@ -29,21 +29,21 @@
 
 .swatches {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 40px);
-  gap: 4px;
+  grid-template-columns: repeat(auto-fill, 48px);
+  gap: 0;
   justify-content: start;
 }
 
 .swatch {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 4px;
   border: 2px solid transparent;
   cursor: pointer;
+  /* 44px content + 2px border each side = 48px touch target (WCAG AA minimum) */
   padding: 0;
-  /* Padding around swatch provides the 48px touch target */
   margin: 0;
   box-sizing: content-box;
 }
