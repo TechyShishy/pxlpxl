@@ -8,6 +8,7 @@ function makePointerEvent(type: string, overrides: Partial<PointerEvent> = {}): 
     pointerId: 1,
     clientX: 0,
     clientY: 0,
+    shiftKey: false,
     ...overrides,
   } as PointerEvent;
 }
@@ -48,7 +49,7 @@ describe('GestureService', () => {
       service.onDraw = drawSpy;
       const e = makePointerEvent('pointerdown', { clientX: 100, clientY: 50 });
       service.handlePointerDown(e, CANVAS_RECT);
-      expect(drawSpy).toHaveBeenCalledWith(100, 50, 'start');
+      expect(drawSpy).toHaveBeenCalledWith(100, 50, 'start', false);
     });
 
     it('should call onDraw move on pointer move', () => {
@@ -56,7 +57,7 @@ describe('GestureService', () => {
       service.onDraw = drawSpy;
       service.handlePointerDown(makePointerEvent('pointerdown', { clientX: 100, clientY: 50 }), CANVAS_RECT);
       service.handlePointerMove(makePointerEvent('pointermove', { clientX: 110, clientY: 60 }));
-      expect(drawSpy).toHaveBeenCalledWith(110, 60, 'move');
+      expect(drawSpy).toHaveBeenCalledWith(110, 60, 'move', false);
     });
 
     it('should call onDraw end and return to Idle on pointer up', () => {
@@ -64,7 +65,7 @@ describe('GestureService', () => {
       service.onDraw = drawSpy;
       service.handlePointerDown(makePointerEvent('pointerdown', { clientX: 100, clientY: 50 }), CANVAS_RECT);
       service.handlePointerUp(makePointerEvent('pointerup', { clientX: 120, clientY: 60 }));
-      expect(drawSpy).toHaveBeenCalledWith(120, 60, 'end');
+      expect(drawSpy).toHaveBeenCalledWith(120, 60, 'end', false);
       expect(service.gestureState()).toBe(GestureState.Idle);
     });
   });
@@ -162,7 +163,7 @@ describe('GestureService', () => {
       service.onDraw = drawSpy;
       service.handlePointerDown(makePointerEvent('pointerdown', { clientX: 100, clientY: 50 }), CANVAS_RECT);
       service.handlePointerCancel(makePointerEvent('pointercancel', { clientX: 100, clientY: 50 }));
-      expect(drawSpy).toHaveBeenCalledWith(100, 50, 'end');
+      expect(drawSpy).toHaveBeenCalledWith(100, 50, 'end', false);
       expect(service.gestureState()).toBe(GestureState.Idle);
     });
   });

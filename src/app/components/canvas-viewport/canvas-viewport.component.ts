@@ -25,6 +25,7 @@ import { FillCommand } from '../../commands/fill.command';
 import { LayerCommand } from '../../commands/layer.command';
 import { EyedropperTool } from '../../tools/eyedropper.tool';
 import { MoveTool } from '../../tools/move.tool';
+import { RotateTool } from '../../tools/rotate.tool';
 import { ToolType } from '../../models';
 
 @Component({
@@ -88,7 +89,7 @@ export class CanvasViewportComponent implements OnDestroy {
 
   constructor() {
     // Set up gesture callbacks
-    this.gestureService.onDraw = (x, y, phase) => this.handleDraw(x, y, phase);
+    this.gestureService.onDraw = (x, y, phase, shiftKey) => this.handleDraw(x, y, phase, shiftKey);
     this.gestureService.onPinch = (scaleDelta, cx, cy) => this.handlePinch(scaleDelta);
     this.gestureService.onEdgeSwipe = (dir) => this.handleEdgeSwipe(dir);
 
@@ -365,7 +366,7 @@ export class CanvasViewportComponent implements OnDestroy {
 
   // --- Drawing logic ---
 
-  private handleDraw(screenX: number, screenY: number, phase: 'start' | 'move' | 'end'): void {
+  private handleDraw(screenX: number, screenY: number, phase: 'start' | 'move' | 'end', shiftKey = false): void {
     const tool = this.toolService.activeTool;
     if (!tool) return;
 
@@ -397,6 +398,7 @@ export class CanvasViewportComponent implements OnDestroy {
       secondaryColor: this.colorService.secondaryColor(),
       isSecondary: false,
       gridType: this.canvasState.gridType(),
+      shiftKey,
       triangularA: this.gridService.isAnyTriangular(this.canvasState.gridType())
         ? this.canvasState.triangularA()
         : undefined,
@@ -447,6 +449,22 @@ export class CanvasViewportComponent implements OnDestroy {
             this.historyService.pushExecuted(command);
           }
           moveTool.resetSnapshot();
+        } else if (tool.type === ToolType.Rotate) {
+          const rotateTool = tool as RotateTool;
+          const previousData = rotateTool.getOriginalData();
+          if (previousData) {
+            const nextData = new Uint8ClampedArray(activeLayer.data);
+            const command = new LayerCommand(
+              this.layerService,
+              ctx.layerIndex,
+              previousData,
+              nextData,
+              'Rotate layer',
+            );
+            // Don't execute — pixels already applied by the tool
+            this.historyService.pushExecuted(command);
+          }
+          rotateTool.resetSnapshot();
         } else if (result && result.modifiedPixels.length > 0) {
           const tri: TriangularParams | undefined = ctx.gridType === 'triangular'
             ? { a: ctx.triangularA, d: ctx.triangularD, dNum: ctx.triangularDNum, dDen: ctx.triangularDDen, shift: ctx.triangularShift }

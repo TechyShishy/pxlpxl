@@ -19,6 +19,7 @@ import { FillTool } from '../../tools/fill.tool';
 import { EyedropperTool } from '../../tools/eyedropper.tool';
 import { MoveTool } from '../../tools/move.tool';
 import { PanTool } from '../../tools/pan.tool';
+import { RotateTool } from '../../tools/rotate.tool';
 
 @Component({
   selector: 'app-editor',
@@ -70,5 +71,6 @@ export class EditorComponent implements OnInit {
     this.toolService.registerTool(eyedropper);
     this.toolService.registerTool(new MoveTool());
     this.toolService.registerTool(new PanTool());
+    this.toolService.registerTool(new RotateTool());
   }
 }

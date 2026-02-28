@@ -25,7 +25,7 @@ export class GestureService {
   private lastPinchDistance = 0;
 
   /** Callbacks set by the canvas viewport */
-  onDraw: ((x: number, y: number, phase: 'start' | 'move' | 'end') => void) | null = null;
+  onDraw: ((x: number, y: number, phase: 'start' | 'move' | 'end', shiftKey: boolean) => void) | null = null;
   onPinch: ((scaleDelta: number, centerX: number, centerY: number) => void) | null = null;
   onPan: ((deltaX: number, deltaY: number) => void) | null = null;
   onLongPress: ((screenX: number, screenY: number) => void) | null = null;
@@ -45,7 +45,7 @@ export class GestureService {
       // Single pointer — could be draw or long-press
       this.startLongPressTimer(e.clientX, e.clientY);
       this.gestureState.set(GestureState.Drawing);
-      this.onDraw?.(e.clientX, e.clientY, 'start');
+      this.onDraw?.(e.clientX, e.clientY, 'start', e.shiftKey);
     } else if (this.pointers.size === 2) {
       // Two pointers — transition to pinch/pan
       this.cancelLongPress();
@@ -72,7 +72,7 @@ export class GestureService {
     }
 
     if (state === GestureState.Drawing && this.pointers.size === 1) {
-      this.onDraw?.(e.clientX, e.clientY, 'move');
+      this.onDraw?.(e.clientX, e.clientY, 'move', e.shiftKey);
     } else if (
       (state === GestureState.Pinching || state === GestureState.Panning) &&
       this.pointers.size === 2
@@ -97,7 +97,7 @@ export class GestureService {
 
     const state = this.gestureState();
     if (state === GestureState.Drawing && this.pointers.size === 1) {
-      this.onDraw?.(e.clientX, e.clientY, 'end');
+      this.onDraw?.(e.clientX, e.clientY, 'end', e.shiftKey);
     }
 
     this.pointers.delete(e.pointerId);

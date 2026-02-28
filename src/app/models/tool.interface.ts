@@ -27,6 +27,8 @@ export interface ToolContext {
   isSecondary: boolean;
   /** Grid type for coordinate mapping */
   gridType: GridType;
+  /** Whether the Shift key was held during this pointer event */
+  shiftKey?: boolean;
   /** First-row width for triangular grids */
   triangularA?: number;
   /** Per-row growth for triangular grids */
@@ -49,6 +51,7 @@ export enum ToolType {
   Eyedropper = 'eyedropper',
   Move = 'move',
   Pan = 'pan',
+  Rotate = 'rotate',
 }
 
 export interface Tool {
