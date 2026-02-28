@@ -62,8 +62,10 @@ test('import PNG dialog — two-column layout: canvas left, options panel right'
     page.locator('.options-column').boundingBox(),
   ]);
 
-  // Canvas should be full 480px wide
-  expect(canvasBox?.width).toBe(480);
+  // Canvas should be a reasonable size (up to 480px; may be smaller on short viewports
+  // since canvas is responsive to 65vh to avoid overflowing mat-dialog-content).
+  expect(canvasBox?.width).toBeGreaterThanOrEqual(240);
+  expect(canvasBox?.width).toBeLessThanOrEqual(480);
 
   // Options column should have at least 200px (not squished)
   expect(optionsBox?.width).toBeGreaterThan(200);
@@ -140,3 +142,37 @@ test('import PNG dialog — Pixel Tablet portrait (800×1280): dialog fits viewp
   fs.unlinkSync(tmpPng);
 });
 
+test('import PNG dialog — Pixel Tablet landscape realistic (1280×692): canvas fits without overflow', async ({ page }) => {
+  // 1280×692 models the real Pixel Tablet in landscape after Chrome toolbar
+  // (~56px) + status bar (~28px) + gesture nav (~24px) subtract from 800px.
+  // This is the viewport where the canvas previously overflowed mat-dialog-content.
+  await page.setViewportSize({ width: 1280, height: 692 });
+  const tmpPng = path.join(__dirname, '../test-results/tmp-tablet-realistic.png');
+  fs.mkdirSync(path.dirname(tmpPng), { recursive: true });
+  fs.writeFileSync(tmpPng, make64x64Png());
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'File menu' }).click();
+
+  const [fileChooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.getByRole('menuitem', { name: /import file/i }).click(),
+  ]);
+  await fileChooser.setFiles(tmpPng);
+  await page.waitForSelector('.dialog-layout', { timeout: 8000 });
+  await page.waitForTimeout(300);
+
+  const viewport = page.viewportSize();
+  const dialogBox = await page.locator('mat-dialog-container').boundingBox();
+  const canvasBox = await page.locator('.preview-canvas').boundingBox();
+  const contentBox = await page.locator('mat-dialog-content').boundingBox();
+
+  // Canvas must not overflow the mat-dialog-content area (+1px rounding tolerance)
+  expect(canvasBox?.height ?? 0).toBeLessThanOrEqual((contentBox?.height ?? 0) + 1);
+
+  // Dialog must fit entirely within the viewport height
+  const dialogBottom = (dialogBox?.y ?? 0) + (dialogBox?.height ?? 0);
+  expect(dialogBottom).toBeLessThanOrEqual(viewport?.height ?? 692);
+
+  fs.unlinkSync(tmpPng);
+});

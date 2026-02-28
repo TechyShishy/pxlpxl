@@ -17,8 +17,10 @@
 
 .preview-canvas {
   display: block;
-  width: 480px;
-  height: 480px;
+  // mat-dialog-content enforces max-height: 65vh; size the canvas to match so
+  // it never overflows and causes unwanted scroll (e.g. Pixel Tablet landscape).
+  width: min(480px, calc(65vh - 20px));
+  height: min(480px, calc(65vh - 20px));
   max-width: 100%;
   cursor: grab;
   touch-action: none;
