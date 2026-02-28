@@ -2,6 +2,14 @@ import { Injectable } from '@angular/core';
 import Dexie, { Table } from 'dexie';
 import { Project } from '../models';
 
+/** Shape used by migration callbacks — only the fields accessed during upgrades. */
+interface ProjectMigrationRecord {
+  gridType?: string;
+  triangularD?: number;
+  triangularDNum?: number;
+  triangularDDen?: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PxlpxlDatabase extends Dexie {
   projects!: Table<Project, number>;
@@ -19,7 +27,7 @@ export class PxlpxlDatabase extends Dexie {
         tx
           .table('projects')
           .toCollection()
-          .modify((project: any) => {
+          .modify((project: ProjectMigrationRecord) => {
             if (!project.gridType) {
               project.gridType = 'square';
             }
@@ -36,7 +44,7 @@ export class PxlpxlDatabase extends Dexie {
         tx
           .table('projects')
           .toCollection()
-          .modify((project: any) => {
+          .modify((project: ProjectMigrationRecord) => {
             if (project.gridType === 'peyote-even') {
               project.gridType = 'peyote';
             } else if (project.gridType === 'peyote-odd') {
@@ -52,7 +60,7 @@ export class PxlpxlDatabase extends Dexie {
         tx
           .table('projects')
           .toCollection()
-          .modify((project: any) => {
+          .modify((project: ProjectMigrationRecord) => {
             if (
               project.gridType === 'triangular-slow' &&
               project.triangularD !== undefined &&
@@ -71,7 +79,7 @@ export class PxlpxlDatabase extends Dexie {
         tx
           .table('projects')
           .toCollection()
-          .modify((project: any) => {
+          .modify((project: ProjectMigrationRecord) => {
             if (project.gridType === 'triangular-slow') {
               // Remap to unified 'triangular'
               project.gridType = 'triangular';
