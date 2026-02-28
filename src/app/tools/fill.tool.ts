@@ -23,6 +23,10 @@ export class FillTool implements Tool {
 
   onPointerDown(ctx: ToolContext, layerData: Uint8ClampedArray): ToolResult | null {
     const fillColor = ctx.isSecondary ? ctx.secondaryColor : ctx.primaryColor;
+
+    if (!gridService.isValidPixel(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift))
+      return null;
+
     const targetOffset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift);
     const targetColor: Color = {
       r: layerData[targetOffset],

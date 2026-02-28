@@ -181,4 +181,20 @@ describe('LineTool', () => {
       expect(preview.length).toBe(5); // 0,1,2,3,4
     });
   });
+
+  describe('bounds checking', () => {
+    it('should skip out-of-bounds pixels in line', () => {
+      // Line from (-1,0) to (2,0) should only include in-bounds pixels
+      tool.onPointerDown(makeContext({ coord: { x: -1, y: 0 } }), layerData);
+      const result = tool.onPointerUp(makeContext({ coord: { x: 2, y: 0 } }), layerData);
+      if (result) {
+        for (const pixel of result.modifiedPixels) {
+          expect(pixel.coord.x).toBeGreaterThanOrEqual(0);
+          expect(pixel.coord.x).toBeLessThan(8);
+          expect(pixel.coord.y).toBeGreaterThanOrEqual(0);
+          expect(pixel.coord.y).toBeLessThan(8);
+        }
+      }
+    });
+  });
 });

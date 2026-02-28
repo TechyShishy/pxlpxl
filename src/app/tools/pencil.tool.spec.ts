@@ -1,5 +1,5 @@
 import { PencilTool } from './pencil.tool';
-import { ToolContext, ToolType, Color, BLACK, WHITE, TRANSPARENT, colorsEqual } from '../models';
+import { ToolContext, ToolType, Color, BLACK, WHITE, TRANSPARENT, colorsEqual, pixelOffset, computeBufferPixelCount } from '../models';
 
 function makeContext(overrides: Partial<ToolContext> = {}): ToolContext {
   return {
@@ -140,6 +140,94 @@ describe('PencilTool', () => {
       expect(layerData[1]).toBe(255);
       expect(layerData[2]).toBe(255);
       expect(layerData[3]).toBe(255);
+    });
+  });
+
+  describe('bounds checking', () => {
+    it('should return null when coordinate is negative', () => {
+      const ctx = makeContext({ coord: { x: -1, y: 0 } });
+      const result = tool.onPointerDown(ctx, layerData);
+      expect(result).toBeNull();
+    });
+
+    it('should return null when coordinate exceeds canvas bounds', () => {
+      const ctx = makeContext({ coord: { x: 4, y: 0 } });
+      const result = tool.onPointerDown(ctx, layerData);
+      expect(result).toBeNull();
+    });
+
+    it('should return null for out-of-bounds on onPointerMove', () => {
+      tool.onPointerDown(makeContext({ coord: { x: 0, y: 0 } }), layerData);
+      const ctx = makeContext({ coord: { x: -1, y: 0 } });
+      const result = tool.onPointerMove(ctx, layerData);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('triangular grid', () => {
+    // a=3, dNum=2, dDen=1, shift=0, height=3: rows have 3,5,7 pixels = 15 total
+    const TRI_A = 3;
+    const TRI_D_NUM = 2;
+    const TRI_D_DEN = 1;
+    const TRI_HEIGHT = 3;
+    const TRI_BUF_WIDTH = 7; // max row width
+    let triData: Uint8ClampedArray;
+
+    beforeEach(() => {
+      tool = new PencilTool();
+      const totalPixels = computeBufferPixelCount(0, TRI_HEIGHT, 'triangular', TRI_A, undefined, TRI_D_NUM, TRI_D_DEN, 0);
+      triData = new Uint8ClampedArray(totalPixels * 4);
+    });
+
+    function triContext(overrides: Partial<ToolContext> = {}): ToolContext {
+      return makeContext({
+        canvasWidth: TRI_BUF_WIDTH,
+        canvasHeight: TRI_HEIGHT,
+        visualColumns: TRI_BUF_WIDTH,
+        gridType: 'triangular',
+        triangularA: TRI_A,
+        triangularDNum: TRI_D_NUM,
+        triangularDDen: TRI_D_DEN,
+        triangularShift: 0,
+        ...overrides,
+      });
+    }
+
+    it('should draw pixel at (0,0) on triangular grid', () => {
+      const ctx = triContext({ coord: { x: 0, y: 0 } });
+      const result = tool.onPointerDown(ctx, triData);
+      expect(result).not.toBeNull();
+      expect(result!.modifiedPixels.length).toBe(1);
+      expect(colorsEqual(result!.modifiedPixels[0].newColor, BLACK)).toBe(true);
+
+      // Verify buffer was written at correct offset
+      const offset = pixelOffset(0, 0, TRI_BUF_WIDTH, 'triangular', TRI_A, undefined, TRI_D_NUM, TRI_D_DEN, 0);
+      expect(triData[offset + 3]).toBe(255); // alpha
+    });
+
+    it('should draw pixel in row 1 at correct offset', () => {
+      const ctx = triContext({ coord: { x: 2, y: 1 } });
+      const result = tool.onPointerDown(ctx, triData);
+      expect(result).not.toBeNull();
+
+      // Row 1 starts at pixel 3 (after row 0 which has 3 pixels)
+      const offset = pixelOffset(2, 1, TRI_BUF_WIDTH, 'triangular', TRI_A, undefined, TRI_D_NUM, TRI_D_DEN, 0);
+      expect(triData[offset + 3]).toBe(255);
+    });
+
+    it('should reject out-of-bounds pixel in triangular grid', () => {
+      // Row 0 only has 3 pixels (indices 0..2), so x=4 is out of bounds
+      const ctx = triContext({ coord: { x: 4, y: 0 } });
+      const result = tool.onPointerDown(ctx, triData);
+      expect(result).toBeNull();
+    });
+
+    it('should draw across multiple rows', () => {
+      tool.onPointerDown(triContext({ coord: { x: 0, y: 0 } }), triData);
+      tool.onPointerMove(triContext({ coord: { x: 0, y: 1 } }), triData);
+      const result = tool.onPointerUp(triContext({ coord: { x: 0, y: 1 } }), triData);
+      expect(result).not.toBeNull();
+      expect(result!.modifiedPixels.length).toBe(2);
     });
   });
 });

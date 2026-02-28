@@ -129,4 +129,20 @@ describe('EraserTool', () => {
       expect(result).not.toBeNull();
     });
   });
+
+  describe('bounds checking', () => {
+    it('should return null when coordinate is negative', () => {
+      layerData[0] = 255; layerData[3] = 255;
+      const ctx = makeContext({ coord: { x: -1, y: 0 } });
+      const result = tool.onPointerDown(ctx, layerData);
+      expect(result).toBeNull();
+    });
+
+    it('should return null when coordinate exceeds canvas bounds', () => {
+      layerData[0] = 255; layerData[3] = 255;
+      const ctx = makeContext({ coord: { x: 4, y: 0 } });
+      const result = tool.onPointerDown(ctx, layerData);
+      expect(result).toBeNull();
+    });
+  });
 });

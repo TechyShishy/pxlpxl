@@ -1,4 +1,7 @@
 import { Tool, ToolType, ToolContext, ToolResult, Color, pixelOffset } from '../models';
+import { GridService } from '../services/grid.service';
+
+const gridService = new GridService();
 
 /**
  * Eyedropper tool — picks a color from the canvas.
@@ -29,6 +32,9 @@ export class EyedropperTool implements Tool {
   }
 
   private pickColor(ctx: ToolContext, layerData: Uint8ClampedArray): void {
+    if (!gridService.isValidPixel(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift))
+      return;
+
     const offset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift);
     const color: Color = {
       r: layerData[offset],

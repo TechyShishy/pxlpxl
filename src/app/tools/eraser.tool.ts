@@ -9,6 +9,9 @@ import {
   colorsEqual,
   pixelOffset,
 } from '../models';
+import { GridService } from '../services/grid.service';
+
+const gridService = new GridService();
 
 export class EraserTool implements Tool {
   readonly type = ToolType.Eraser;
@@ -40,6 +43,9 @@ export class EraserTool implements Tool {
     const key = `${ctx.coord.x},${ctx.coord.y}`;
     if (this.visitedPixels.has(key)) return null;
     this.visitedPixels.add(key);
+
+    if (!gridService.isValidPixel(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift))
+      return null;
 
     const offset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift);
     const oldColor: Color = {

@@ -118,8 +118,8 @@ export class MoveTool implements Tool {
         for (let x = 0; x < rowWidth; x++) {
           const srcX = x - dx;
           if (srcX < 0 || srcX >= srcRowWidth) continue;
-          const srcOff = pixelOffset(srcX, srcY, width, ctx.gridType, a, d, dNum, dDen);
-          const dstOff = pixelOffset(x, y, width, ctx.gridType, a, d, dNum, dDen);
+          const srcOff = pixelOffset(srcX, srcY, width, ctx.gridType, a, d, dNum, dDen, ctx.triangularShift);
+          const dstOff = pixelOffset(x, y, width, ctx.gridType, a, d, dNum, dDen, ctx.triangularShift);
           layerData[dstOff] = src[srcOff];
           layerData[dstOff + 1] = src[srcOff + 1];
           layerData[dstOff + 2] = src[srcOff + 2];

@@ -136,4 +136,41 @@ describe('EyedropperTool', () => {
       expect(pickedColor).toEqual({ r: 12, g: 34, b: 56, a: 78 });
     });
   });
+
+  describe('bounds checking', () => {
+    it('should not call onColorPicked for out-of-bounds negative x', () => {
+      let called = false;
+      tool.onColorPicked = () => { called = true; };
+      tool.onPointerDown(makeContext({ coord: { x: -1, y: 0 } }), layerData);
+      expect(called).toBe(false);
+    });
+
+    it('should not call onColorPicked for out-of-bounds x beyond width', () => {
+      let called = false;
+      tool.onColorPicked = () => { called = true; };
+      tool.onPointerDown(makeContext({ coord: { x: 4, y: 0 } }), layerData);
+      expect(called).toBe(false);
+    });
+
+    it('should not call onColorPicked for out-of-bounds negative y', () => {
+      let called = false;
+      tool.onColorPicked = () => { called = true; };
+      tool.onPointerDown(makeContext({ coord: { x: 0, y: -1 } }), layerData);
+      expect(called).toBe(false);
+    });
+
+    it('should not call onColorPicked for out-of-bounds y beyond height', () => {
+      let called = false;
+      tool.onColorPicked = () => { called = true; };
+      tool.onPointerDown(makeContext({ coord: { x: 0, y: 4 } }), layerData);
+      expect(called).toBe(false);
+    });
+
+    it('should not call onColorPicked on move with out-of-bounds coords', () => {
+      let called = false;
+      tool.onColorPicked = () => { called = true; };
+      tool.onPointerMove(makeContext({ coord: { x: -1, y: -1 } }), layerData);
+      expect(called).toBe(false);
+    });
+  });
 });

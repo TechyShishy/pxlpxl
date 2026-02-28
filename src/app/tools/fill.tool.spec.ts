@@ -1,5 +1,5 @@
 import { FillTool } from './fill.tool';
-import { ToolContext, ToolType, Color, BLACK, WHITE, TRANSPARENT, colorsEqual } from '../models';
+import { ToolContext, ToolType, Color, BLACK, WHITE, TRANSPARENT, colorsEqual, pixelOffset, computeBufferPixelCount } from '../models';
 
 function makeContext(overrides: Partial<ToolContext> = {}): ToolContext {
   return {
@@ -248,6 +248,77 @@ describe('FillTool', () => {
         expect(colorsEqual(pixel.oldColor, TRANSPARENT)).toBe(true);
         expect(colorsEqual(pixel.newColor, BLACK)).toBe(true);
       }
+    });
+  });
+
+  describe('bounds checking', () => {
+    it('should return null when initial coordinate is negative', () => {
+      const ctx = makeContext({ coord: { x: -1, y: 0 } });
+      const result = tool.onPointerDown(ctx, layerData);
+      expect(result).toBeNull();
+    });
+
+    it('should return null when initial coordinate exceeds canvas bounds', () => {
+      const ctx = makeContext({ coord: { x: 4, y: 0 } });
+      const result = tool.onPointerDown(ctx, layerData);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('triangular grid', () => {
+    // a=3, dNum=2, dDen=1, shift=0, height=3: rows have 3,5,7 pixels = 15 total
+    const TRI_A = 3;
+    const TRI_D_NUM = 2;
+    const TRI_D_DEN = 1;
+    const TRI_HEIGHT = 3;
+    const TRI_BUF_WIDTH = 7;
+
+    function triContext(overrides: Partial<ToolContext> = {}): ToolContext {
+      return makeContext({
+        canvasWidth: TRI_BUF_WIDTH,
+        canvasHeight: TRI_HEIGHT,
+        visualColumns: TRI_BUF_WIDTH,
+        gridType: 'triangular',
+        triangularA: TRI_A,
+        triangularDNum: TRI_D_NUM,
+        triangularDDen: TRI_D_DEN,
+        triangularShift: 0,
+        ...overrides,
+      });
+    }
+
+    it('should fill all reachable pixels in a triangular grid', () => {
+      const totalPixels = computeBufferPixelCount(0, TRI_HEIGHT, 'triangular', TRI_A, undefined, TRI_D_NUM, TRI_D_DEN, 0);
+      const triData = new Uint8ClampedArray(totalPixels * 4);
+      const ctx = triContext({ coord: { x: 0, y: 0 } });
+      const result = tool.onPointerDown(ctx, triData);
+      expect(result).not.toBeNull();
+      // All 15 pixels should be filled (3+5+7)
+      expect(result!.modifiedPixels.length).toBe(totalPixels);
+    });
+
+    it('should respect triangular row boundaries', () => {
+      const totalPixels = computeBufferPixelCount(0, TRI_HEIGHT, 'triangular', TRI_A, undefined, TRI_D_NUM, TRI_D_DEN, 0);
+      const triData = new Uint8ClampedArray(totalPixels * 4);
+      // Paint row 0 with a barrier color so fill from row 1 cannot reach row 0
+      for (let x = 0; x < TRI_A; x++) {
+        const off = pixelOffset(x, 0, TRI_BUF_WIDTH, 'triangular', TRI_A, undefined, TRI_D_NUM, TRI_D_DEN, 0);
+        triData[off] = 255; triData[off + 1] = 0; triData[off + 2] = 0; triData[off + 3] = 255;
+      }
+      const ctx = triContext({ coord: { x: 0, y: 1 } });
+      const result = tool.onPointerDown(ctx, triData);
+      expect(result).not.toBeNull();
+      // Only rows 1+2 filled: 5+7 = 12 pixels
+      expect(result!.modifiedPixels.length).toBe(12);
+    });
+
+    it('should reject out-of-bounds pixel on triangular grid', () => {
+      const totalPixels = computeBufferPixelCount(0, TRI_HEIGHT, 'triangular', TRI_A, undefined, TRI_D_NUM, TRI_D_DEN, 0);
+      const triData = new Uint8ClampedArray(totalPixels * 4);
+      // Row 0 only has 3 pixels, so x=4 is out of bounds
+      const ctx = triContext({ coord: { x: 4, y: 0 } });
+      const result = tool.onPointerDown(ctx, triData);
+      expect(result).toBeNull();
     });
   });
 });
