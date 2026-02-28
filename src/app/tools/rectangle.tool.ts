@@ -1,104 +1,12 @@
-import {
-  Tool,
-  ToolType,
-  ToolContext,
-  ToolResult,
-  ModifiedPixel,
-  PixelCoord,
-  Color,
-  pixelOffset,
-} from '../models';
-import { GridService } from '../services/grid.service';
+import { ToolType, PixelCoord } from '../models';
+import { ShapeTool } from './shape.tool';
 
-const gridService = new GridService();
-
-export class RectangleTool implements Tool {
+export class RectangleTool extends ShapeTool {
   readonly type = ToolType.Rectangle;
   readonly icon = 'rectangle';
   readonly label = 'Rectangle';
-  readonly cursor = 'crosshair';
 
-  private startCoord: PixelCoord | null = null;
-  private previewPixels: PixelCoord[] = [];
-
-  onPointerDown(ctx: ToolContext, _layerData: Uint8ClampedArray): ToolResult | null {
-    this.startCoord = { ...ctx.coord };
-    this.previewPixels = [{ ...ctx.coord }];
-    return null;
-  }
-
-  onPointerMove(ctx: ToolContext, _layerData: Uint8ClampedArray): ToolResult | null {
-    if (!this.startCoord) return null;
-    this.previewPixels = this.computeRectPixels(this.startCoord, ctx.coord, ctx);
-    return null;
-  }
-
-  onPointerUp(ctx: ToolContext, layerData: Uint8ClampedArray): ToolResult | null {
-    if (!this.startCoord) return null;
-
-    const color = ctx.isSecondary ? ctx.secondaryColor : ctx.primaryColor;
-    const pixels = this.computeRectPixels(this.startCoord, ctx.coord, ctx);
-    const modifiedPixels: ModifiedPixel[] = [];
-
-    for (const coord of pixels) {
-      if (!gridService.isValidPixel(coord.x, coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen))
-        continue;
-
-      const offset = pixelOffset(coord.x, coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen);
-      const oldColor: Color = {
-        r: layerData[offset],
-        g: layerData[offset + 1],
-        b: layerData[offset + 2],
-        a: layerData[offset + 3],
-      };
-
-      layerData[offset] = color.r;
-      layerData[offset + 1] = color.g;
-      layerData[offset + 2] = color.b;
-      layerData[offset + 3] = color.a;
-
-      modifiedPixels.push({ coord, oldColor, newColor: color });
-    }
-
-    this.startCoord = null;
-    this.previewPixels = [];
-    return modifiedPixels.length > 0 ? { modifiedPixels } : null;
-  }
-
-  getPreview(): PixelCoord[] {
-    return this.previewPixels;
-  }
-
-  private computeRectPixels(from: PixelCoord, to: PixelCoord, ctx: ToolContext): PixelCoord[] {
-    if (!gridService.isPeyote(ctx.gridType) && !gridService.isAnyTriangular(ctx.gridType)) {
-      return this.getRectOutline(from, to);
-    }
-    // Map to visual space, compute rect outline there, map back
-    const scale = 100;
-    const fromV = gridService.pixelToScreen(from.x, from.y, scale, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.canvasHeight, ctx.triangularDNum, ctx.triangularDDen);
-    const toV = gridService.pixelToScreen(to.x, to.y, scale, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.canvasHeight, ctx.triangularDNum, ctx.triangularDDen);
-    const fromCenter = { x: fromV.sx + scale / 2, y: fromV.sy + scale / 2 };
-    const toCenter = { x: toV.sx + scale / 2, y: toV.sy + scale / 2 };
-
-    const visualPoints = this.getRectOutline(
-      { x: Math.round(fromCenter.x), y: Math.round(fromCenter.y) },
-      { x: Math.round(toCenter.x), y: Math.round(toCenter.y) },
-    );
-
-    const seen = new Set<string>();
-    const result: PixelCoord[] = [];
-    for (const vp of visualPoints) {
-      const lp = gridService.screenToPixel(vp.x, vp.y, scale, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen);
-      if (!lp) continue;
-      const key = `${lp.x},${lp.y}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      result.push(lp);
-    }
-    return result;
-  }
-
-  private getRectOutline(from: PixelCoord, to: PixelCoord): PixelCoord[] {
+  protected computeShapePoints(from: PixelCoord, to: PixelCoord): PixelCoord[] {
     const points: PixelCoord[] = [];
     const x1 = Math.min(from.x, to.x);
     const y1 = Math.min(from.y, to.y);
@@ -107,11 +15,15 @@ export class RectangleTool implements Tool {
 
     for (let x = x1; x <= x2; x++) {
       points.push({ x, y: y1 });
-      points.push({ x, y: y2 });
+      if (y2 !== y1) {
+        points.push({ x, y: y2 });
+      }
     }
     for (let y = y1 + 1; y < y2; y++) {
       points.push({ x: x1, y });
-      points.push({ x: x2, y });
+      if (x2 !== x1) {
+        points.push({ x: x2, y });
+      }
     }
 
     return points;

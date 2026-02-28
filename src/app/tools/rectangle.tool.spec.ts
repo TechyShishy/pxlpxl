@@ -79,9 +79,7 @@ describe('RectangleTool', () => {
       tool.onPointerDown(makeContext({ coord: { x: 2, y: 2 } }), layerData);
       const result = tool.onPointerUp(makeContext({ coord: { x: 2, y: 2 } }), layerData);
       expect(result).not.toBeNull();
-      // getRectOutline pushes the same point for top and bottom edges
-      // when start === end, producing a duplicate entry
-      expect(result!.modifiedPixels.length).toBe(2);
+      expect(result!.modifiedPixels.length).toBe(1);
     });
 
     it('should draw a 2x2 rectangle (4 pixels, all outline)', () => {
