@@ -100,9 +100,19 @@ describe('LayerService', () => {
     it('should keep active index if removing below active', () => {
       service.setActiveLayer(2);
       service.removeLayer(0);
-      // Active was 2, removing index 0 shifts it, but the service
-      // only adjusts if active >= layerCount after removal
-      expect(service.activeLayerIndex()).toBeLessThan(service.layerCount());
+      // Active was 2, removing index 0 shifts it down to 1 to follow the same layer
+      expect(service.activeLayerIndex()).toBe(1);
+    });
+
+    it('should follow the same layer identity when removing below active', () => {
+      // 4 layers: [L0, L1, L2, L3], active = 2
+      service.addLayer(4, 4);
+      service.setActiveLayer(2);
+      const activeName = service.layers()[2].name;
+      service.removeLayer(0);
+      // After removing L0: [L1, L2, L3], active should be 1 (was L2, now at index 1)
+      expect(service.activeLayerIndex()).toBe(1);
+      expect(service.layers()[1].name).toBe(activeName);
     });
   });
 

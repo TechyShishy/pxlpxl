@@ -3,53 +3,57 @@ import { Color, BLACK, WHITE, DEFAULT_PALETTE, colorsEqual, deduplicateColorList
 
 @Injectable({ providedIn: 'root' })
 export class ColorService {
-  readonly primaryColor = signal<Color>({ ...BLACK });
-  readonly secondaryColor = signal<Color>({ ...WHITE });
-  readonly palette = signal<Color[]>([...DEFAULT_PALETTE]);
+  private readonly _primaryColor = signal<Color>({ ...BLACK });
+  private readonly _secondaryColor = signal<Color>({ ...WHITE });
+  private readonly _palette = signal<Color[]>([...DEFAULT_PALETTE]);
+
+  readonly primaryColor = this._primaryColor.asReadonly();
+  readonly secondaryColor = this._secondaryColor.asReadonly();
+  readonly palette = this._palette.asReadonly();
 
   readonly primaryColorHex = computed(() => {
-    const c = this.primaryColor();
+    const c = this._primaryColor();
     return this.toHex(c);
   });
 
   readonly secondaryColorHex = computed(() => {
-    const c = this.secondaryColor();
+    const c = this._secondaryColor();
     return this.toHex(c);
   });
 
   setPrimaryColor(color: Color): void {
-    this.primaryColor.set({ ...color });
+    this._primaryColor.set({ ...color });
   }
 
   setSecondaryColor(color: Color): void {
-    this.secondaryColor.set({ ...color });
+    this._secondaryColor.set({ ...color });
   }
 
   swapColors(): void {
-    const primary = this.primaryColor();
-    const secondary = this.secondaryColor();
-    this.primaryColor.set(secondary);
-    this.secondaryColor.set(primary);
+    const primary = { ...this._primaryColor() };
+    const secondary = { ...this._secondaryColor() };
+    this._primaryColor.set(secondary);
+    this._secondaryColor.set(primary);
   }
 
   addToPalette(color: Color): void {
-    this.palette.update((p) => [...p, { ...color }]);
+    this._palette.update((p) => [...p, { ...color }]);
   }
 
   removeFromPalette(index: number): void {
-    this.palette.update((p) => p.filter((_, i) => i !== index));
+    this._palette.update((p) => p.filter((_, i) => i !== index));
   }
 
   updatePaletteColor(index: number, color: Color): void {
-    this.palette.update((p) => p.map((c, i) => (i === index ? { ...color } : c)));
+    this._palette.update((p) => p.map((c, i) => (i === index ? { ...color } : c)));
   }
 
-  setPalette(colors: Color[]): void {
-    this.palette.set(colors.map((c) => ({ ...c })));
+  setPalette(colors: readonly Readonly<Color>[]): void {
+    this._palette.set(colors.map((c) => ({ ...c })));
   }
 
   movePaletteEntry(from: number, to: number): void {
-    this.palette.update((p) => {
+    this._palette.update((p) => {
       if (from < 0 || from >= p.length || to < 0 || to >= p.length) {
         return p;
       }
@@ -66,12 +70,12 @@ export class ColorService {
    */
   mergePalette(colors: Color[]): void {
     if (colors.length === 0) return;
-    const current = this.palette();
+    const current = this._palette();
     const toAdd = deduplicateColorList(colors).filter(
       (c) => !current.some((p) => colorsEqual(p, c)),
     );
     if (toAdd.length > 0) {
-      this.palette.update((p) => [...p, ...toAdd.map((c) => ({ ...c }))]);
+      this._palette.update((p) => [...p, ...toAdd.map((c) => ({ ...c }))]);
     }
   }
 

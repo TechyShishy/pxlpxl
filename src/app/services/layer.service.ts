@@ -1,66 +1,70 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { Layer, createLayer, cloneLayerData, Color, TRANSPARENT, pixelOffset } from '../models';
-import { GridType } from '../models/project.model';
+import { Layer, createLayer, cloneLayerData, Color, TRANSPARENT, pixelOffset, GridType } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class LayerService {
-  readonly layers = signal<Layer[]>([]);
-  readonly activeLayerIndex = signal<number>(0);
+  private readonly _layers = signal<Layer[]>([]);
+  private readonly _activeLayerIndex = signal<number>(0);
+
+  readonly layers = this._layers.asReadonly();
+  readonly activeLayerIndex = this._activeLayerIndex.asReadonly();
 
   readonly activeLayer = computed(() => {
-    const idx = this.activeLayerIndex();
-    const all = this.layers();
+    const idx = this._activeLayerIndex();
+    const all = this._layers();
     return all[idx] ?? null;
   });
 
-  readonly layerCount = computed(() => this.layers().length);
+  readonly layerCount = computed(() => this._layers().length);
 
   initLayers(width: number, height: number, pixelCount?: number): void {
     const layer = createLayer(crypto.randomUUID(), 'Layer 1', width, height, pixelCount);
-    this.layers.set([layer]);
-    this.activeLayerIndex.set(0);
+    this._layers.set([layer]);
+    this._activeLayerIndex.set(0);
   }
 
   addLayer(width: number, height: number, pixelCount?: number): void {
     const idx = this.layerCount();
     const layer = createLayer(crypto.randomUUID(), `Layer ${idx + 1}`, width, height, pixelCount);
-    this.layers.update((layers) => [...layers, layer]);
-    this.activeLayerIndex.set(idx);
+    this._layers.update((layers) => [...layers, layer]);
+    this._activeLayerIndex.set(idx);
   }
 
   removeLayer(index: number): void {
     if (this.layerCount() <= 1) return; // Must keep at least one layer
-    this.layers.update((layers) => layers.filter((_, i) => i !== index));
-    const active = this.activeLayerIndex();
+    this._layers.update((layers) => layers.filter((_, i) => i !== index));
+    const active = this._activeLayerIndex();
     if (active >= this.layerCount()) {
-      this.activeLayerIndex.set(this.layerCount() - 1);
+      this._activeLayerIndex.set(this.layerCount() - 1);
+    } else if (index < active) {
+      this._activeLayerIndex.set(active - 1);
     }
   }
 
   /** Insert a fully-formed layer at the given index, shifting existing layers down. */
   insertLayer(atIndex: number, layer: Layer): void {
-    this.layers.update((layers) => {
+    this._layers.update((layers) => {
       const result = [...layers];
       result.splice(atIndex, 0, layer);
       return result;
     });
-    this.activeLayerIndex.set(atIndex);
+    this._activeLayerIndex.set(atIndex);
   }
 
   setActiveLayer(index: number): void {
     if (index >= 0 && index < this.layerCount()) {
-      this.activeLayerIndex.set(index);
+      this._activeLayerIndex.set(index);
     }
   }
 
   toggleVisibility(index: number): void {
-    this.layers.update((layers) =>
+    this._layers.update((layers) =>
       layers.map((l, i) => (i === index ? { ...l, visible: !l.visible } : l)),
     );
   }
 
   setOpacity(index: number, opacity: number): void {
-    this.layers.update((layers) =>
+    this._layers.update((layers) =>
       layers.map((l, i) =>
         i === index ? { ...l, opacity: Math.max(0, Math.min(1, opacity)) } : l,
       ),
@@ -68,25 +72,27 @@ export class LayerService {
   }
 
   renameLayer(index: number, name: string): void {
-    this.layers.update((layers) => layers.map((l, i) => (i === index ? { ...l, name } : l)));
+    this._layers.update((layers) => layers.map((l, i) => (i === index ? { ...l, name } : l)));
   }
 
   moveLayer(fromIndex: number, toIndex: number): void {
     if (fromIndex === toIndex) return;
-    this.layers.update((layers) => {
+    const count = this.layerCount();
+    if (fromIndex < 0 || fromIndex >= count || toIndex < 0 || toIndex >= count) return;
+    this._layers.update((layers) => {
       const result = [...layers];
       const [moved] = result.splice(fromIndex, 1);
       result.splice(toIndex, 0, moved);
       return result;
     });
     // Adjust active index to follow the same layer identity
-    const active = this.activeLayerIndex();
+    const active = this._activeLayerIndex();
     if (active === fromIndex) {
-      this.activeLayerIndex.set(toIndex);
+      this._activeLayerIndex.set(toIndex);
     } else if (fromIndex < active && active <= toIndex) {
-      this.activeLayerIndex.set(active - 1);
+      this._activeLayerIndex.set(active - 1);
     } else if (toIndex <= active && active < fromIndex) {
-      this.activeLayerIndex.set(active + 1);
+      this._activeLayerIndex.set(active + 1);
     }
   }
 
@@ -128,7 +134,7 @@ export class LayerService {
    * so that Angular's signal-based change detection picks up the update.
    */
   notifyLayersChanged(): void {
-    this.layers.update((layers) => [...layers]);
+    this._layers.update((layers) => [...layers]);
   }
 
   /** Get the raw data of a layer (for undo/redo snapshots) */
@@ -139,7 +145,7 @@ export class LayerService {
 
   /** Restore layer data from a snapshot */
   setLayerData(index: number, data: Uint8ClampedArray): void {
-    this.layers.update((layers) =>
+    this._layers.update((layers) =>
       layers.map((l, i) => (i === index ? { ...l, data: new Uint8ClampedArray(data) } : l)),
     );
   }
@@ -168,7 +174,7 @@ export class LayerService {
 
   /** Set layers from deserialized project data */
   setLayers(layers: Layer[]): void {
-    this.layers.set(layers);
-    this.activeLayerIndex.set(0);
+    this._layers.set(layers);
+    this._activeLayerIndex.set(0);
   }
 }
