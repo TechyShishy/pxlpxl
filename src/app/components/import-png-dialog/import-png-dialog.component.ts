@@ -11,6 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { GridService } from '../../services/grid.service';
@@ -59,7 +60,7 @@ const CONTAINER = 480;
 @Component({
   selector: 'app-import-png-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatDialogModule, MatButtonModule, MatButtonToggleModule, MatFormFieldModule, MatInputModule, FormsModule],
+  imports: [MatDialogModule, MatButtonModule, MatButtonToggleModule, MatDividerModule, MatFormFieldModule, MatInputModule, FormsModule],
   templateUrl: './import-png-dialog.component.html',
   styleUrl: './import-png-dialog.component.scss',
 })

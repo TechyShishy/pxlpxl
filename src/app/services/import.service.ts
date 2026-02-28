@@ -155,7 +155,11 @@ export class ImportService {
       triangularShift: this.canvasState.triangularShift(),
     };
 
-    const dialogRef = this.dialog.open(ImportPngDialogComponent, { data: dialogData });
+    const dialogRef = this.dialog.open(ImportPngDialogComponent, {
+      data: dialogData,
+      minWidth: 'min(860px, 95vw)',
+      maxWidth: '95vw',
+    });
     const result = await firstValueFrom(dialogRef.afterClosed()) as ImportPngResult | undefined;
 
     bitmap.close();

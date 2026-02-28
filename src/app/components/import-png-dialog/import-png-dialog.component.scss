@@ -2,10 +2,24 @@
   display: block;
 }
 
+.dialog-layout {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+  overflow: hidden;
+}
+
+.preview-column {
+  flex-shrink: 0;
+}
+
 .preview-canvas {
   display: block;
   width: 480px;
   height: 480px;
+  max-width: 100%;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -15,9 +29,31 @@
   }
 }
 
+.options-column {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
 .options-row {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-top: 16px;
+}
+
+// Narrow viewport: canvas shrinks to square and options flow below it
+@media (max-width: 600px) {
+  .preview-canvas {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+  }
+
+  .options-column {
+    width: 100%;
+    max-height: none;
+  }
 }

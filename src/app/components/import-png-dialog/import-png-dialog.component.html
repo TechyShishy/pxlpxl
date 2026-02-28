@@ -1,58 +1,66 @@
 <h2 mat-dialog-title>Import Image</h2>
 
 <mat-dialog-content>
-  <canvas
-    #preview
-    [width]="480"
-    [height]="480"
-    class="preview-canvas"
-    aria-label="Import crop preview. Drag to pan the image, scroll to zoom."
-    (pointerdown)="onPointerDown($event)"
-    (pointermove)="onPointerMove($event)"
-    (pointerup)="onPointerUp()"
-    (pointercancel)="onPointerUp()"
-    (wheel)="onWheel($event)"
-  ></canvas>
+  <div class="dialog-layout">
+    <div class="preview-column">
+      <canvas
+        #preview
+        [width]="480"
+        [height]="480"
+        class="preview-canvas"
+        aria-label="Import crop preview. Drag to pan the image, scroll to zoom."
+        (pointerdown)="onPointerDown($event)"
+        (pointermove)="onPointerMove($event)"
+        (pointerup)="onPointerUp()"
+        (pointercancel)="onPointerUp()"
+        (wheel)="onWheel($event)"
+      ></canvas>
+    </div>
 
-  <div class="options-row">
-    <label id="sampling-label">Sampling</label>
-    <mat-button-toggle-group
-      aria-labelledby="sampling-label"
-      [value]="samplingMode()"
-      (change)="samplingMode.set($event.value)"
-    >
-      <mat-button-toggle value="nearest">Nearest</mat-button-toggle>
-      <mat-button-toggle value="area">Area avg</mat-button-toggle>
-    </mat-button-toggle-group>
-  </div>
-
-  <div class="options-row">
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Max colors</mat-label>
-      <input
-        matInput
-        type="number"
-        min="0"
-        [ngModel]="maxColors()"
-        (ngModelChange)="maxColors.set($event)"
-        aria-describedby="max-colors-hint"
-      />
-      <mat-hint id="max-colors-hint">0 = unlimited</mat-hint>
-    </mat-form-field>
-
-    @if (maxColors() > 0) {
-      <div>
-        <label id="algorithm-label">Algorithm</label>
+    <div class="options-column">
+      <div class="options-row">
+        <label id="sampling-label">Sampling</label>
         <mat-button-toggle-group
-          aria-labelledby="algorithm-label"
-          [value]="quantizeAlgorithm()"
-          (change)="quantizeAlgorithm.set($event.value)"
+          aria-labelledby="sampling-label"
+          [value]="samplingMode()"
+          (change)="samplingMode.set($event.value)"
         >
-          <mat-button-toggle value="median-cut">Median cut</mat-button-toggle>
-          <mat-button-toggle value="k-means">K-means</mat-button-toggle>
+          <mat-button-toggle value="nearest">Nearest</mat-button-toggle>
+          <mat-button-toggle value="area">Area avg</mat-button-toggle>
         </mat-button-toggle-group>
       </div>
-    }
+
+      <mat-divider></mat-divider>
+
+      <div class="options-row">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Max colors</mat-label>
+          <input
+            matInput
+            type="number"
+            min="0"
+            [ngModel]="maxColors()"
+            (ngModelChange)="maxColors.set($event)"
+            aria-describedby="max-colors-hint"
+          />
+          <mat-hint id="max-colors-hint">0 = unlimited</mat-hint>
+        </mat-form-field>
+      </div>
+
+      @if (maxColors() > 0) {
+        <div class="options-row">
+          <label id="algorithm-label">Algorithm</label>
+          <mat-button-toggle-group
+            aria-labelledby="algorithm-label"
+            [value]="quantizeAlgorithm()"
+            (change)="quantizeAlgorithm.set($event.value)"
+          >
+            <mat-button-toggle value="median-cut">Median cut</mat-button-toggle>
+            <mat-button-toggle value="k-means">K-means</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+      }
+    </div>
   </div>
 </mat-dialog-content>
 
