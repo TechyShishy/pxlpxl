@@ -11,8 +11,8 @@
         aria-label="Import crop preview. Drag to pan the image, scroll to zoom."
         (pointerdown)="onPointerDown($event)"
         (pointermove)="onPointerMove($event)"
-        (pointerup)="onPointerUp()"
-        (pointercancel)="onPointerUp()"
+        (pointerup)="onPointerUp($event)"
+        (pointercancel)="onPointerUp($event)"
         (wheel)="onWheel($event)"
       ></canvas>
     </div>

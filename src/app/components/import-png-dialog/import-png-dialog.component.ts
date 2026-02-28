@@ -93,9 +93,8 @@ export class ImportPngDialogComponent {
   /** Grid visual bounding box height, in virtual grid units. */
   private gridVisualH = 1;
 
-  private isDragging = false;
-  private dragLastX = 0;
-  private dragLastY = 0;
+  private readonly activePointers = new Map<number, { x: number; y: number }>();
+  private lastPinchDistance = 0;
   private animFrameId = 0;
 
   constructor() {
@@ -217,28 +216,68 @@ export class ImportPngDialogComponent {
     ctx.strokeRect(this.cropBoxX, this.cropBoxY, this.cropBoxW, this.cropBoxH);
   }
 
-  // ── Pointer events (pan) ──────────────────────────────────────────
+  // ── Pointer events (pan + pinch) ─────────────────────────────────
 
   onPointerDown(e: PointerEvent): void {
-    this.isDragging = true;
-    this.dragLastX = e.clientX;
-    this.dragLastY = e.clientY;
+    this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    if (this.activePointers.size === 2) {
+      this.lastPinchDistance = this.getPinchDistance();
+    }
   }
 
   onPointerMove(e: PointerEvent): void {
-    if (!this.isDragging) return;
-    const dx = e.clientX - this.dragLastX;
-    const dy = e.clientY - this.dragLastY;
-    this.dragLastX = e.clientX;
-    this.dragLastY = e.clientY;
-    this.imageOffsetX.update((v) => v + dx);
-    this.imageOffsetY.update((v) => v + dy);
+    const ptr = this.activePointers.get(e.pointerId);
+    if (!ptr) return;
+
+    const prevX = ptr.x;
+    const prevY = ptr.y;
+    ptr.x = e.clientX;
+    ptr.y = e.clientY;
+
+    if (this.activePointers.size === 1) {
+      // Single pointer — pan
+      this.imageOffsetX.update((v) => v + (ptr.x - prevX));
+      this.imageOffsetY.update((v) => v + (ptr.y - prevY));
+    } else if (this.activePointers.size === 2 && this.lastPinchDistance > 0) {
+      // Two pointers — pinch zoom centered on midpoint
+      const dist = this.getPinchDistance();
+      const factor = dist / this.lastPinchDistance;
+      const center = this.getPinchCenter();
+      const rect = (e.target as HTMLElement).getBoundingClientRect();
+      const cx = center.x - rect.left;
+      const cy = center.y - rect.top;
+      const oldScale = this.imageScale();
+      const newScale = Math.max(0.01, Math.min(200, oldScale * factor));
+      this.imageScale.set(newScale);
+      this.imageOffsetX.set(cx + (this.imageOffsetX() - cx) * (newScale / oldScale));
+      this.imageOffsetY.set(cy + (this.imageOffsetY() - cy) * (newScale / oldScale));
+      this.lastPinchDistance = dist;
+    }
     this.scheduleDraw();
   }
 
-  onPointerUp(): void {
-    this.isDragging = false;
+  onPointerUp(e: PointerEvent): void {
+    this.activePointers.delete(e.pointerId);
+    if (this.activePointers.size < 2) {
+      this.lastPinchDistance = 0;
+    }
+  }
+
+  private getPinchDistance(): number {
+    const pts = Array.from(this.activePointers.values());
+    if (pts.length < 2) return 0;
+    const dx = pts[0].x - pts[1].x;
+    const dy = pts[0].y - pts[1].y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  private getPinchCenter(): { x: number; y: number } {
+    const pts = Array.from(this.activePointers.values());
+    return {
+      x: (pts[0].x + pts[1].x) / 2,
+      y: (pts[0].y + pts[1].y) / 2,
+    };
   }
 
   // ── Wheel event (zoom) ────────────────────────────────────────────
