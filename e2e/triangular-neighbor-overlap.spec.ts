@@ -170,8 +170,11 @@ async function createTriangularProject(
   // Fill in triangular parameters
   await aInput.fill(String(a));
 
-  const dInput = dialog.locator('input[aria-label="Per-row growth (d)"]');
-  await dInput.fill(String(d));
+  const dNumInput = dialog.locator('input[aria-label="Number of increases per cycle (dNum)"]');
+  await dNumInput.fill(String(d));
+
+  const dDenInput = dialog.locator('input[aria-label="Cycle length in rows (dDen)"]');
+  await dDenInput.fill('1');
 
   const rInput = dialog.locator('input[aria-label="Number of rows (R)"]');
   await rInput.fill(String(rows));
