@@ -1,65 +1,29 @@
-import { Command, Color, PixelCoord, ModifiedPixel } from '../models';
-import { GridType } from '../models/project.model';
+import { ModifiedPixel, GridType, TriangularParams } from '../models';
 import { LayerService } from '../services/layer.service';
+import { PixelCommand } from './pixel.command';
 
 /**
  * Command for pixel drawing operations (pencil, eraser, etc.).
  * Stores the modified pixels for undo/redo.
  */
-export class DrawCommand implements Command {
-  readonly description: string;
-
+export class DrawCommand extends PixelCommand {
   constructor(
-    readonly layerService: LayerService,
-    readonly layerIdx: number,
-    readonly width: number,
-    readonly modifiedPixels: ModifiedPixel[],
+    layerService: LayerService,
+    layerIdx: number,
+    width: number,
+    modifiedPixels: ModifiedPixel[],
     description?: string,
-    readonly gridType?: GridType,
-    readonly triangularA?: number,
-    readonly triangularD?: number,
-    readonly triangularDNum?: number,
-    readonly triangularDDen?: number,
-    readonly triangularShift?: number,
+    gridType?: GridType,
+    triangular?: TriangularParams,
   ) {
-    this.description = description ?? `Draw ${modifiedPixels.length} pixel(s)`;
-  }
-
-  execute(): void {
-    for (const pixel of this.modifiedPixels) {
-      this.layerService.setPixel(
-        this.layerIdx,
-        pixel.coord.x,
-        pixel.coord.y,
-        this.width,
-        pixel.newColor,
-        this.gridType,
-        this.triangularA,
-        this.triangularD,
-        this.triangularDNum,
-        this.triangularDDen,
-        this.triangularShift,
-      );
-    }
-    this.layerService.notifyLayersChanged();
-  }
-
-  undo(): void {
-    for (const pixel of this.modifiedPixels) {
-      this.layerService.setPixel(
-        this.layerIdx,
-        pixel.coord.x,
-        pixel.coord.y,
-        this.width,
-        pixel.oldColor,
-        this.gridType,
-        this.triangularA,
-        this.triangularD,
-        this.triangularDNum,
-        this.triangularDDen,
-        this.triangularShift,
-      );
-    }
-    this.layerService.notifyLayersChanged();
+    super(
+      layerService,
+      layerIdx,
+      width,
+      modifiedPixels,
+      description ?? `Draw ${modifiedPixels.length} pixel(s)`,
+      gridType,
+      triangular,
+    );
   }
 }

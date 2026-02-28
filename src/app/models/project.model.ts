@@ -5,6 +5,24 @@ import { SerializedHistoryEntry } from './pxl-file.model';
 export type GridType = 'square' | 'peyote' | 'triangular';
 
 /**
+ * Grouped triangular grid parameters.
+ * Use this interface to pass the 5 triangular params as a cohesive bag
+ * instead of spreading them as individual function arguments.
+ */
+export interface TriangularParams {
+  /** First-row width */
+  a?: number;
+  /** Per-row growth (legacy integer) */
+  d?: number;
+  /** Fractional growth numerator */
+  dNum?: number;
+  /** Fractional growth denominator */
+  dDen?: number;
+  /** Phase shift (0..dDen-1) */
+  shift?: number;
+}
+
+/**
  * Compute the buffer dimensions for a given set of visual dimensions and grid type.
  *
  * For square grids, the buffer dimensions match the visual dimensions.

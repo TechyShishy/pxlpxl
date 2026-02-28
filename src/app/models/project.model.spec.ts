@@ -4,6 +4,7 @@ import {
   createDefaultProject,
   computeBufferDimensions,
   computeBufferPixelCount,
+  triangularCumPixels,
   triangularRowWidth,
   triangularSlowRowWidth,
   triangularSlowCumPixels,
@@ -436,6 +437,105 @@ describe('Project Model', () => {
     it('shift=0 matches width=0 row in lookup correctly', () => {
       // Row 1 has width 0 for shift=0 (negative delta cancels preceding positive)
       expect(triangularRowWidth(1, 1, 3, 4, 0)).toBe(0);
+    });
+  });
+
+  describe('computeBufferDimensions (triangular fast-growth)', () => {
+    it('should set bufferWidth to max row width (a=1, d=2, R=4)', () => {
+      // Row widths: 1, 3, 5, 7 → max = 7
+      const { bufferWidth, bufferHeight } = computeBufferDimensions(0, 4, 'triangular', 1, 2);
+      expect(bufferWidth).toBe(7);
+      expect(bufferHeight).toBe(4);
+    });
+
+    it('should set bufferWidth to max row width (a=3, d=1, R=5)', () => {
+      // Row widths: 3, 4, 5, 6, 7 → max = 7
+      const { bufferWidth, bufferHeight } = computeBufferDimensions(0, 5, 'triangular', 3, 1);
+      expect(bufferWidth).toBe(7);
+      expect(bufferHeight).toBe(5);
+    });
+
+    it('should handle single-row triangular grid', () => {
+      const { bufferWidth, bufferHeight } = computeBufferDimensions(0, 1, 'triangular', 5, 3);
+      expect(bufferWidth).toBe(5);
+      expect(bufferHeight).toBe(1);
+    });
+
+    it('should handle d=0 (constant width)', () => {
+      // dNum=0, dDen=1 → every row has width a=4
+      const { bufferWidth } = computeBufferDimensions(0, 10, 'triangular', 4, 0);
+      expect(bufferWidth).toBe(4);
+    });
+  });
+
+  describe('triangularCumPixels', () => {
+    it('should return 0 for y=0', () => {
+      expect(triangularCumPixels(0, 1, 1, 1)).toBe(0);
+    });
+
+    it('should return 0 for negative y', () => {
+      expect(triangularCumPixels(-3, 1, 1, 1)).toBe(0);
+    });
+
+    it('should return a for y=1 (fast growth)', () => {
+      expect(triangularCumPixels(1, 5, 2, 1)).toBe(5);
+    });
+
+    it('should compute fast-growth sum for a=1, d=2, R=4', () => {
+      // Row widths: 1, 3, 5, 7 → total = 16
+      expect(triangularCumPixels(4, 1, 2, 1)).toBe(16);
+    });
+
+    it('should compute fast-growth sum for a=3, d=1, R=5', () => {
+      // Row widths: 3, 4, 5, 6, 7 → total = 25
+      expect(triangularCumPixels(5, 3, 1, 1)).toBe(25);
+    });
+
+    it('should match manual sum for fast-growth (a=1, dNum=2, dDen=1)', () => {
+      const a = 1, dNum = 2, dDen = 1;
+      for (let R = 1; R <= 12; R++) {
+        let manual = 0;
+        for (let r = 0; r < R; r++) manual += triangularRowWidth(r, a, dNum, dDen);
+        expect(
+          triangularCumPixels(R, a, dNum, dDen),
+          `cumPixels(${R}, ${a}, ${dNum}, ${dDen}) should be ${manual}`,
+        ).toBe(manual);
+      }
+    });
+
+    it('should match manual sum for slow-growth (a=1, dNum=1, dDen=2)', () => {
+      const a = 1, dNum = 1, dDen = 2;
+      for (let R = 1; R <= 20; R++) {
+        let manual = 0;
+        for (let r = 0; r < R; r++) manual += triangularRowWidth(r, a, dNum, dDen);
+        expect(
+          triangularCumPixels(R, a, dNum, dDen),
+          `cumPixels(${R}, ${a}, ${dNum}, ${dDen}) should be ${manual}`,
+        ).toBe(manual);
+      }
+    });
+
+    it('should match manual sum for slow-growth with shift (a=1, dNum=3, dDen=4, shift=2)', () => {
+      const a = 1, dNum = 3, dDen = 4, shift = 2;
+      for (let R = 1; R <= 20; R++) {
+        let manual = 0;
+        for (let r = 0; r < R; r++) manual += triangularRowWidth(r, a, dNum, dDen, shift);
+        expect(
+          triangularCumPixels(R, a, dNum, dDen, shift),
+          `cumPixels(${R}, ${a}, ${dNum}/${dDen}, shift=${shift}) should be ${manual}`,
+        ).toBe(manual);
+      }
+    });
+
+    it('should handle constant-a with dNum=0 via slow-growth path', () => {
+      // dNum=0, dDen=1 → slow-growth path (dNum < dDen)
+      // L = 2*1 - 0 = 2, rows alternate: 4, 3, 4, 3, 4 → sum = 18
+      expect(triangularCumPixels(5, 4, 0, 1)).toBe(18);
+    });
+
+    it('should handle dNum=dDen (1 pixel growth per row)', () => {
+      // a=1, dNum=1, dDen=1 → widths: 1,2,3,4,5 → total = 15
+      expect(triangularCumPixels(5, 1, 1, 1)).toBe(15);
     });
   });
 });

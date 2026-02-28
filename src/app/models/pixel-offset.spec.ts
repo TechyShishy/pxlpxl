@@ -1,4 +1,21 @@
-import { pixelOffset } from './pixel-offset';
+import { pixelOffset, pixelOffsetFromCtx } from './pixel-offset';
+import { ToolContext } from './tool.interface';
+import { BLACK } from './color.model';
+
+function makeCtx(overrides: Partial<ToolContext> = {}): ToolContext {
+  return {
+    coord: { x: 0, y: 0 },
+    layerIndex: 0,
+    canvasWidth: 4,
+    canvasHeight: 4,
+    visualColumns: 4,
+    primaryColor: { ...BLACK },
+    secondaryColor: { ...BLACK },
+    isSecondary: false,
+    gridType: 'square',
+    ...overrides,
+  };
+}
 
 describe('pixelOffset', () => {
   describe('square grid (default)', () => {
@@ -145,5 +162,41 @@ describe('pixelOffset', () => {
       // row 5 = k=1,p=0, width=2; col=1 valid → (2+1)*4=12
       expect(pixelOffset(1, 5, 0, 'triangular', 1, undefined, 1, 3)).toBe(12);
     });
+  });
+});
+
+describe('pixelOffsetFromCtx', () => {
+  it('should extract parameters from ToolContext for square grid', () => {
+    const ctx = makeCtx({ coord: { x: 1, y: 1 }, canvasWidth: 4 });
+    expect(pixelOffsetFromCtx(ctx)).toBe((1 * 4 + 1) * 4);
+  });
+
+  it('should match direct pixelOffset call for square grid', () => {
+    const ctx = makeCtx({ coord: { x: 2, y: 3 }, canvasWidth: 8 });
+    expect(pixelOffsetFromCtx(ctx)).toBe(pixelOffset(2, 3, 8, 'square'));
+  });
+
+  it('should extract triangular parameters including shift', () => {
+    const ctx = makeCtx({
+      coord: { x: 1, y: 2 },
+      canvasWidth: 0,
+      gridType: 'triangular',
+      triangularA: 2,
+      triangularDNum: 1,
+      triangularDDen: 1,
+      triangularShift: 1,
+    });
+    expect(pixelOffsetFromCtx(ctx)).toBe(
+      pixelOffset(1, 2, 0, 'triangular', 2, undefined, 1, 1, 1),
+    );
+  });
+
+  it('should handle peyote grid', () => {
+    const ctx = makeCtx({
+      coord: { x: 1, y: 2 },
+      canvasWidth: 4,
+      gridType: 'peyote',
+    });
+    expect(pixelOffsetFromCtx(ctx)).toBe(pixelOffset(1, 2, 4, 'peyote'));
   });
 });

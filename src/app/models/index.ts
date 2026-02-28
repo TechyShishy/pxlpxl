@@ -14,7 +14,7 @@ export {
 } from './color.model';
 export type { Layer } from './layer.model';
 export { createLayer, cloneLayerData } from './layer.model';
-export type { Project, SerializedLayer, GridType } from './project.model';
+export type { Project, SerializedLayer, GridType, TriangularParams } from './project.model';
 export {
   serializeLayer,
   deserializeLayer,
@@ -28,7 +28,7 @@ export {
   resolveTriangularD,
   resolveTriangularSlowD,
 } from './project.model';
-export { pixelOffset } from './pixel-offset';
+export { pixelOffset, pixelOffsetFromCtx } from './pixel-offset';
 export type { Tool, ToolContext, ToolResult, ModifiedPixel, PixelCoord } from './tool.interface';
 export { ToolType } from './tool.interface';
 export type { Command } from './command.interface';
@@ -38,6 +38,15 @@ export type {
   PxlHistory,
   HistoryEntryType,
   SerializedHistoryEntry,
+  SerializedDrawEntry,
+  SerializedFillEntry,
+  SerializedLayerEntry,
+  SerializedDuplicateLayerEntry,
+  SerializedMoveLayerEntry,
+  SerializedMovePaletteEntry,
+  SerializedReplaceColorEntry,
+  SerializedFlattenLayerEntry,
+  SerializedPixelEntry,
   SerializedModifiedPixel,
 } from './pxl-file.model';
 export { PXL_FORMAT_VERSION, uint8ArrayToBase64, base64ToUint8Array } from './pxl-file.model';

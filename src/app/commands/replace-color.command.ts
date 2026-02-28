@@ -2,7 +2,7 @@ import type { Command, Color } from '../models';
 import { ColorService } from '../services/color.service';
 import { LayerService } from '../services/layer.service';
 
-interface AffectedPixel {
+export interface AffectedPixel {
   layerIndex: number;
   byteOffset: number;
 }
@@ -15,8 +15,8 @@ interface AffectedPixel {
 export class ReplaceColorCommand implements Command {
   readonly description = 'Replace palette color';
 
-  /** Lazily populated on first execute(). */
-  private affected: AffectedPixel[] | null = null;
+  /** Lazily populated on first execute(). Exposed for serialization. */
+  affected: AffectedPixel[] | null = null;
 
   constructor(
     private readonly layerService: LayerService,

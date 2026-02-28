@@ -17,12 +17,12 @@ import { LayerService } from '../services/layer.service';
 export class FlattenLayerCommand implements Command {
   readonly description = 'Flatten layer to above';
 
-  private readonly sourceLayerSnapshot: Layer;
-  private readonly previousAboveData: Uint8ClampedArray;
-  private readonly previousAboveOpacity: number;
-  private readonly mergedData: Uint8ClampedArray;
+  readonly sourceLayerSnapshot: Layer;
+  readonly previousAboveData: Uint8ClampedArray;
+  readonly previousAboveOpacity: number;
+  readonly mergedData: Uint8ClampedArray;
   /** Index of the surviving panel-above layer (layerIndex - 1). */
-  private readonly aboveIndex: number;
+  readonly aboveIndex: number;
 
   constructor(
     private readonly layerService: LayerService,
@@ -30,7 +30,7 @@ export class FlattenLayerCommand implements Command {
      * Index of the selected layer to flatten. Must be > 0 (there must be a layer
      * above it in the panel, i.e. at index layerIndex - 1).
      */
-    private readonly layerIndex: number,
+    readonly layerIndex: number,
     canvasWidth: number,
     canvasHeight: number,
   ) {
@@ -81,6 +81,32 @@ export class FlattenLayerCommand implements Command {
     // Restore the panel-above layer's original data and opacity.
     this.layerService.setLayerData(this.aboveIndex, this.previousAboveData);
     this.layerService.setOpacity(this.aboveIndex, this.previousAboveOpacity);
+  }
+
+  /**
+   * Reconstruct a FlattenLayerCommand from serialized data without recomputing
+   * the composite. Used during deserialization.
+   */
+  static fromSerialized(
+    layerService: LayerService,
+    layerIndex: number,
+    sourceLayerSnapshot: Layer,
+    previousAboveData: Uint8ClampedArray,
+    previousAboveOpacity: number,
+    mergedData: Uint8ClampedArray,
+  ): FlattenLayerCommand {
+    const cmd = Object.create(FlattenLayerCommand.prototype) as FlattenLayerCommand;
+    Object.assign(cmd, {
+      layerService,
+      layerIndex,
+      description: 'Flatten layer to above',
+      aboveIndex: layerIndex - 1,
+      sourceLayerSnapshot,
+      previousAboveData,
+      previousAboveOpacity,
+      mergedData,
+    });
+    return cmd;
   }
 
   /**

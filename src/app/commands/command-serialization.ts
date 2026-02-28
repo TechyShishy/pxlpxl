@@ -1,5 +1,4 @@
-import { Command, SerializedHistoryEntry, uint8ArrayToBase64, base64ToUint8Array } from '../models';
-import { GridType } from '../models/project.model';
+import { Command, SerializedHistoryEntry, SerializedPixelEntry, uint8ArrayToBase64, base64ToUint8Array, GridType, TriangularParams } from '../models';
 import { DrawCommand } from './draw.command';
 import { FillCommand } from './fill.command';
 import { LayerCommand } from './layer.command';
@@ -7,6 +6,7 @@ import { DuplicateLayerCommand } from './duplicate-layer.command';
 import { MoveLayerCommand } from './move-layer.command';
 import { MovePaletteCommand } from './move-palette.command';
 import { ReplaceColorCommand } from './replace-color.command';
+import { FlattenLayerCommand } from './flatten-layer.command';
 import { LayerService } from '../services/layer.service';
 import { ColorService } from '../services/color.service';
 
@@ -15,7 +15,7 @@ import { ColorService } from '../services/color.service';
  * and fix dNum/dDen parameters accordingly.
  */
 function remapLegacyGridType(
-  entry: SerializedHistoryEntry,
+  entry: SerializedPixelEntry,
 ): { gridType?: GridType; dNum?: number; dDen?: number } {
   const gt = entry.gridType as string | undefined;
   if (gt === 'triangular-slow') {
@@ -42,11 +42,11 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
       layerIndex: command.layerIdx,
       canvasWidth: command.width,
       gridType: command.gridType,
-      triangularA: command.triangularA,
-      triangularD: command.triangularD,
-      triangularDNum: command.triangularDNum,
-      triangularDDen: command.triangularDDen,
-      triangularShift: command.triangularShift,
+      triangularA: command.triangular?.a,
+      triangularD: command.triangular?.d,
+      triangularDNum: command.triangular?.dNum,
+      triangularDDen: command.triangular?.dDen,
+      triangularShift: command.triangular?.shift,
       modifiedPixels: command.modifiedPixels.map((p) => ({
         coord: { x: p.coord.x, y: p.coord.y },
         oldColor: { ...p.oldColor },
@@ -62,11 +62,11 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
       layerIndex: command.layerIdx,
       canvasWidth: command.width,
       gridType: command.gridType,
-      triangularA: command.triangularA,
-      triangularD: command.triangularD,
-      triangularDNum: command.triangularDNum,
-      triangularDDen: command.triangularDDen,
-      triangularShift: command.triangularShift,
+      triangularA: command.triangular?.a,
+      triangularD: command.triangular?.d,
+      triangularDNum: command.triangular?.dNum,
+      triangularDDen: command.triangular?.dDen,
+      triangularShift: command.triangular?.shift,
       modifiedPixels: command.modifiedPixels.map((p) => ({
         coord: { x: p.coord.x, y: p.coord.y },
         oldColor: { ...p.oldColor },
@@ -134,6 +134,26 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
       paletteIndex: command.paletteIndex,
       oldColor: { ...command.oldColor },
       newColor: { ...command.newColor },
+      affected: command.affected?.map(a => ({ layerIndex: a.layerIndex, byteOffset: a.byteOffset })) ?? undefined,
+    };
+  }
+
+  if (command instanceof FlattenLayerCommand) {
+    return {
+      type: 'flatten-layer',
+      description: command.description,
+      layerIndex: command.layerIndex,
+      canvasWidth: 0,
+      sourceLayerSnapshot: {
+        id: command.sourceLayerSnapshot.id,
+        name: command.sourceLayerSnapshot.name,
+        visible: command.sourceLayerSnapshot.visible,
+        opacity: command.sourceLayerSnapshot.opacity,
+        data: uint8ArrayToBase64(command.sourceLayerSnapshot.data),
+      },
+      previousAboveData: uint8ArrayToBase64(command.previousAboveData),
+      previousAboveOpacity: command.previousAboveOpacity,
+      mergedData: uint8ArrayToBase64(command.mergedData),
     };
   }
 
@@ -152,6 +172,9 @@ export function deserializeCommand(
   switch (entry.type) {
     case 'draw': {
       const { gridType, dNum, dDen } = remapLegacyGridType(entry);
+      const triDraw: TriangularParams | undefined = gridType === 'triangular'
+        ? { a: entry.triangularA, d: entry.triangularD, dNum, dDen, shift: entry.triangularShift }
+        : undefined;
       return new DrawCommand(
         layerService,
         entry.layerIndex,
@@ -163,16 +186,15 @@ export function deserializeCommand(
         })),
         entry.description,
         gridType,
-        entry.triangularA,
-        entry.triangularD,
-        dNum,
-        dDen,
-        entry.triangularShift,
+        triDraw,
       );
     }
 
     case 'fill': {
       const { gridType, dNum, dDen } = remapLegacyGridType(entry);
+      const triFill: TriangularParams | undefined = gridType === 'triangular'
+        ? { a: entry.triangularA, d: entry.triangularD, dNum, dDen, shift: entry.triangularShift }
+        : undefined;
       return new FillCommand(
         layerService,
         entry.layerIndex,
@@ -183,11 +205,7 @@ export function deserializeCommand(
           newColor: { ...p.newColor },
         })),
         gridType,
-        entry.triangularA,
-        entry.triangularD,
-        dNum,
-        dDen,
-        entry.triangularShift,
+        triFill,
       );
     }
 
@@ -229,16 +247,45 @@ export function deserializeCommand(
       if (entry.paletteIndex == null || !entry.oldColor || !entry.newColor) {
         throw new Error('replace-color entry is missing paletteIndex, oldColor, or newColor');
       }
-      return new ReplaceColorCommand(
+      const cmd = new ReplaceColorCommand(
         layerService,
         colorService,
         entry.paletteIndex,
         { ...entry.oldColor },
         { ...entry.newColor },
       );
+      if (entry.affected) {
+        cmd.affected = (entry.affected as Array<{ layerIndex: number; byteOffset: number }>).map(
+          (a) => ({ layerIndex: a.layerIndex, byteOffset: a.byteOffset }),
+        );
+      }
+      return cmd;
     }
 
-    default:
-      throw new Error(`Unknown history entry type: ${entry.type}`);
+    case 'flatten-layer': {
+      const src = entry.sourceLayerSnapshot;
+      if (!src || !entry.previousAboveData || !entry.mergedData) {
+        throw new Error('flatten-layer entry is missing required fields');
+      }
+      return FlattenLayerCommand.fromSerialized(
+        layerService,
+        entry.layerIndex,
+        {
+          id: src.id,
+          name: src.name,
+          visible: src.visible,
+          opacity: src.opacity,
+          data: base64ToUint8Array(src.data),
+        },
+        base64ToUint8Array(entry.previousAboveData),
+        entry.previousAboveOpacity ?? 1,
+        base64ToUint8Array(entry.mergedData),
+      );
+    }
+
+    default: {
+      const _exhaustive: never = entry;
+      throw new Error(`Unknown history entry type: ${(_exhaustive as SerializedHistoryEntry).type}`);
+    }
   }
 }
