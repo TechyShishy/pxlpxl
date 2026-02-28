@@ -147,27 +147,28 @@ describe('ProjectService', () => {
     it('should persist project and return an id', async () => {
       service.newProject('Save-Test', 8, 8);
       const id = await service.saveProject('Save-Test');
-      expect(id).toBeGreaterThan(0);
+      expect(id).toBeDefined();
+      expect(id!).toBeGreaterThan(0);
       expect(service.currentId).toBe(id);
     });
 
     it('should use current project name when no name is given', async () => {
       service.newProject('X', 8, 8);
       const id = await service.saveProject();
-      const saved = await db.getProject(id);
+      const saved = await db.getProject(id!);
       expect(saved?.name).toBe('X');
     });
 
     it('should preserve createdAt on subsequent saves', async () => {
       service.newProject('SaveTwice', 4, 4);
       const id = await service.saveProject('SaveTwice');
-      const first = await db.getProject(id);
+      const first = await db.getProject(id!);
       const createdAt = first!.createdAt;
 
       // Save again
       const id2 = await service.saveProject('SaveTwice-v2');
       expect(id2).toBe(id);
-      const second = await db.getProject(id);
+      const second = await db.getProject(id!);
       expect(second!.createdAt).toEqual(createdAt);
     });
 
@@ -178,7 +179,7 @@ describe('ProjectService', () => {
       layerService.setPixel(0, 0, 0, 4, { r: 255, g: 0, b: 0, a: 255 });
 
       const id = await service.saveProject('WithData');
-      const saved = await db.getProject(id);
+      const saved = await db.getProject(id!);
 
       expect(saved?.layers.length).toBe(1);
       expect(saved?.width).toBe(4);
@@ -189,7 +190,7 @@ describe('ProjectService', () => {
     it('should save grid type', async () => {
       service.newProject('Peyote', 8, 8, 'peyote');
       const id = await service.saveProject('Peyote');
-      const saved = await db.getProject(id);
+      const saved = await db.getProject(id!);
       expect(saved?.gridType).toBe('peyote');
     });
   });
@@ -206,7 +207,7 @@ describe('ProjectService', () => {
       expect(canvasState.canvasWidth()).toBe(4);
 
       // Load the first one back
-      const loaded = await service.loadProject(id);
+      const loaded = await service.loadProject(id!);
       expect(loaded).toBe(true);
       expect(canvasState.canvasWidth()).toBe(12);
       expect(canvasState.canvasHeight()).toBe(10);
@@ -229,7 +230,7 @@ describe('ProjectService', () => {
       expect(historyService.canUndo()).toBe(true);
 
       const id = await service.saveProject('H');
-      const loaded = await service.loadProject(id);
+      const loaded = await service.loadProject(id!);
       expect(loaded).toBe(true);
       expect(historyService.canUndo()).toBe(false);
     });
@@ -246,7 +247,7 @@ describe('ProjectService', () => {
       // Change palette
       colorService.setPalette(DEFAULT_PALETTE);
 
-      await service.loadProject(id);
+      await service.loadProject(id!);
       expect(colorService.palette().length).toBe(2);
     });
   });
@@ -258,8 +259,8 @@ describe('ProjectService', () => {
       service.newProject('Del', 4, 4);
       const id = await service.saveProject('Del');
 
-      await service.deleteProject(id);
-      const gone = await db.getProject(id);
+      await service.deleteProject(id!);
+      const gone = await db.getProject(id!);
       expect(gone).toBeUndefined();
     });
 
@@ -268,7 +269,7 @@ describe('ProjectService', () => {
       const id = await service.saveProject('Del');
       expect(service.currentId).toBe(id);
 
-      await service.deleteProject(id);
+      await service.deleteProject(id!);
       expect(service.currentId).toBeUndefined();
     });
 
@@ -279,7 +280,7 @@ describe('ProjectService', () => {
       service.newProject('B', 4, 4);
       const idB = await service.saveProject('B');
 
-      await service.deleteProject(idA);
+      await service.deleteProject(idA!);
       expect(service.currentId).toBe(idB);
     });
   });
@@ -291,9 +292,9 @@ describe('ProjectService', () => {
       service.newProject('Original', 4, 4);
       const id = await service.saveProject('Original');
 
-      await service.renameProject(id, 'Renamed');
+      await service.renameProject(id!, 'Renamed');
 
-      const project = await db.getProject(id);
+      const project = await db.getProject(id!);
       expect(project?.name).toBe('Renamed');
     });
 
@@ -302,7 +303,7 @@ describe('ProjectService', () => {
       const id = await service.saveProject('Active');
       expect(service.currentProjectName()).toBe('Active');
 
-      await service.renameProject(id, 'Active Renamed');
+      await service.renameProject(id!, 'Active Renamed');
 
       expect(service.currentProjectName()).toBe('Active Renamed');
     });
@@ -314,7 +315,7 @@ describe('ProjectService', () => {
       service.newProject('Second', 4, 4);
       await service.saveProject('Second');
 
-      await service.renameProject(idFirst, 'First Renamed');
+      await service.renameProject(idFirst!, 'First Renamed');
 
       expect(service.currentProjectName()).toBe('Second');
     });
@@ -324,7 +325,7 @@ describe('ProjectService', () => {
       const id = await service.saveProject('Before');
       expect(service.savedProjects()[0].name).toBe('Before');
 
-      await service.renameProject(id, 'After');
+      await service.renameProject(id!, 'After');
 
       expect(service.savedProjects()[0].name).toBe('After');
     });
@@ -341,6 +342,62 @@ describe('ProjectService', () => {
 
       const all = await service.listProjects();
       expect(all.length).toBe(2);
+    });
+  });
+
+  /* ====== error handling ====== */
+
+  describe('error handling', () => {
+    it('saveProject should catch DB errors and set error signal', async () => {
+      service.newProject('Err', 4, 4);
+      vi.spyOn(db, 'saveProject').mockRejectedValueOnce(new Error('QuotaExceeded'));
+
+      const result = await service.saveProject('Err');
+      expect(result).toBeUndefined();
+      expect(service.error()).toContain('QuotaExceeded');
+    });
+
+    it('loadProject should catch DB errors and set error signal', async () => {
+      vi.spyOn(db, 'getProject').mockRejectedValueOnce(new Error('DB corrupt'));
+
+      const result = await service.loadProject(1);
+      expect(result).toBe(false);
+      expect(service.error()).toContain('DB corrupt');
+    });
+
+    it('deleteProject should catch DB errors and set error signal', async () => {
+      vi.spyOn(db, 'deleteProject').mockRejectedValueOnce(new Error('Delete failed'));
+
+      await service.deleteProject(1); // should not throw
+      expect(service.error()).toContain('Delete failed');
+    });
+
+    it('renameProject should catch DB errors and set error signal', async () => {
+      vi.spyOn(db, 'renameProject').mockRejectedValueOnce(new Error('Rename failed'));
+
+      await service.renameProject(1, 'New Name'); // should not throw
+      expect(service.error()).toContain('Rename failed');
+    });
+
+    it('should clear error on successful operation', async () => {
+      // First cause an error
+      vi.spyOn(db, 'saveProject').mockRejectedValueOnce(new Error('QuotaExceeded'));
+      service.newProject('Err', 4, 4);
+      await service.saveProject('Err');
+      expect(service.error()).toBeTruthy();
+
+      // Now succeed — spy is consumed, real mock resumes
+      const id = await service.saveProject('Err');
+      expect(service.error()).toBeNull();
+      expect(id).toBeGreaterThan(0);
+    });
+
+    it('listProjects should catch DB errors and return empty array', async () => {
+      vi.spyOn(db, 'getAllProjects').mockRejectedValueOnce(new Error('List failed'));
+
+      const result = await service.listProjects();
+      expect(result).toEqual([]);
+      expect(service.error()).toContain('List failed');
     });
   });
 
@@ -365,7 +422,7 @@ describe('ProjectService', () => {
 
       expect(service.savedProjects().length).toBe(1);
 
-      await service.deleteProject(id);
+      await service.deleteProject(id!);
       expect(service.savedProjects().length).toBe(0);
     });
 
