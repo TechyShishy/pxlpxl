@@ -73,26 +73,26 @@ export function deduplicateColorList(colors: Color[]): Color[] {
   return result;
 }
 
-export const TRANSPARENT: Color = { r: 0, g: 0, b: 0, a: 0 };
-export const BLACK: Color = { r: 0, g: 0, b: 0, a: 255 };
-export const WHITE: Color = { r: 255, g: 255, b: 255, a: 255 };
+export const TRANSPARENT: Readonly<Color> = Object.freeze({ r: 0, g: 0, b: 0, a: 0 });
+export const BLACK: Readonly<Color> = Object.freeze({ r: 0, g: 0, b: 0, a: 255 });
+export const WHITE: Readonly<Color> = Object.freeze({ r: 255, g: 255, b: 255, a: 255 });
 
 /** A default 16-color palette suitable for pixel art */
-export const DEFAULT_PALETTE: Color[] = [
-  { r: 0, g: 0, b: 0, a: 255 }, // Black
-  { r: 255, g: 255, b: 255, a: 255 }, // White
-  { r: 128, g: 128, b: 128, a: 255 }, // Gray
-  { r: 192, g: 192, b: 192, a: 255 }, // Silver
-  { r: 255, g: 0, b: 0, a: 255 }, // Red
-  { r: 0, g: 255, b: 0, a: 255 }, // Green
-  { r: 0, g: 0, b: 255, a: 255 }, // Blue
-  { r: 255, g: 255, b: 0, a: 255 }, // Yellow
-  { r: 255, g: 0, b: 255, a: 255 }, // Magenta
-  { r: 0, g: 255, b: 255, a: 255 }, // Cyan
-  { r: 128, g: 0, b: 0, a: 255 }, // Maroon
-  { r: 0, g: 128, b: 0, a: 255 }, // Dark Green
-  { r: 0, g: 0, b: 128, a: 255 }, // Navy
-  { r: 128, g: 128, b: 0, a: 255 }, // Olive
-  { r: 128, g: 0, b: 128, a: 255 }, // Purple
-  { r: 0, g: 128, b: 128, a: 255 }, // Teal
-];
+export const DEFAULT_PALETTE: readonly Readonly<Color>[] = Object.freeze([
+  Object.freeze({ r: 0, g: 0, b: 0, a: 255 }), // Black
+  Object.freeze({ r: 255, g: 255, b: 255, a: 255 }), // White
+  Object.freeze({ r: 128, g: 128, b: 128, a: 255 }), // Gray
+  Object.freeze({ r: 192, g: 192, b: 192, a: 255 }), // Silver
+  Object.freeze({ r: 255, g: 0, b: 0, a: 255 }), // Red
+  Object.freeze({ r: 0, g: 255, b: 0, a: 255 }), // Green
+  Object.freeze({ r: 0, g: 0, b: 255, a: 255 }), // Blue
+  Object.freeze({ r: 255, g: 255, b: 0, a: 255 }), // Yellow
+  Object.freeze({ r: 255, g: 0, b: 255, a: 255 }), // Magenta
+  Object.freeze({ r: 0, g: 255, b: 255, a: 255 }), // Cyan
+  Object.freeze({ r: 128, g: 0, b: 0, a: 255 }), // Maroon
+  Object.freeze({ r: 0, g: 128, b: 0, a: 255 }), // Dark Green
+  Object.freeze({ r: 0, g: 0, b: 128, a: 255 }), // Navy
+  Object.freeze({ r: 128, g: 128, b: 0, a: 255 }), // Olive
+  Object.freeze({ r: 128, g: 0, b: 128, a: 255 }), // Purple
+  Object.freeze({ r: 0, g: 128, b: 128, a: 255 }), // Teal
+]);

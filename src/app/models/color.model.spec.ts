@@ -180,4 +180,26 @@ describe('Color Model', () => {
       expect(unique.size).toBe(DEFAULT_PALETTE.length);
     });
   });
+
+  describe('immutability', () => {
+    it('should throw when mutating BLACK', () => {
+      expect(() => { (BLACK as unknown as Record<string, number>)['r'] = 42; }).toThrow();
+    });
+
+    it('should throw when mutating WHITE', () => {
+      expect(() => { (WHITE as unknown as Record<string, number>)['r'] = 42; }).toThrow();
+    });
+
+    it('should throw when mutating TRANSPARENT', () => {
+      expect(() => { (TRANSPARENT as unknown as Record<string, number>)['r'] = 42; }).toThrow();
+    });
+
+    it('should throw when mutating DEFAULT_PALETTE entries', () => {
+      expect(() => { (DEFAULT_PALETTE[0] as unknown as Record<string, number>)['r'] = 42; }).toThrow();
+    });
+
+    it('should throw when pushing to DEFAULT_PALETTE', () => {
+      expect(() => { (DEFAULT_PALETTE as unknown as Color[]).push({ r: 1, g: 2, b: 3, a: 4 }); }).toThrow();
+    });
+  });
 });
