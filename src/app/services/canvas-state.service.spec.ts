@@ -1,0 +1,187 @@
+import { TestBed } from '@angular/core/testing';
+import { CanvasStateService } from './canvas-state.service';
+import { GridService } from './grid.service';
+
+describe('CanvasStateService', () => {
+  let service: CanvasStateService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    service = TestBed.inject(CanvasStateService);
+  });
+
+  describe('default values', () => {
+    it('should have default canvas dimensions', () => {
+      expect(service.canvasWidth()).toBe(32);
+      expect(service.canvasHeight()).toBe(32);
+    });
+
+    it('should have grid visible by default', () => {
+      expect(service.showGrid()).toBe(true);
+    });
+
+    it('should have rulers hidden by default', () => {
+      expect(service.showRulers()).toBe(false);
+    });
+
+    it('should default to square grid', () => {
+      expect(service.gridType()).toBe('square');
+    });
+
+    it('should have default transform', () => {
+      const t = service.transform();
+      expect(t.scale).toBe(10);
+      expect(t.offsetX).toBe(0);
+      expect(t.offsetY).toBe(0);
+    });
+
+    it('should compute zoomPercent from scale', () => {
+      expect(service.zoomPercent()).toBe(1000);
+    });
+  });
+
+  describe('setCanvasSize', () => {
+    it('should update width and height', () => {
+      service.setCanvasSize(64, 48);
+      expect(service.canvasWidth()).toBe(64);
+      expect(service.canvasHeight()).toBe(48);
+    });
+
+    it('should update buffer dimensions for square grid', () => {
+      service.setCanvasSize(16, 8);
+      expect(service.bufferWidth()).toBe(16);
+      expect(service.bufferHeight()).toBe(8);
+    });
+  });
+
+  describe('setGridType', () => {
+    it('should change grid type', () => {
+      service.setGridType('peyote');
+      expect(service.gridType()).toBe('peyote');
+    });
+
+    it('should update buffer width for peyote grid', () => {
+      service.setCanvasSize(10, 5);
+      service.setGridType('peyote');
+      // peyote bufferWidth = ceil(visualColumns / 2) = ceil(10 / 2) = 5
+      expect(service.bufferWidth()).toBe(5);
+    });
+
+    it('should update buffer width for peyote grid with odd columns', () => {
+      service.setCanvasSize(11, 5);
+      service.setGridType('peyote');
+      // ceil(11 / 2) = 6
+      expect(service.bufferWidth()).toBe(6);
+    });
+  });
+
+  describe('setTriangularParams', () => {
+    it('should set all triangular parameters', () => {
+      service.setTriangularParams(3, 2, 4, 5, 1);
+      expect(service.triangularA()).toBe(3);
+      expect(service.triangularD()).toBe(2);
+      expect(service.triangularDNum()).toBe(4);
+      expect(service.triangularDDen()).toBe(5);
+      expect(service.triangularShift()).toBe(1);
+    });
+
+    it('should use legacy fallback when dNum/dDen are undefined', () => {
+      service.setTriangularParams(3, 2);
+      expect(service.triangularA()).toBe(3);
+      expect(service.triangularD()).toBe(2);
+      expect(service.triangularDNum()).toBe(2); // d
+      expect(service.triangularDDen()).toBe(1);
+    });
+  });
+
+  describe('zoom', () => {
+    it('should set zoom level', () => {
+      service.setZoom(5);
+      expect(service.transform().scale).toBe(5);
+    });
+
+    it('should clamp zoom to minimum 0.5', () => {
+      service.setZoom(0.1);
+      expect(service.transform().scale).toBe(0.5);
+    });
+
+    it('should clamp zoom to maximum 64', () => {
+      service.setZoom(100);
+      expect(service.transform().scale).toBe(64);
+    });
+
+    it('should zoom in by factor of 1.25', () => {
+      service.setZoom(10);
+      service.zoomIn();
+      expect(service.transform().scale).toBe(12.5);
+    });
+
+    it('should zoom out by dividing by 1.25', () => {
+      service.setZoom(10);
+      service.zoomOut();
+      expect(service.transform().scale).toBe(8);
+    });
+
+    it('should update zoomPercent when zoom changes', () => {
+      service.setZoom(5);
+      expect(service.zoomPercent()).toBe(500);
+    });
+
+    it('should reset zoom to default', () => {
+      service.setZoom(20);
+      service.pan(100, 200);
+      service.resetZoom();
+      const t = service.transform();
+      expect(t.scale).toBe(10);
+      expect(t.offsetX).toBe(0);
+      expect(t.offsetY).toBe(0);
+    });
+  });
+
+  describe('pan', () => {
+    it('should add deltas to current pan offsets', () => {
+      service.pan(10, 20);
+      expect(service.transform().offsetX).toBe(10);
+      expect(service.transform().offsetY).toBe(20);
+    });
+
+    it('should accumulate pan deltas', () => {
+      service.pan(10, 20);
+      service.pan(5, -5);
+      expect(service.transform().offsetX).toBe(15);
+      expect(service.transform().offsetY).toBe(15);
+    });
+
+    it('should set absolute pan position', () => {
+      service.pan(100, 200);
+      service.setPan(50, 60);
+      expect(service.transform().offsetX).toBe(50);
+      expect(service.transform().offsetY).toBe(60);
+    });
+  });
+
+  describe('toggles', () => {
+    it('should toggle grid visibility', () => {
+      expect(service.showGrid()).toBe(true);
+      service.toggleGrid();
+      expect(service.showGrid()).toBe(false);
+      service.toggleGrid();
+      expect(service.showGrid()).toBe(true);
+    });
+
+    it('should toggle ruler visibility', () => {
+      expect(service.showRulers()).toBe(false);
+      service.toggleRulers();
+      expect(service.showRulers()).toBe(true);
+      service.toggleRulers();
+      expect(service.showRulers()).toBe(false);
+    });
+  });
+
+  describe('bufferPixelCount', () => {
+    it('should compute buffer pixel count for square grid', () => {
+      service.setCanvasSize(4, 4);
+      expect(service.bufferPixelCount()).toBe(16);
+    });
+  });
+});
