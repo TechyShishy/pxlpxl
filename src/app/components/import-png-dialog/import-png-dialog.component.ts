@@ -6,6 +6,8 @@ import {
   afterNextRender,
   ElementRef,
   viewChild,
+  effect,
+  DestroyRef,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -97,10 +99,51 @@ export class ImportPngDialogComponent {
   private lastPinchDistance = 0;
   private animFrameId = 0;
 
+  // ── Processed preview state ────────────────────────────────────────
+
+  /** Whether live median-cut is too slow and should be skipped during interaction. */
+  private skipLiveQuantize = false;
+  /** Timer for the debounced "settle" re-render with the user's selected algorithm. */
+  private settleTimeout: ReturnType<typeof setTimeout> | undefined;
+  /** Cached fully-processed buffer from the last settle render. */
+  private settledBuffer: Uint8ClampedArray | null = null;
+  /** Cached palette from the last settle render. */
+  private settledPalette: Color[] | null = null;
+  /** Whether the settled cache is still valid or needs recomputation. */
+  private settledDirty = true;
+  /** Whether layout has been initialised (guards against effect running too early). */
+  private layoutReady = false;
+
+  private readonly destroyRef = inject(DestroyRef);
+
+  /** Settle delay in ms — wait for interaction to stop before running full quantization. */
+  private static readonly SETTLE_MS = 300;
+  /** Max time in ms for live quantization per frame before disabling it. */
+  private static readonly LIVE_QUANTIZE_BUDGET_MS = 16;
+
   constructor() {
     afterNextRender(() => {
       this.initLayout();
+      this.layoutReady = true;
       this.scheduleDraw();
+      this.scheduleSettle();
+    });
+
+    // React to option changes: re-render preview when sampling, maxColors, or algorithm change.
+    effect(() => {
+      // Read signals to subscribe.
+      this.samplingMode();
+      this.maxColors();
+      this.quantizeAlgorithm();
+      if (!this.layoutReady) return;
+      this.invalidateSettled();
+      this.scheduleDraw();
+      this.scheduleSettle();
+    });
+
+    this.destroyRef.onDestroy(() => {
+      if (this.settleTimeout !== undefined) clearTimeout(this.settleTimeout);
+      if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
     });
   }
 
@@ -169,6 +212,35 @@ export class ImportPngDialogComponent {
     this.imageOffsetY.set(this.cropBoxY + (this.cropBoxH - imgH) / 2);
   }
 
+  // ── Settle / cache helpers ─────────────────────────────────────────
+
+  /** Mark the settled cache as stale. */
+  private invalidateSettled(): void {
+    this.settledDirty = true;
+    this.settledBuffer = null;
+    this.settledPalette = null;
+    this.skipLiveQuantize = false;
+  }
+
+  /** Schedule a debounced full-quality re-render. */
+  private scheduleSettle(): void {
+    if (this.settleTimeout !== undefined) clearTimeout(this.settleTimeout);
+    this.settleTimeout = setTimeout(() => {
+      this.settleTimeout = undefined;
+      this.runSettleRender();
+    }, ImportPngDialogComponent.SETTLE_MS);
+  }
+
+  /** Perform the full-quality render with the user's selected algorithm. */
+  private runSettleRender(): void {
+    const { buffer, palette } = this.computeProcessedBuffer(this.quantizeAlgorithm());
+    this.settledBuffer = buffer;
+    this.settledPalette = palette;
+    this.settledDirty = false;
+    this.skipLiveQuantize = false;
+    this.scheduleDraw();
+  }
+
   // ── Drawing ────────────────────────────────────────────────────────
 
   private scheduleDraw(): void {
@@ -184,14 +256,33 @@ export class ImportPngDialogComponent {
     const ctx = canvasEl.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, CONTAINER, CONTAINER);
+    // Dark background so transparent pixels are visible.
+    ctx.fillStyle = '#1e1e1e';
+    ctx.fillRect(0, 0, CONTAINER, CONTAINER);
 
-    // Draw the source image at current pan/zoom.
-    const { imageBitmap } = this.data;
-    const scale = this.imageScale();
-    const ox = this.imageOffsetX();
-    const oy = this.imageOffsetY();
-    ctx.drawImage(imageBitmap, ox, oy, imageBitmap.width * scale, imageBitmap.height * scale);
+    // Draw a subtle transparency checkerboard inside the crop box.
+    this.drawCheckerboard(ctx);
+
+    // Get the processed buffer to render.
+    let buffer: Uint8ClampedArray;
+    if (!this.settledDirty && this.settledBuffer) {
+      // Use the fully-settled (user-selected algorithm) result.
+      buffer = this.settledBuffer;
+    } else {
+      // Live path: fast median-cut (or no quantization if too slow).
+      const liveAlgorithm = this.skipLiveQuantize ? undefined : 'median-cut' as QuantizeAlgorithm;
+      const t0 = performance.now();
+      const result = this.computeProcessedBuffer(liveAlgorithm);
+      const elapsed = performance.now() - t0;
+      if (elapsed > ImportPngDialogComponent.LIVE_QUANTIZE_BUDGET_MS && liveAlgorithm !== undefined) {
+        // Median-cut was too slow — skip quantization for subsequent live frames.
+        this.skipLiveQuantize = true;
+      }
+      buffer = result.buffer;
+    }
+
+    // Render the pixelated buffer onto the crop box.
+    this.renderBuffer(ctx, buffer);
 
     // Draw grey overlay around the crop box (4 rects forming a "vignette").
     ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
@@ -214,6 +305,23 @@ export class ImportPngDialogComponent {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
     ctx.lineWidth = 1;
     ctx.strokeRect(this.cropBoxX, this.cropBoxY, this.cropBoxW, this.cropBoxH);
+  }
+
+  /** Draw a subtle checkerboard inside the crop box to indicate transparency. */
+  private drawCheckerboard(ctx: CanvasRenderingContext2D): void {
+    const checkSize = 8;
+    const x0 = this.cropBoxX;
+    const y0 = this.cropBoxY;
+    const x1 = x0 + this.cropBoxW;
+    const y1 = y0 + this.cropBoxH;
+    for (let y = y0; y < y1; y += checkSize) {
+      for (let x = x0; x < x1; x += checkSize) {
+        const col = Math.floor((x - x0) / checkSize);
+        const row = Math.floor((y - y0) / checkSize);
+        ctx.fillStyle = (col + row) % 2 === 0 ? '#2a2a2a' : '#3a3a3a';
+        ctx.fillRect(x, y, Math.min(checkSize, x1 - x), Math.min(checkSize, y1 - y));
+      }
+    }
   }
 
   // ── Pointer events (pan + pinch) ─────────────────────────────────
@@ -254,7 +362,9 @@ export class ImportPngDialogComponent {
       this.imageOffsetY.set(cy + (this.imageOffsetY() - cy) * (newScale / oldScale));
       this.lastPinchDistance = dist;
     }
+    this.invalidateSettled();
     this.scheduleDraw();
+    this.scheduleSettle();
   }
 
   onPointerUp(e: PointerEvent): void {
@@ -296,34 +406,180 @@ export class ImportPngDialogComponent {
     // Zoom toward the cursor position.
     this.imageOffsetX.set(cx + (ox - cx) * (newScale / oldScale));
     this.imageOffsetY.set(cy + (oy - cy) * (newScale / oldScale));
+    this.invalidateSettled();
     this.scheduleDraw();
+    this.scheduleSettle();
   }
 
   // ── Dialog actions ────────────────────────────────────────────────
 
   onImport(): void {
-    const buffer = this.produceLayerData();
-    const uniqueColors = extractUniqueColors(buffer);
-    const max = this.maxColors();
-    let finalBuffer: Uint8ClampedArray;
+    // Use the settled cache if available; otherwise compute fresh.
+    let buffer: Uint8ClampedArray;
     let palette: Color[];
-
-    if (max > 0 && uniqueColors.length > max) {
-      palette =
-        this.quantizeAlgorithm() === 'k-means'
-          ? kMeans(uniqueColors, max)
-          : medianCut(uniqueColors, max);
-      finalBuffer = quantizeBuffer(buffer, palette);
+    if (!this.settledDirty && this.settledBuffer && this.settledPalette) {
+      buffer = this.settledBuffer;
+      palette = this.settledPalette;
     } else {
-      finalBuffer = buffer;
-      palette = uniqueColors;
+      const result = this.computeProcessedBuffer(this.quantizeAlgorithm());
+      buffer = result.buffer;
+      palette = result.palette;
     }
-
-    this.dialogRef.close({ buffer: finalBuffer, palette } satisfies ImportPngResult);
+    this.dialogRef.close({ buffer, palette } satisfies ImportPngResult);
   }
 
   onCancel(): void {
     this.dialogRef.close(undefined);
+  }
+
+  // ── Processing pipeline ───────────────────────────────────────────
+
+  /**
+   * Produce the sampled + quantized buffer ready for import or preview.
+   *
+   * @param algorithm - The quantization algorithm to use. Pass `undefined` to
+   *   skip quantization entirely (raw sampled pixels only).
+   */
+  private computeProcessedBuffer(
+    algorithm: QuantizeAlgorithm | undefined,
+  ): { buffer: Uint8ClampedArray; palette: Color[] } {
+    const raw = this.produceLayerData();
+    const uniqueColors = extractUniqueColors(raw);
+    const max = this.maxColors();
+
+    if (algorithm !== undefined && max > 0 && uniqueColors.length > max) {
+      const palette =
+        algorithm === 'k-means'
+          ? kMeans(uniqueColors, max)
+          : medianCut(uniqueColors, max);
+      return { buffer: quantizeBuffer(raw, palette), palette };
+    }
+
+    return { buffer: raw, palette: uniqueColors };
+  }
+
+  // ── Grid-aware preview renderer ───────────────────────────────────
+
+  /**
+   * Render a processed pixel buffer onto the preview canvas inside the crop box,
+   * using grid-type-aware positioning so peyote and triangular layouts look correct.
+   */
+  private renderBuffer(ctx: CanvasRenderingContext2D, buffer: Uint8ClampedArray): void {
+    const {
+      gridType,
+      bufferWidth,
+      bufferHeight,
+      triangularA,
+      triangularDNum,
+      triangularDDen,
+      triangularShift,
+    } = this.data;
+
+    const dNum = triangularDNum ?? 1;
+    const dDen = triangularDDen ?? 1;
+    const shift = triangularShift ?? 0;
+
+    if (gridType === 'triangular' && triangularA !== undefined) {
+      this.renderTriangularBuffer(ctx, buffer, bufferWidth, bufferHeight, triangularA, dNum, dDen, shift);
+    } else if (gridType === 'peyote') {
+      this.renderPeyoteBuffer(ctx, buffer, bufferWidth, bufferHeight);
+    } else {
+      this.renderSquareBuffer(ctx, buffer, bufferWidth, bufferHeight);
+    }
+  }
+
+  private renderSquareBuffer(
+    ctx: CanvasRenderingContext2D,
+    buffer: Uint8ClampedArray,
+    bufW: number,
+    bufH: number,
+  ): void {
+    const cs = this.cellSize;
+    for (let by = 0; by < bufH; by++) {
+      for (let bx = 0; bx < bufW; bx++) {
+        const off = (by * bufW + bx) * 4;
+        const a = buffer[off + 3];
+        if (a === 0) continue;
+        ctx.fillStyle = `rgba(${buffer[off]},${buffer[off + 1]},${buffer[off + 2]},${a / 255})`;
+        ctx.fillRect(
+          this.cropBoxX + bx * cs,
+          this.cropBoxY + by * cs,
+          Math.ceil(cs),
+          Math.ceil(cs),
+        );
+      }
+    }
+  }
+
+  private renderPeyoteBuffer(
+    ctx: CanvasRenderingContext2D,
+    buffer: Uint8ClampedArray,
+    bufW: number,
+    bufH: number,
+  ): void {
+    const cs = this.cellSize;
+    for (let by = 0; by < bufH; by++) {
+      for (let bx = 0; bx < bufW; bx++) {
+        const off = (by * bufW + bx) * 4;
+        const a = buffer[off + 3];
+        if (a === 0) continue;
+        const { col, beadRow } = this.gridService.bufferToVisual(bx, by);
+        if (col >= this.data.canvasWidth) continue;
+        const isOddCol = col % 2 === 1;
+        const vx = col;
+        const vy = beadRow + (isOddCol ? 0.5 : 0);
+        ctx.fillStyle = `rgba(${buffer[off]},${buffer[off + 1]},${buffer[off + 2]},${a / 255})`;
+        ctx.fillRect(
+          this.cropBoxX + vx * cs,
+          this.cropBoxY + vy * cs,
+          Math.ceil(cs),
+          Math.ceil(cs),
+        );
+      }
+    }
+  }
+
+  private renderTriangularBuffer(
+    ctx: CanvasRenderingContext2D,
+    buffer: Uint8ClampedArray,
+    bufW: number,
+    bufH: number,
+    triA: number,
+    dNum: number,
+    dDen: number,
+    shift: number,
+  ): void {
+    const cs = this.cellSize;
+    const usePeyote = this.gridService.usesPeyoteStagger(this.data.gridType, 0, dNum, dDen);
+    let maxRowWidth = 0;
+    for (let r = 0; r < bufH; r++) {
+      maxRowWidth = Math.max(maxRowWidth, triangularRowWidth(r, triA, dNum, dDen, shift));
+    }
+    for (let by = 0; by < bufH; by++) {
+      const rowWidth = triangularRowWidth(by, triA, dNum, dDen, shift);
+      for (let bx = 0; bx < rowWidth; bx++) {
+        const off = pixelOffset(bx, by, bufW, 'triangular', triA, undefined, dNum, dDen, shift);
+        const a = buffer[off + 3];
+        if (a === 0) continue;
+        let vx: number, vy: number;
+        if (usePeyote) {
+          const centerOffset = maxRowWidth - rowWidth;
+          vx = centerOffset + bx * 2;
+          vy = by / 2;
+        } else {
+          const centerOffset = (maxRowWidth - rowWidth) / 2;
+          vx = centerOffset + bx;
+          vy = by;
+        }
+        ctx.fillStyle = `rgba(${buffer[off]},${buffer[off + 1]},${buffer[off + 2]},${a / 255})`;
+        ctx.fillRect(
+          this.cropBoxX + vx * cs,
+          this.cropBoxY + vy * cs,
+          Math.ceil(cs),
+          Math.ceil(cs),
+        );
+      }
+    }
   }
 
   // ── Core sampling logic ───────────────────────────────────────────

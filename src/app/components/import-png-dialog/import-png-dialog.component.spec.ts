@@ -5,6 +5,7 @@ import {
   ImportPngDialogComponent,
   ImportPngDialogData,
   SamplingMode,
+  QuantizeAlgorithm,
   type ImportPngResult,
 } from './import-png-dialog.component';
 
@@ -153,5 +154,101 @@ describe('ImportPngDialogComponent', () => {
     } finally {
       (globalThis as Record<string, unknown>)['OffscreenCanvas'] = originalOffscreen;
     }
+  });
+
+  describe('processed preview rendering', () => {
+    function setupWithOffscreen(data?: ImportPngDialogData) {
+      const originalOffscreen = (globalThis as Record<string, unknown>)['OffscreenCanvas'];
+      const mockOffscreenCtx = {
+        drawImage: vi.fn(),
+        getImageData: vi.fn((_x: number, _y: number, w: number, h: number) => ({
+          data: new Uint8ClampedArray(w * h * 4).fill(128),
+          width: w,
+          height: h,
+        })),
+      };
+      (globalThis as Record<string, unknown>)['OffscreenCanvas'] = class {
+        constructor(public width: number, public height: number) {}
+        getContext() { return mockOffscreenCtx; }
+      };
+
+      const result = setup(data ?? makeDialogData());
+      return { ...result, mockOffscreenCtx, restore: () => {
+        (globalThis as Record<string, unknown>)['OffscreenCanvas'] = originalOffscreen;
+      }};
+    }
+
+    it('should call computeProcessedBuffer when importing', () => {
+      const { component, closeSpy, restore } = setupWithOffscreen();
+      try {
+        (component as unknown as { onImport: () => void }).onImport();
+        expect(closeSpy).toHaveBeenCalled();
+        const [result] = closeSpy.mock.calls[0] as [ImportPngResult];
+        expect(result.buffer).toBeInstanceOf(Uint8ClampedArray);
+        expect(result.palette).toBeDefined();
+        expect(Array.isArray(result.palette)).toBe(true);
+      } finally {
+        restore();
+      }
+    });
+
+    it('should use settled cache for import when available', () => {
+      const { component, closeSpy, restore } = setupWithOffscreen();
+      try {
+        // Access private members to simulate settle
+        const c = component as unknown as Record<string, unknown>;
+
+        // Manually trigger computeProcessedBuffer to populate a result
+        const computeFn = (c['computeProcessedBuffer'] as (algo: QuantizeAlgorithm | undefined) => { buffer: Uint8ClampedArray; palette: unknown[] }).bind(component);
+        const result = computeFn('median-cut');
+
+        // Simulate settled state
+        c['settledBuffer'] = result.buffer;
+        c['settledPalette'] = result.palette;
+        c['settledDirty'] = false;
+
+        (component as unknown as { onImport: () => void }).onImport();
+        const [importResult] = closeSpy.mock.calls[0] as [ImportPngResult];
+        // Should use the cached buffer
+        expect(importResult.buffer).toBe(result.buffer);
+      } finally {
+        restore();
+      }
+    });
+
+    it('should invalidate settled cache when invalidateSettled is called', () => {
+      const { component, restore } = setupWithOffscreen();
+      try {
+        const c = component as unknown as Record<string, unknown>;
+        // Simulate that settled cache was populated
+        c['settledDirty'] = false;
+        c['settledBuffer'] = new Uint8ClampedArray(64);
+        c['settledPalette'] = [{ r: 128, g: 128, b: 128, a: 128 }];
+
+        // Call invalidateSettled directly
+        (c['invalidateSettled'] as () => void).call(component);
+
+        // Settled should be invalidated
+        expect(c['settledDirty']).toBe(true);
+        expect(c['settledBuffer']).toBeNull();
+        expect(c['settledPalette']).toBeNull();
+      } finally {
+        restore();
+      }
+    });
+
+    it('should produce quantized buffer when maxColors is set', () => {
+      const { component, closeSpy, restore } = setupWithOffscreen();
+      try {
+        // All pixels are rgba(128,128,128,128) from the mock — 1 unique color.
+        // Set maxColors to 1 so quantization path is exercised but doesn't reduce.
+        (component as unknown as { maxColors: { set: (v: number) => void } }).maxColors.set(1);
+        (component as unknown as { onImport: () => void }).onImport();
+        const [result] = closeSpy.mock.calls[0] as [ImportPngResult];
+        expect(result.palette.length).toBeLessThanOrEqual(1);
+      } finally {
+        restore();
+      }
+    });
   });
 });
