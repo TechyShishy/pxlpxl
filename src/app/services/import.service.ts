@@ -9,6 +9,7 @@ import {
   RgpProjectSchema,
   base64ToUint8Array,
   letterToColor,
+  computeBufferPixelCount,
 } from '../models';
 import type { Color } from '../models';
 import { createLayer } from '../models/layer.model';
@@ -219,18 +220,30 @@ export class ImportService {
     this.canvasState.setCanvasSize(pxl.width, pxl.height);
     this.canvasState.setGridType(gridType);
     if (gridType === 'triangular' && pxl.triangularA !== undefined) {
-      this.canvasState.setTriangularParams(pxl.triangularA, pxl.triangularD ?? 1, dNum, dDen);
+      this.canvasState.setTriangularParams(pxl.triangularA, pxl.triangularD ?? 1, dNum, dDen, pxl.triangularShift);
     }
     this.canvasState.resetZoom();
 
     // Hydrate layers
-    const layers = pxl.layers.map((l) => ({
-      id: l.id,
-      name: l.name,
-      visible: l.visible,
-      opacity: l.opacity,
-      data: base64ToUint8Array(l.data),
-    }));
+    const expectedBytes = computeBufferPixelCount(
+      pxl.width, pxl.height, gridType,
+      pxl.triangularA, pxl.triangularD, dNum, dDen, pxl.triangularShift,
+    ) * 4;
+    const layers = pxl.layers.map((l) => {
+      const data = base64ToUint8Array(l.data);
+      if (data.length !== expectedBytes) {
+        throw new Error(
+          `Layer "${l.name}" buffer size mismatch: expected ${expectedBytes} bytes, got ${data.length}`,
+        );
+      }
+      return {
+        id: l.id,
+        name: l.name,
+        visible: l.visible,
+        opacity: l.opacity,
+        data,
+      };
+    });
     this.layerService.setLayers(layers);
 
     // Hydrate palette

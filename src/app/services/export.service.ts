@@ -143,6 +143,7 @@ export class ExportService {
       triangularD: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularD() : undefined,
       triangularDNum: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularDNum() : undefined,
       triangularDDen: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularDDen() : undefined,
+      triangularShift: this.canvasState.gridType() === 'triangular' ? this.canvasState.triangularShift() : undefined,
       palette: this.colorService.palette().map((c) => ({ ...c })),
       layers: this.layerService.layers().map((l) => ({
         id: l.id,
@@ -181,6 +182,7 @@ export class ExportService {
     // so we need the true pixel count rather than bufferWidth × bufferHeight.
     const isTriangular = gridType === 'triangular';
     const triangularA = isTriangular ? this.canvasState.triangularA() : 0;
+    const triShift = isTriangular ? this.canvasState.triangularShift() : 0;
     const { dNum: triDNum, dDen: triDDen } = isTriangular
       ? resolveTriangularD(
           this.canvasState.triangularD(),
@@ -190,7 +192,7 @@ export class ExportService {
       : { dNum: 0, dDen: 1 };
 
     const bufferSize = isTriangular
-      ? computeBufferPixelCount(0, bufferHeight, 'triangular', triangularA, undefined, triDNum, triDDen) * 4
+      ? computeBufferPixelCount(0, bufferHeight, 'triangular', triangularA, undefined, triDNum, triDDen, triShift) * 4
       : bufferWidth * bufferHeight * 4;
 
     // Composite visible layers bottom-to-top using Porter-Duff 'over'
@@ -240,10 +242,10 @@ export class ExportService {
       // Triangular grids have variable row widths and packed offsets;
       // square/peyote rows all have the same width and fixed stride.
       const rowWidth = isTriangular
-        ? triangularRowWidth(by, triangularA, triDNum, triDDen)
+        ? triangularRowWidth(by, triangularA, triDNum, triDDen, triShift)
         : bufferWidth;
       const rowBaseOffset = isTriangular
-        ? triangularCumPixels(by, triangularA, triDNum, triDDen)
+        ? triangularCumPixels(by, triangularA, triDNum, triDDen, triShift)
         : by * bufferWidth;
 
       // 1-indexed odd rows correspond to by % 2 === 0.

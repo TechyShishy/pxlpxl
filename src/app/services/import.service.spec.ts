@@ -413,6 +413,43 @@ describe('ImportService', () => {
       await expect(service.importFromBuffer(gzipped, 'corrupt.pxl'))
         .rejects.toThrow('Failed to parse');
     });
+
+    it('should hydrate triangularShift from pxl file', async () => {
+      // a=2, dNum=1, dDen=1, height=4: rows=[2,3,4,5] = 14 pixels = 56 bytes
+      const bufSize = 14 * 4;
+      const pxl = makePxlFile({
+        gridType: 'triangular',
+        triangularA: 2,
+        triangularD: 1,
+        triangularDNum: 1,
+        triangularDDen: 1,
+        triangularShift: 5,
+        layers: [{
+          id: 'l1', name: 'Layer 1', visible: true, opacity: 1,
+          data: uint8ArrayToBase64(new Uint8ClampedArray(bufSize)),
+        }],
+      });
+      const gzipped = await compressToGzip(JSON.stringify(pxl));
+
+      await service.importFromBuffer(gzipped, 'shift.pxl');
+
+      expect(canvasState.triangularShift()).toBe(5);
+    });
+
+    it('should throw when layer data length does not match expected buffer size', async () => {
+      // 4x4 square grid expects 4*4*4 = 64 bytes, we give 32
+      const wrongSizeData = new Uint8ClampedArray(32);
+      const pxl = makePxlFile({
+        layers: [{
+          id: 'l1', name: 'Layer 1', visible: true, opacity: 1,
+          data: uint8ArrayToBase64(wrongSizeData),
+        }],
+      });
+      const gzipped = await compressToGzip(JSON.stringify(pxl));
+
+      await expect(service.importFromBuffer(gzipped, 'bad-layer.pxl'))
+        .rejects.toThrow(/buffer size mismatch/i);
+    });
   });
 
   // ── openFilePicker ────────────────────────────────────────────────────

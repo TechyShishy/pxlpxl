@@ -10,6 +10,7 @@ import { HistoryService } from './history.service';
 import { ProjectService } from './project.service';
 import { Capacitor } from '@capacitor/core';
 import { Directory } from '@capacitor/filesystem';
+import { PxlFile, base64ToUint8Array } from '../models';
 /** Decompress a gzip Blob produced by exportAsRgp back to a JSON string */
 async function decompressBlob(blob: Blob): Promise<string> {
   const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
@@ -70,6 +71,7 @@ describe('ExportService', () => {
             triangularD: vi.fn(() => 1),
             triangularDNum: vi.fn(() => 1),
             triangularDDen: vi.fn(() => 1),
+            triangularShift: vi.fn(() => 0),
           },
         },
         {
@@ -114,6 +116,192 @@ describe('ExportService', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe('exportAsPxl', () => {
+    it('should include triangularShift in output for triangular grids', async () => {
+      // The existing TestBed uses mocks, so update the mock to return triangular config
+      const canvasStateMock = TestBed.inject(CanvasStateService);
+      const layersMock = TestBed.inject(LayerService);
+      const colorMock = TestBed.inject(ColorService);
+
+      (canvasStateMock.gridType as unknown as ReturnType<typeof vi.fn>).mockReturnValue('triangular');
+      (canvasStateMock.canvasWidth as unknown as ReturnType<typeof vi.fn>).mockReturnValue(4);
+      (canvasStateMock.canvasHeight as unknown as ReturnType<typeof vi.fn>).mockReturnValue(4);
+      (canvasStateMock.triangularA as unknown as ReturnType<typeof vi.fn>).mockReturnValue(2);
+      (canvasStateMock.triangularD as unknown as ReturnType<typeof vi.fn>).mockReturnValue(1);
+      (canvasStateMock.triangularDNum as unknown as ReturnType<typeof vi.fn>).mockReturnValue(1);
+      (canvasStateMock.triangularDDen as unknown as ReturnType<typeof vi.fn>).mockReturnValue(1);
+      // Add triangularShift to the mock (not present in original mock setup)
+      (canvasStateMock as unknown as Record<string, unknown>)['triangularShift'] = vi.fn(() => 3);
+      (layersMock.layers as unknown as ReturnType<typeof vi.fn>).mockReturnValue([]);
+      (colorMock.palette as unknown as ReturnType<typeof vi.fn>).mockReturnValue([]);
+
+      const blob = await service.exportAsPxl();
+      const json = await decompressBlob(blob);
+      const pxl = JSON.parse(json) as PxlFile;
+
+      expect(pxl.triangularShift).toBe(3);
+    });
+
+    it('should produce a valid PxlFile with all required fields for square grid', async () => {
+      const canvasStateMock = TestBed.inject(CanvasStateService);
+      const layersMock = TestBed.inject(LayerService);
+      const colorMock = TestBed.inject(ColorService);
+      const projectMock = TestBed.inject(ProjectService);
+
+      (canvasStateMock.gridType as unknown as ReturnType<typeof vi.fn>).mockReturnValue('square');
+      (canvasStateMock.canvasWidth as unknown as ReturnType<typeof vi.fn>).mockReturnValue(2);
+      (canvasStateMock.canvasHeight as unknown as ReturnType<typeof vi.fn>).mockReturnValue(2);
+
+      // Set up one layer with known pixel data: red at (0,0)
+      const layerData = new Uint8ClampedArray(2 * 2 * 4);
+      layerData[0] = 255; layerData[1] = 0; layerData[2] = 0; layerData[3] = 255;
+      (layersMock.layers as unknown as ReturnType<typeof vi.fn>).mockReturnValue([
+        { id: 'layer-1', name: 'Background', visible: true, opacity: 0.8, data: layerData },
+      ]);
+
+      (colorMock.palette as unknown as ReturnType<typeof vi.fn>).mockReturnValue([
+        { r: 255, g: 0, b: 0, a: 255 },
+        { r: 0, g: 255, b: 0, a: 255 },
+      ]);
+
+      (projectMock.currentProjectName as unknown as ReturnType<typeof vi.fn>).mockReturnValue('My Project');
+
+      const blob = await service.exportAsPxl();
+      const json = await decompressBlob(blob);
+      const pxl = JSON.parse(json) as PxlFile;
+
+      expect(pxl.version).toBe(1);
+      expect(pxl.name).toBe('My Project');
+      expect(pxl.width).toBe(2);
+      expect(pxl.height).toBe(2);
+      expect(pxl.gridType).toBe('square');
+
+      // Palette
+      expect(pxl.palette).toHaveLength(2);
+      expect(pxl.palette[0]).toEqual({ r: 255, g: 0, b: 0, a: 255 });
+      expect(pxl.palette[1]).toEqual({ r: 0, g: 255, b: 0, a: 255 });
+
+      // Layers
+      expect(pxl.layers).toHaveLength(1);
+      expect(pxl.layers[0].id).toBe('layer-1');
+      expect(pxl.layers[0].name).toBe('Background');
+      expect(pxl.layers[0].visible).toBe(true);
+      expect(pxl.layers[0].opacity).toBe(0.8);
+
+      // Layer data should be base64-encoded and decode back to the original RGBA bytes
+      const decoded = base64ToUint8Array(pxl.layers[0].data);
+      expect(decoded[0]).toBe(255); // R
+      expect(decoded[1]).toBe(0);   // G
+      expect(decoded[2]).toBe(0);   // B
+      expect(decoded[3]).toBe(255); // A
+
+      // Timestamps
+      expect(pxl.createdAt).toBeDefined();
+      expect(pxl.updatedAt).toBeDefined();
+      expect(() => new Date(pxl.createdAt)).not.toThrow();
+
+      // Triangular fields should be undefined for square grids
+      expect(pxl.triangularA).toBeUndefined();
+      expect(pxl.triangularD).toBeUndefined();
+      expect(pxl.triangularDNum).toBeUndefined();
+      expect(pxl.triangularDDen).toBeUndefined();
+      expect(pxl.triangularShift).toBeUndefined();
+    });
+
+    it('should include serialized history when undo/redo stacks are non-empty', async () => {
+      const historyMock = TestBed.inject(HistoryService);
+      const layersMock = TestBed.inject(LayerService);
+      const colorMock = TestBed.inject(ColorService);
+
+      (layersMock.layers as unknown as ReturnType<typeof vi.fn>).mockReturnValue([]);
+      (colorMock.palette as unknown as ReturnType<typeof vi.fn>).mockReturnValue([]);
+
+      // Provide a mock command that serializeCommand can process
+      const mockCommand = {
+        type: 'draw',
+        description: 'Draw pixel',
+        layerIndex: 0,
+        canvasWidth: 2,
+        execute: vi.fn(),
+        undo: vi.fn(),
+        pixels: [{ x: 0, y: 0, oldColor: { r: 0, g: 0, b: 0, a: 0 }, newColor: { r: 255, g: 0, b: 0, a: 255 } }],
+        gridType: 'square' as const,
+      };
+
+      (historyMock.getUndoStack as unknown as ReturnType<typeof vi.fn>).mockReturnValue([mockCommand]);
+      (historyMock.getRedoStack as unknown as ReturnType<typeof vi.fn>).mockReturnValue([]);
+
+      const blob = await service.exportAsPxl();
+      const json = await decompressBlob(blob);
+      const pxl = JSON.parse(json) as PxlFile;
+
+      expect(pxl.history).toBeDefined();
+      expect(pxl.history!.undoStack.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should omit history when both stacks are empty', async () => {
+      const layersMock = TestBed.inject(LayerService);
+      const colorMock = TestBed.inject(ColorService);
+
+      (layersMock.layers as unknown as ReturnType<typeof vi.fn>).mockReturnValue([]);
+      (colorMock.palette as unknown as ReturnType<typeof vi.fn>).mockReturnValue([]);
+
+      const blob = await service.exportAsPxl();
+      const json = await decompressBlob(blob);
+      const pxl = JSON.parse(json) as PxlFile;
+
+      expect(pxl.history).toBeUndefined();
+    });
+
+    it('should preserve multiple layers with correct ordering', async () => {
+      const layersMock = TestBed.inject(LayerService);
+      const colorMock = TestBed.inject(ColorService);
+
+      const layer1Data = new Uint8ClampedArray(2 * 2 * 4);
+      const layer2Data = new Uint8ClampedArray(2 * 2 * 4);
+      layer2Data[0] = 128;
+
+      (layersMock.layers as unknown as ReturnType<typeof vi.fn>).mockReturnValue([
+        { id: 'l1', name: 'Bottom', visible: true, opacity: 1, data: layer1Data },
+        { id: 'l2', name: 'Top', visible: false, opacity: 0.5, data: layer2Data },
+      ]);
+      (colorMock.palette as unknown as ReturnType<typeof vi.fn>).mockReturnValue([]);
+
+      const blob = await service.exportAsPxl();
+      const json = await decompressBlob(blob);
+      const pxl = JSON.parse(json) as PxlFile;
+
+      expect(pxl.layers).toHaveLength(2);
+      expect(pxl.layers[0].id).toBe('l1');
+      expect(pxl.layers[0].name).toBe('Bottom');
+      expect(pxl.layers[0].visible).toBe(true);
+      expect(pxl.layers[0].opacity).toBe(1);
+      expect(pxl.layers[1].id).toBe('l2');
+      expect(pxl.layers[1].name).toBe('Top');
+      expect(pxl.layers[1].visible).toBe(false);
+      expect(pxl.layers[1].opacity).toBe(0.5);
+
+      // Verify second layer's data decodes correctly
+      const decoded = base64ToUint8Array(pxl.layers[1].data);
+      expect(decoded[0]).toBe(128);
+    });
+
+    it('should produce a gzip-compressed blob', async () => {
+      const layersMock = TestBed.inject(LayerService);
+      const colorMock = TestBed.inject(ColorService);
+
+      (layersMock.layers as unknown as ReturnType<typeof vi.fn>).mockReturnValue([]);
+      (colorMock.palette as unknown as ReturnType<typeof vi.fn>).mockReturnValue([]);
+
+      const blob = await service.exportAsPxl();
+
+      // Verify it's a valid gzip blob by decompressing it
+      const json = await decompressBlob(blob);
+      const parsed = JSON.parse(json);
+      expect(parsed.version).toBeDefined();
+    });
   });
 
   describe('downloadExport (browser)', () => {
@@ -412,6 +600,7 @@ describe('ExportService', () => {
       triangularD: ReturnType<typeof vi.fn>;
       triangularDNum: ReturnType<typeof vi.fn>;
       triangularDDen: ReturnType<typeof vi.fn>;
+      triangularShift: ReturnType<typeof vi.fn>;
     };
 
     function getCanvasMock(): CanvasMock {
@@ -427,6 +616,7 @@ describe('ExportService', () => {
       canvasMock.triangularD.mockReturnValue(1);
       canvasMock.triangularDNum.mockReturnValue(1);
       canvasMock.triangularDDen.mockReturnValue(1);
+      canvasMock.triangularShift.mockReturnValue(0);
     });
 
     it('should produce exactly 3 rows matching the triangular row count', async () => {
@@ -520,6 +710,44 @@ describe('ExportService', () => {
       // Row 2 (even, RTL): bx2=C first, then bx1=B, then bx0=A
       expect(parsed.rows[2].steps[0]).toMatchObject({ count: 1, description: 'C' });
       expect(parsed.rows[2].steps[2]).toMatchObject({ count: 1, description: 'A' });
+    });
+
+    it('should use triangularShift in buffer size and row width calculations', async () => {
+      // a=1, dNum=1, dDen=2, shift=1, height=4
+      // With shift=1: row0=1, row1=2, row2=1, row3=2 (total 6 pixels)
+      // With shift=0: row0=1, row1=0, row2=1, row3=2 — different distribution
+      const canvasMock = getCanvasMock();
+      canvasMock.triangularA.mockReturnValue(1);
+      canvasMock.triangularD.mockReturnValue(1);
+      canvasMock.triangularDNum.mockReturnValue(1);
+      canvasMock.triangularDDen.mockReturnValue(2);
+      canvasMock.triangularShift.mockReturnValue(1);
+      canvasMock.bufferHeight.mockReturnValue(4);
+      canvasMock.bufferWidth.mockReturnValue(2);
+
+      // Build buffer with correct packed pixel count for shift=1
+      const { computeBufferPixelCount: computeBuf } = await import('../models');
+      const totalPixels = computeBuf(0, 4, 'triangular', 1, undefined, 1, 2, 1);
+      const data = new Uint8ClampedArray(totalPixels * 4);
+      const color = [128, 64, 32, 255];
+      for (let i = 0; i < data.length; i += 4) data.set(color, i);
+
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([{ visible: true, opacity: 1, data }]);
+      const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
+      colorServiceMock.palette.mockReturnValue([{ r: 128, g: 64, b: 32, a: 255 }]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      expect(parsed.rows).toHaveLength(4);
+      // Verify row step counts match the shift-aware row widths
+      const sumCounts = (row: { steps: { count: number }[] }) =>
+        row.steps.reduce((s: number, step: { count: number }) => s + step.count, 0);
+      expect(sumCounts(parsed.rows[0])).toBe(1);
+      expect(sumCounts(parsed.rows[1])).toBe(2);
+      expect(sumCounts(parsed.rows[2])).toBe(1);
+      expect(sumCounts(parsed.rows[3])).toBe(2);
     });
   });
 });
