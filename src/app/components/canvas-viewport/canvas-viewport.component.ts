@@ -7,6 +7,7 @@ import {
   afterNextRender,
   NgZone,
   effect,
+  OnDestroy,
 } from '@angular/core';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayerService } from '../../services/layer.service';
@@ -17,7 +18,7 @@ import { GestureService } from '../../services/gesture.service';
 import { RenderService } from '../../services/render.service';
 import { LayoutService } from '../../services/layout.service';
 import { GridService } from '../../services/grid.service';
-import { Color, ToolContext, GestureState, PixelCoord, colorInPalette } from '../../models';
+import { Color, ToolContext, GestureState, PixelCoord, colorInPalette, TriangularParams } from '../../models';
 import { renderColumnRuler, renderRowRuler, RulerParams } from './ruler-renderer';
 import { DrawCommand } from '../../commands/draw.command';
 import { FillCommand } from '../../commands/fill.command';
@@ -37,7 +38,7 @@ import { ToolType } from '../../models';
     '[style.cursor]': 'activeCursor',
   },
 })
-export class CanvasViewportComponent {
+export class CanvasViewportComponent implements OnDestroy {
   protected readonly canvasState = inject(CanvasStateService);
   private readonly layerService = inject(LayerService);
   private readonly toolService = inject(ToolService);
@@ -74,6 +75,7 @@ export class CanvasViewportComponent {
   private animFrameId = 0;
   private rulerFrameId = 0;
   private crosshairFrameId = 0;
+  private resizeObserver: ResizeObserver | null = null;
   private cursorX = -1;
   private cursorY = -1;
   private previewPixels: PixelCoord[] = [];
@@ -141,6 +143,21 @@ export class CanvasViewportComponent {
     });
   }
 
+  ngOnDestroy(): void {
+    // Cancel pending animation frames
+    cancelAnimationFrame(this.animFrameId);
+    cancelAnimationFrame(this.rulerFrameId);
+    cancelAnimationFrame(this.crosshairFrameId);
+
+    // Disconnect ResizeObserver
+    this.resizeObserver?.disconnect();
+
+    // Null out gesture callbacks to release component reference
+    this.gestureService.onDraw = null;
+    this.gestureService.onPinch = null;
+    this.gestureService.onEdgeSwipe = null;
+  }
+
   private setupCanvas(): void {
     const canvas = this.canvasRef().nativeElement;
     this.ctx = canvas.getContext('2d');
@@ -160,6 +177,7 @@ export class CanvasViewportComponent {
     // when the host element's outer dimensions haven't changed.
     const observer = new ResizeObserver(() => this.resizeCanvas());
     observer.observe(canvas);
+    this.resizeObserver = observer;
   }
 
   private resizeCanvas(): void {
@@ -235,7 +253,12 @@ export class CanvasViewportComponent {
 
     if (!this.canvasState.showRulers()) {
       // Clear all ruler canvases when hidden
-      for (const ctx of [this.rulerTopCtx, this.rulerBottomCtx, this.rulerLeftCtx, this.rulerRightCtx]) {
+      for (const ctx of [
+        this.rulerTopCtx,
+        this.rulerBottomCtx,
+        this.rulerLeftCtx,
+        this.rulerRightCtx,
+      ]) {
         if (ctx) ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
       }
       return;
@@ -263,7 +286,8 @@ export class CanvasViewportComponent {
     };
 
     if (this.rulerTopCtx) renderColumnRuler(this.rulerTopCtx, { ...params, columnParity: 'odd' });
-    if (this.rulerBottomCtx) renderColumnRuler(this.rulerBottomCtx, { ...params, columnParity: 'even' });
+    if (this.rulerBottomCtx)
+      renderColumnRuler(this.rulerBottomCtx, { ...params, columnParity: 'even' });
     if (this.rulerLeftCtx) renderRowRuler(this.rulerLeftCtx, { ...params, rowParity: 'odd' });
     if (this.rulerRightCtx) renderRowRuler(this.rulerRightCtx, { ...params, rowParity: 'even' });
   }
@@ -373,11 +397,21 @@ export class CanvasViewportComponent {
       secondaryColor: this.colorService.secondaryColor(),
       isSecondary: false,
       gridType: this.canvasState.gridType(),
-      triangularA: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularA() : undefined,
-      triangularD: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularD() : undefined,
-      triangularDNum: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularDNum() : undefined,
-      triangularDDen: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularDDen() : undefined,
-      triangularShift: this.gridService.isAnyTriangular(this.canvasState.gridType()) ? this.canvasState.triangularShift() : undefined,
+      triangularA: this.gridService.isAnyTriangular(this.canvasState.gridType())
+        ? this.canvasState.triangularA()
+        : undefined,
+      triangularD: this.gridService.isAnyTriangular(this.canvasState.gridType())
+        ? this.canvasState.triangularD()
+        : undefined,
+      triangularDNum: this.gridService.isAnyTriangular(this.canvasState.gridType())
+        ? this.canvasState.triangularDNum()
+        : undefined,
+      triangularDDen: this.gridService.isAnyTriangular(this.canvasState.gridType())
+        ? this.canvasState.triangularDDen()
+        : undefined,
+      triangularShift: this.gridService.isAnyTriangular(this.canvasState.gridType())
+        ? this.canvasState.triangularShift()
+        : undefined,
     };
 
     let result;
@@ -410,11 +444,13 @@ export class CanvasViewportComponent {
               'Move layer',
             );
             // Don't execute — pixels already applied by the tool
-            this.historyService['undoStack'].update((s) => [...s, command]);
-            this.historyService['redoStack'].set([]);
+            this.historyService.pushExecuted(command);
           }
           moveTool.resetSnapshot();
         } else if (result && result.modifiedPixels.length > 0) {
+          const tri: TriangularParams | undefined = ctx.gridType === 'triangular'
+            ? { a: ctx.triangularA, d: ctx.triangularD, dNum: ctx.triangularDNum, dDen: ctx.triangularDDen, shift: ctx.triangularShift }
+            : undefined;
           const command =
             tool.type === 'fill'
               ? new FillCommand(
@@ -423,11 +459,7 @@ export class CanvasViewportComponent {
                   ctx.canvasWidth,
                   result.modifiedPixels,
                   ctx.gridType,
-                  ctx.triangularA,
-                  ctx.triangularD,
-                  ctx.triangularDNum,
-                  ctx.triangularDDen,
-                  ctx.triangularShift,
+                  tri,
                 )
               : new DrawCommand(
                   this.layerService,
@@ -436,15 +468,10 @@ export class CanvasViewportComponent {
                   result.modifiedPixels,
                   undefined,
                   ctx.gridType,
-                  ctx.triangularA,
-                  ctx.triangularD,
-                  ctx.triangularDNum,
-                  ctx.triangularDDen,
-                  ctx.triangularShift,
+                  tri,
                 );
           // Don't execute — pixels already applied by the tool
-          this.historyService['undoStack'].update((s) => [...s, command]);
-          this.historyService['redoStack'].set([]);
+          this.historyService.pushExecuted(command);
 
           // Auto-add any new colors painted in this stroke to the palette.
           const palette = this.colorService.palette();
