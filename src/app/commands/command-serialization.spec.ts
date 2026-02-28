@@ -5,6 +5,7 @@ import { FillCommand } from './fill.command';
 import { LayerCommand } from './layer.command';
 import { DuplicateLayerCommand } from './duplicate-layer.command';
 import { MoveLayerCommand } from './move-layer.command';
+import { MovePaletteCommand } from './move-palette.command';
 import { ReplaceColorCommand } from './replace-color.command';
 import { LayerService } from '../services/layer.service';
 import { ColorService } from '../services/color.service';
@@ -285,6 +286,55 @@ describe('Command Serialization', () => {
       const bad = { type: 'replace-color' as const, description: 'x', layerIndex: 0, canvasWidth: 0 };
       expect(() => deserializeCommand(bad, layerService, colorService)).toThrow(
         'replace-color entry is missing paletteIndex, oldColor, or newColor',
+      );
+    });
+  });
+
+  describe('MovePaletteCommand round-trip', () => {
+    const RED: Color = { r: 255, g: 0, b: 0, a: 255 };
+    const GREEN: Color = { r: 0, g: 255, b: 0, a: 255 };
+    const BLUE: Color = { r: 0, g: 0, b: 255, a: 255 };
+    const YELLOW: Color = { r: 255, g: 255, b: 0, a: 255 };
+
+    beforeEach(() => {
+      colorService.setPalette([RED, GREEN, BLUE, YELLOW]);
+    });
+
+    it('should serialize and deserialize a move-palette command', () => {
+      const cmd = new MovePaletteCommand(colorService, 0, 2);
+      const serialized = serializeCommand(cmd)!;
+
+      expect(serialized.type).toBe('move-palette');
+      expect(serialized.description).toBe('Move palette entry');
+      expect(serialized.fromIndex).toBe(0);
+      expect(serialized.toIndex).toBe(2);
+
+      const restored = deserializeCommand(serialized, layerService, colorService) as MovePaletteCommand;
+      expect(restored.description).toBe('Move palette entry');
+      expect(restored.fromIndex).toBe(0);
+      expect(restored.toIndex).toBe(2);
+    });
+
+    it('should produce a working command after deserialization', () => {
+      const cmd = new MovePaletteCommand(colorService, 0, 2);
+      const serialized = serializeCommand(cmd)!;
+      const restored = deserializeCommand(serialized, layerService, colorService);
+
+      restored.execute();
+      // RED moved from 0 to 2: [GREEN, BLUE, RED, YELLOW]
+      expect(colorService.palette()[0]).toEqual(GREEN);
+      expect(colorService.palette()[2]).toEqual(RED);
+
+      restored.undo();
+      // back to [RED, GREEN, BLUE, YELLOW]
+      expect(colorService.palette()[0]).toEqual(RED);
+      expect(colorService.palette()[2]).toEqual(BLUE);
+    });
+
+    it('should throw on deserialization if fields are missing', () => {
+      const bad = { type: 'move-palette' as const, description: 'x', layerIndex: 0, canvasWidth: 0 };
+      expect(() => deserializeCommand(bad, layerService, colorService)).toThrow(
+        'move-palette entry is missing fromIndex or toIndex',
       );
     });
   });

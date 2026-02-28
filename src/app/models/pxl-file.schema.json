@@ -128,7 +128,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["draw", "fill", "layer", "duplicate-layer", "move-layer", "replace-color"],
+          "enum": ["draw", "fill", "layer", "duplicate-layer", "move-layer", "replace-color", "move-palette"],
           "description": "Command type discriminator."
         },
         "description": { "type": "string", "description": "Human-readable description of the operation." },

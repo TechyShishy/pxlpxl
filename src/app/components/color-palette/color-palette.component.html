@@ -30,7 +30,14 @@
     </button>
   </div>
 
-  <div class="swatches" role="listbox" aria-label="Color palette">
+  <div
+    class="swatches"
+    role="listbox"
+    aria-label="Color palette"
+    cdkDropList
+    cdkDropListOrientation="mixed"
+    (cdkDropListDropped)="onSwatchDrop($event)"
+  >
     @for (color of colorService.palette(); track $index) {
       <button
         class="swatch"
@@ -46,6 +53,9 @@
         [attr.aria-label]="'Color ' + ($index + 1) + ' — long press or Enter to edit'"
         role="option"
         [attr.aria-selected]="isSelected(color)"
+        cdkDrag
+        [cdkDragStartDelay]="{ touch: 150, mouse: 0 }"
+        (cdkDragStarted)="onSwatchDragStarted()"
       ></button>
     }
   </div>

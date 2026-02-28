@@ -3,6 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
+import { CdkDragDrop, CdkDropList, CdkDrag } from '@angular/cdk/drag-drop';
 import { ColorService } from '../../services/color.service';
 import { LayerService } from '../../services/layer.service';
 import { HistoryService } from '../../services/history.service';
@@ -13,6 +14,7 @@ import {
   EditSwatchDialogResult,
 } from '../edit-swatch-dialog/edit-swatch-dialog.component';
 import { ReplaceColorCommand } from '../../commands/replace-color.command';
+import { MovePaletteCommand } from '../../commands/move-palette.command';
 
 const LONG_PRESS_DELAY = 500;
 const MOVE_THRESHOLD = 5;
@@ -20,7 +22,7 @@ const MOVE_THRESHOLD = 5;
 @Component({
   selector: 'app-color-palette',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule],
+  imports: [MatButtonModule, MatIconModule, MatTooltipModule, CdkDropList, CdkDrag],
   templateUrl: './color-palette.component.html',
   styleUrl: './color-palette.component.scss',
 })
@@ -53,7 +55,11 @@ export class ColorPaletteComponent {
 
   protected onSwatchPointerDown(event: PointerEvent, index: number): void {
     this.dragStartPos = { x: event.clientX, y: event.clientY };
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    // Note: setPointerCapture is intentionally omitted here. CDK DragDrop
+    // manages its own pointer capture once a drag starts, and capturing the
+    // pointer on the button conflicts with CDK's internal handling. The
+    // long-press guard (onSwatchDragStarted → cancelLongPress) ensures the
+    // timer is cancelled before the 500 ms threshold when CDK takes over.
 
     this.longPressTimer = setTimeout(() => {
       this.longPressTimer = null;
@@ -84,6 +90,17 @@ export class ColorPaletteComponent {
       event.preventDefault();
       this.openEditDialog(index);
     }
+  }
+
+  protected onSwatchDrop(event: CdkDragDrop<Color[]>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    this.historyService.execute(
+      new MovePaletteCommand(this.colorService, event.previousIndex, event.currentIndex),
+    );
+  }
+
+  protected onSwatchDragStarted(): void {
+    this.cancelLongPress();
   }
 
   private cancelLongPress(): void {

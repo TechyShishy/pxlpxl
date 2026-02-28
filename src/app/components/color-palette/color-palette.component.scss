@@ -56,3 +56,26 @@
   outline: 2px solid var(--mat-sys-primary);
   outline-offset: 2px;
 }
+
+// ── CDK Drag-Drop styles ──────────────────────────────────────────────────────
+
+// The floating swatch that follows the pointer during a drag
+.cdk-drag-preview.swatch {
+  border-radius: 4px;
+  border: 2px solid var(--mat-sys-primary);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--mat-sys-shadow) 35%, transparent);
+  opacity: 0.95;
+  cursor: grabbing;
+}
+
+// The empty slot left behind where the swatch was picked up
+.cdk-drag-placeholder.swatch {
+  border: 2px dashed var(--mat-sys-outline);
+  background: transparent !important;
+  opacity: 0.4;
+}
+
+// Animate swatches shuffling into their new positions
+.cdk-drop-list-dragging .swatch:not(.cdk-drag-placeholder) {
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}

@@ -5,6 +5,7 @@ import { FillCommand } from './fill.command';
 import { LayerCommand } from './layer.command';
 import { DuplicateLayerCommand } from './duplicate-layer.command';
 import { MoveLayerCommand } from './move-layer.command';
+import { MovePaletteCommand } from './move-palette.command';
 import { ReplaceColorCommand } from './replace-color.command';
 import { LayerService } from '../services/layer.service';
 import { ColorService } from '../services/color.service';
@@ -113,6 +114,17 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
     };
   }
 
+  if (command instanceof MovePaletteCommand) {
+    return {
+      type: 'move-palette',
+      description: command.description,
+      layerIndex: 0,
+      canvasWidth: 0,
+      fromIndex: command.fromIndex,
+      toIndex: command.toIndex,
+    };
+  }
+
   if (command instanceof ReplaceColorCommand) {
     return {
       type: 'replace-color',
@@ -206,6 +218,12 @@ export function deserializeCommand(
         throw new Error('move-layer entry is missing fromIndex or toIndex');
       }
       return new MoveLayerCommand(layerService, entry.fromIndex, entry.toIndex);
+
+    case 'move-palette':
+      if (entry.fromIndex == null || entry.toIndex == null) {
+        throw new Error('move-palette entry is missing fromIndex or toIndex');
+      }
+      return new MovePaletteCommand(colorService, entry.fromIndex, entry.toIndex);
 
     case 'replace-color': {
       if (entry.paletteIndex == null || !entry.oldColor || !entry.newColor) {

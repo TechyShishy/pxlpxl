@@ -42,7 +42,7 @@ export interface PxlHistory {
   redoStack: SerializedHistoryEntry[];
 }
 
-export type HistoryEntryType = 'draw' | 'fill' | 'layer' | 'duplicate-layer' | 'move-layer' | 'replace-color';
+export type HistoryEntryType = 'draw' | 'fill' | 'layer' | 'duplicate-layer' | 'move-layer' | 'replace-color' | 'move-palette';
 
 export interface SerializedHistoryEntry {
   type: HistoryEntryType;

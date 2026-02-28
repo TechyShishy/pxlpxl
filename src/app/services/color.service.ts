@@ -48,6 +48,18 @@ export class ColorService {
     this.palette.set(colors.map((c) => ({ ...c })));
   }
 
+  movePaletteEntry(from: number, to: number): void {
+    this.palette.update((p) => {
+      if (from < 0 || from >= p.length || to < 0 || to >= p.length) {
+        return p;
+      }
+      const updated = [...p];
+      const [item] = updated.splice(from, 1);
+      updated.splice(to, 0, item);
+      return updated;
+    });
+  }
+
   /**
    * Add each color in `colors` to the palette if it is not already present.
    * Existing palette entries are preserved.
