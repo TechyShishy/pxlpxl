@@ -17,6 +17,7 @@ import { LayerService } from './layer.service';
 import { CanvasStateService } from './canvas-state.service';
 import { ColorService } from './color.service';
 import { HistoryService } from './history.service';
+import { ProjectService } from './project.service';
 import { deserializeCommand } from '../commands/command-serialization';
 import { LayerCommand } from '../commands/layer.command';
 import {
@@ -40,6 +41,7 @@ export class ImportService {
   private readonly canvasState = inject(CanvasStateService);
   private readonly colorService = inject(ColorService);
   private readonly historyService = inject(HistoryService);
+  private readonly projectService = inject(ProjectService);
   private readonly dialog = inject(MatDialog);
 
   /**
@@ -167,19 +169,20 @@ export class ImportService {
 
     if (!(result?.buffer instanceof Uint8ClampedArray)) return; // user cancelled
 
-    // If the undo stack is empty, replace the palette outright with the
-    // imported colors — the canvas is effectively blank so there's nothing
-    // worth preserving.  Once any command has been executed (undo stack
-    // non-empty), fall back to a merge so existing palette entries are kept.
-    //
-    // Side-effect: a project that was saved with an empty undo stack and then
-    // re-loaded will also get replace behavior on the first PNG import, even
-    // though it may have visible pixels from before it was saved.  This is the
-    // intended power-user semantic: empty undo stack → safe to replace.
-    if (this.historyService.canUndo()) {
-      this.colorService.mergePalette(result.palette);
-    } else {
+    // Replace the palette outright when importing into a brand-new, untouched
+    // project — i.e. the project has never been saved (no project ID) AND the
+    // history stacks are both empty (nothing drawn, not even then undone).
+    // All three conditions together mean the canvas has genuinely never been
+    // touched.  In all other cases merge the imported colors into the existing
+    // palette so nothing is lost.
+    const isBlankNewProject =
+      this.projectService.currentId === undefined &&
+      !this.historyService.canUndo() &&
+      !this.historyService.canRedo();
+    if (isBlankNewProject) {
       this.colorService.setPalette(result.palette);
+    } else {
+      this.colorService.mergePalette(result.palette);
     }
 
     // Add a new layer and copy the mapped pixel data.

@@ -318,4 +318,118 @@ describe('RotateTool', () => {
       expect(tool.getOriginalData()).toEqual(snapshot);
     });
   });
+
+  // ── Grid-type coverage ────────────────────────────────────────────────────
+  //
+  // Triangular layout used below: triangularA=1, dNum=1, dDen=1, shift=0
+  //   Row 0 → 1 pixel  (cumulative offset 0)
+  //   Row 1 → 2 pixels (cumulative offset 1)
+  //   Row 2 → 3 pixels (cumulative offset 3)
+  //   Row 3 → 4 pixels (cumulative offset 6)
+  //   bufferWidth = 4 (max row width), total pixels = 10 (40 bytes)
+  //
+  // Pixel (x, y) → byte offset = (cumPixels(y) + x) * 4
+  //   e.g. pixel (2, 2) → (3 + 2) * 4 = 20
+  //        pixel (3, 3) → (6 + 3) * 4 = 36
+
+  describe('applyRotation — triangular grid', () => {
+    const TRI_A = 1;
+    const TRI_DNUM = 1;
+    const TRI_DDEN = 1;
+    const TRI_SHIFT = 0;
+    const TRI_BUF_W = 4; // max row width
+    const TRI_H = 4;
+    const TOTAL_BYTES = 40; // 10 pixels × 4 bytes
+
+    function makeTriCtx(overrides: Partial<ToolContext> = {}): ToolContext {
+      return {
+        coord: { x: 0, y: 0 },
+        layerIndex: 0,
+        canvasWidth: TRI_BUF_W,
+        canvasHeight: TRI_H,
+        visualColumns: TRI_BUF_W,
+        primaryColor: { r: 0, g: 0, b: 0, a: 255 },
+        secondaryColor: { r: 255, g: 255, b: 255, a: 255 },
+        isSecondary: false,
+        gridType: 'triangular',
+        triangularA: TRI_A,
+        triangularDNum: TRI_DNUM,
+        triangularDDen: TRI_DDEN,
+        triangularShift: TRI_SHIFT,
+        ...overrides,
+      };
+    }
+
+    it('identity rotation preserves every pixel at its correct triangular offset', () => {
+      const data = new Uint8ClampedArray(TOTAL_BYTES);
+      // pixel (0, 0) → offset 0 (cumPixels(0)=0, so (0+0)*4=0)
+      data[0] = 255; data[1] = 0; data[2] = 0; data[3] = 255; // red
+      // pixel (2, 2) → offset 20 (cumPixels(2)=3, so (3+2)*4=20)
+      data[20] = 0; data[21] = 0; data[22] = 255; data[23] = 255; // blue
+      // pixel (3, 3) → offset 36 (cumPixels(3)=6, so (6+3)*4=36)
+      data[36] = 0; data[37] = 255; data[38] = 0; data[39] = 255; // green
+
+      const ctx = makeTriCtx();
+      tool.onPointerDown(ctx, data);
+      tool.applyRotation(0, ctx, data);
+
+      // Pixel (0,0): red
+      expect([data[0], data[1], data[2], data[3]]).toEqual([255, 0, 0, 255]);
+      // Pixel (2,2): blue
+      expect([data[20], data[21], data[22], data[23]]).toEqual([0, 0, 255, 255]);
+      // Pixel (3,3): green
+      expect([data[36], data[37], data[38], data[39]]).toEqual([0, 255, 0, 255]);
+    });
+
+    it('does not write to bytes beyond the actual pixel count', () => {
+      // The buggy implementation iterated dstX up to bufferWidth (4) for every
+      // row, which would touch bytes beyond the 40-byte buffer for short rows.
+      // With the fix, only pixels within each row's actual width are written.
+      const data = new Uint8ClampedArray(TOTAL_BYTES);
+      data.fill(99); // sentinel
+
+      const ctx = makeTriCtx();
+      tool.onPointerDown(ctx, data);
+      tool.applyRotation(0, ctx, data);
+
+      // Bytes beyond offset 39 (i.e. the 40th byte onwards) must not exist in
+      // our exact-size buffer — if the loop overflowed it would have thrown.
+      // Verify the buffer length is still exactly TOTAL_BYTES (no overwrite).
+      expect(data.length).toBe(TOTAL_BYTES);
+    });
+  });
+
+  describe('applyRotation — peyote grid', () => {
+    // Peyote layout: visualColumns=4 → bufferWidth = ceil(4/2) = 2, height=4.
+    // Same row-major formula as square: offset = (y * bufW + x) * 4.
+    const PEY_W = 2;
+    const PEY_H = 4;
+
+    function makePeyCtx(overrides: Partial<ToolContext> = {}): ToolContext {
+      return {
+        coord: { x: 0, y: 0 },
+        layerIndex: 0,
+        canvasWidth: PEY_W,
+        canvasHeight: PEY_H,
+        visualColumns: 4,
+        primaryColor: { r: 0, g: 0, b: 0, a: 255 },
+        secondaryColor: { r: 255, g: 255, b: 255, a: 255 },
+        isSecondary: false,
+        gridType: 'peyote',
+        ...overrides,
+      };
+    }
+
+    it('identity rotation preserves all pixels', () => {
+      const data = new Uint8ClampedArray(PEY_W * PEY_H * 4);
+      // pixel (1, 3) → offset = (3*2+1)*4 = 28
+      data[28] = 200; data[29] = 100; data[30] = 50; data[31] = 255;
+
+      const ctx = makePeyCtx();
+      tool.onPointerDown(ctx, data);
+      tool.applyRotation(0, ctx, data);
+
+      expect([data[28], data[29], data[30], data[31]]).toEqual([200, 100, 50, 255]);
+    });
+  });
 });

@@ -1,4 +1,4 @@
-import { Tool, ToolType, ToolContext, ToolResult, pixelOffset } from '../models';
+import { Tool, ToolType, ToolContext, ToolResult, pixelOffset, triangularRowWidth } from '../models';
 
 const TWO_PI = 2 * Math.PI;
 const HALF_PI = Math.PI / 2;
@@ -75,9 +75,11 @@ export class RotateTool implements Tool {
     const cy = (ctx.canvasHeight - 1) / 2;
     const currentAngle = Math.atan2(ctx.coord.y - cy, ctx.coord.x - cx);
     let theta = currentAngle - this.startAngle!;
-    // Normalise to (-π, π]
-    while (theta > Math.PI) theta -= TWO_PI;
-    while (theta <= -Math.PI) theta += TWO_PI;
+    // Normalise to (-π, π].
+    // Both atan2 results are in [-π, π], so their difference is in (-2π, 2π) —
+    // at most one correction is ever needed.
+    if (theta > Math.PI) theta -= TWO_PI;
+    if (theta <= -Math.PI) theta += TWO_PI;
     if (ctx.shiftKey) {
       theta = Math.round(theta / HALF_PI) * HALF_PI;
     }
@@ -91,19 +93,36 @@ export class RotateTool implements Tool {
   ): void {
     if (!this.originalData) return;
 
-    const width = ctx.canvasWidth;
-    const height = ctx.canvasHeight;
+    const {
+      canvasWidth: width,
+      canvasHeight: height,
+      gridType,
+      triangularA,
+      triangularDNum,
+      triangularDDen,
+      triangularShift,
+    } = ctx;
     const src = this.originalData;
     const cx = (width - 1) / 2;
     const cy = (height - 1) / 2;
     const cosT = Math.cos(theta);
     const sinT = Math.sin(theta);
+    const isTriangular = gridType === 'triangular' && triangularA !== undefined;
+    const dNum = triangularDNum ?? 1;
+    const dDen = triangularDDen ?? 1;
+    const shift = triangularShift ?? 0;
 
     // Clear the destination buffer to transparent.
     layerData.fill(0);
 
     for (let dstY = 0; dstY < height; dstY++) {
-      for (let dstX = 0; dstX < width; dstX++) {
+      // For triangular grids each row has a variable number of pixels;
+      // for square and peyote grids every row is `width` pixels wide.
+      const dstRowWidth = isTriangular
+        ? triangularRowWidth(dstY, triangularA!, dNum, dDen, shift)
+        : width;
+
+      for (let dstX = 0; dstX < dstRowWidth; dstX++) {
         // Translate to centre, apply inverse rotation, translate back.
         // Inverse of a rotation by θ is a rotation by -θ:
         //   srcX = (dstX-cx)*cos(θ) + (dstY-cy)*sin(θ) + cx
@@ -114,9 +133,13 @@ export class RotateTool implements Tool {
         const srcYf = -dx * sinT + dy * cosT + cy;
         const srcX = Math.round(srcXf);
         const srcY = Math.round(srcYf);
-        if (srcX < 0 || srcX >= width || srcY < 0 || srcY >= height) continue;
-        const srcOff = pixelOffset(srcX, srcY, width);
-        const dstOff = pixelOffset(dstX, dstY, width);
+        if (srcX < 0 || srcY < 0 || srcY >= height) continue;
+        const srcRowWidth = isTriangular
+          ? triangularRowWidth(srcY, triangularA!, dNum, dDen, shift)
+          : width;
+        if (srcX >= srcRowWidth) continue;
+        const srcOff = pixelOffset(srcX, srcY, width, gridType, triangularA, undefined, triangularDNum, triangularDDen, triangularShift);
+        const dstOff = pixelOffset(dstX, dstY, width, gridType, triangularA, undefined, triangularDNum, triangularDDen, triangularShift);
         layerData[dstOff] = src[srcOff];
         layerData[dstOff + 1] = src[srcOff + 1];
         layerData[dstOff + 2] = src[srcOff + 2];

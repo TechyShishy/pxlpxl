@@ -6,6 +6,7 @@ import { LayerService } from './layer.service';
 import { CanvasStateService } from './canvas-state.service';
 import { ColorService } from './color.service';
 import { HistoryService } from './history.service';
+import { ProjectService } from './project.service';
 import { GridService } from './grid.service';
 import {
   PxlFile,
@@ -94,6 +95,7 @@ describe('ImportService', () => {
   let canvasState: CanvasStateService;
   let colorService: ColorService;
   let historyService: HistoryService;
+  let projectService: ProjectService;
   let gridService: GridService;
 
   /**
@@ -118,6 +120,7 @@ describe('ImportService', () => {
     colorService = TestBed.inject(ColorService);
     historyService = TestBed.inject(HistoryService);
     gridService = TestBed.inject(GridService);
+    projectService = TestBed.inject(ProjectService);
 
     // Set up a baseline canvas
     canvasState.setCanvasSize(4, 4);
@@ -288,7 +291,7 @@ describe('ImportService', () => {
 
       // Set up an existing single-color palette
       colorService.setPalette([RED]);
-      // Seed the undo stack — non-empty undo stack triggers merge behavior.
+      // Seed the undo stack — triggers merge behavior (actions taken on new project).
       historyService.execute({ description: 'seed', execute: () => {}, undo: () => {} });
       const paletteBefore = colorService.palette().length;
 
@@ -311,7 +314,7 @@ describe('ImportService', () => {
     it('should not duplicate palette entries already present', async () => {
       const RED = { r: 255, g: 0, b: 0, a: 255 };
       colorService.setPalette([RED]);
-      // Seed the undo stack — non-empty undo stack triggers merge behavior.
+      // Seed the undo stack — triggers merge behavior (actions taken on new project).
       historyService.execute({ description: 'seed', execute: () => {}, undo: () => {} });
 
       // Dialog returns a palette that includes RED again
@@ -328,7 +331,7 @@ describe('ImportService', () => {
 
     it('should not modify the palette when all imported colors are transparent (empty palette list)', async () => {
       const ORIGINAL = colorService.palette().slice();
-      // Seed the undo stack — non-empty undo stack triggers merge behavior (empty list → no change).
+      // Seed the undo stack — triggers merge behavior; empty imported palette → no change.
       historyService.execute({ description: 'seed', execute: () => {}, undo: () => {} });
 
       // Dialog returns an empty palette (all-transparent image)
@@ -341,15 +344,15 @@ describe('ImportService', () => {
       expect(colorService.palette().length).toBe(ORIGINAL.length);
     });
 
-    // ── Replace behavior (empty undo stack) ────────────────────────────
+    // ── Replace behavior (blank new project) ─────────────────────────────
 
-    describe('palette replace on empty undo stack', () => {
-      it('should replace the palette with imported colors when undo stack is empty', async () => {
+    describe('palette replace on blank new project', () => {
+      it('should replace the palette with imported colors on a new unsaved project with no actions', async () => {
         const RED = { r: 255, g: 0, b: 0, a: 255 };
         const BLUE = { r: 0, g: 0, b: 255, a: 255 };
         colorService.setPalette([RED]);
 
-        // No commands executed — undo stack stays empty → replace behavior.
+        // No commands executed, project never saved — blank new project → replace behavior.
         dialogMock.open.mockReturnValueOnce({
           afterClosed: () => of({ buffer: new Uint8ClampedArray(4 * 4 * 4), palette: [BLUE] } satisfies ImportPngResult),
         });
@@ -362,8 +365,8 @@ describe('ImportService', () => {
         expect(palette.some((c) => c.r === 255 && c.g === 0 && c.b === 0)).toBe(false);
       });
 
-      it('should result in an empty palette when imported colors are all transparent and undo stack is empty', async () => {
-        // Empty palette list + replace behavior = palette cleared.
+      it('should result in an empty palette when imported colors are all transparent on a blank new project', async () => {
+        // Empty palette list + replace behavior on blank new project = palette cleared.
         dialogMock.open.mockReturnValueOnce({
           afterClosed: () => of({ buffer: new Uint8ClampedArray(4 * 4 * 4), palette: [] } satisfies ImportPngResult),
         });
@@ -372,6 +375,57 @@ describe('ImportService', () => {
 
         expect(colorService.palette().length).toBe(0);
       });
+    });
+
+    // ── Merge behavior on loaded project (regression) ───────────────────
+
+    it('should merge (not replace) palette when importing into a loaded project with an empty undo stack', async () => {
+      // Regression: previously, an empty undo stack alone triggered replace,
+      // which would clobber an existing palette after loading a saved project.
+      const RED = { r: 255, g: 0, b: 0, a: 255 };
+      const BLUE = { r: 0, g: 0, b: 255, a: 255 };
+      colorService.setPalette([RED]);
+
+      // Simulate a loaded project by stubbing currentId to return a saved ID.
+      // Undo stack intentionally left empty to exercise the regression path.
+      vi.spyOn(projectService, 'currentId', 'get').mockReturnValue(99);
+
+      dialogMock.open.mockReturnValueOnce({
+        afterClosed: () => of({ buffer: new Uint8ClampedArray(4 * 4 * 4), palette: [BLUE] } satisfies ImportPngResult),
+      });
+
+      await service.importFromBuffer(createMinimalPng(), 'import.png');
+
+      vi.restoreAllMocks();
+
+      const palette = colorService.palette();
+      // RED was preserved — palette was merged, not replaced.
+      expect(palette.some((c) => c.r === 255 && c.g === 0 && c.b === 0)).toBe(true);
+      expect(palette.some((c) => c.r === 0 && c.g === 0 && c.b === 255)).toBe(true);
+    });
+
+    it('should merge (not replace) palette on a new unsaved project where all actions have been undone', async () => {
+      // Draw something then undo all the way: undo stack is empty but the redo
+      // stack is non-empty, which means the project has been touched so the
+      // stricter "genuinely never touched" check correctly falls through to merge.
+      const RED = { r: 255, g: 0, b: 0, a: 255 };
+      const BLUE = { r: 0, g: 0, b: 255, a: 255 };
+      colorService.setPalette([RED]);
+
+      // Execute then immediately undo — leaves undo empty but redo non-empty.
+      historyService.execute({ description: 'draw', execute: () => {}, undo: () => {} });
+      historyService.undo();
+
+      dialogMock.open.mockReturnValueOnce({
+        afterClosed: () => of({ buffer: new Uint8ClampedArray(4 * 4 * 4), palette: [BLUE] } satisfies ImportPngResult),
+      });
+
+      await service.importFromBuffer(createMinimalPng(), 'import.png');
+
+      const palette = colorService.palette();
+      // RED was preserved — palette was merged, not replaced.
+      expect(palette.some((c) => c.r === 255 && c.g === 0 && c.b === 0)).toBe(true);
+      expect(palette.some((c) => c.r === 0 && c.g === 0 && c.b === 255)).toBe(true);
     });
   });
 
