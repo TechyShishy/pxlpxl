@@ -312,4 +312,39 @@ describe('HistoryService', () => {
       expect(service.canRedo()).toBe(false);
     });
   });
+
+  describe('pushExecuted', () => {
+    it('should push a command without calling execute()', () => {
+      const cmd = createMockCommand('pre-executed');
+      service.pushExecuted(cmd);
+      expect(cmd.executeCalls).toBe(0);
+      expect(service.canUndo()).toBe(true);
+      expect(service.undoDescription()).toBe('pre-executed');
+    });
+
+    it('should clear the redo stack', () => {
+      service.execute(createMockCommand('a'));
+      service.undo();
+      expect(service.canRedo()).toBe(true);
+
+      service.pushExecuted(createMockCommand('b'));
+      expect(service.canRedo()).toBe(false);
+    });
+
+    it('should be undoable', () => {
+      const cmd = createMockCommand('pre-exec');
+      service.pushExecuted(cmd);
+      service.undo();
+      expect(cmd.undoCalls).toBe(1);
+      expect(service.canUndo()).toBe(false);
+    });
+
+    it('should respect MAX_HISTORY', () => {
+      for (let i = 0; i < 101; i++) {
+        service.pushExecuted(createMockCommand(`cmd-${i}`));
+      }
+      expect(service.getUndoStack().length).toBe(100);
+      expect(service.undoDescription()).toBe('cmd-100');
+    });
+  });
 });

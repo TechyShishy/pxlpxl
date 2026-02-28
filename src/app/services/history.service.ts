@@ -33,6 +33,21 @@ export class HistoryService {
     this.redoStack.set([]);
   }
 
+  /**
+   * Push a command that has already been executed onto the undo stack
+   * without calling execute() again. Clears the redo stack.
+   */
+  pushExecuted(command: Command): void {
+    this.undoStack.update((stack) => {
+      const newStack = [...stack, command];
+      if (newStack.length > HistoryService.MAX_HISTORY) {
+        newStack.shift();
+      }
+      return newStack;
+    });
+    this.redoStack.set([]);
+  }
+
   undo(): void {
     const stack = this.undoStack();
     if (stack.length === 0) return;
