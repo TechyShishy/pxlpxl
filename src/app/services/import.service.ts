@@ -162,8 +162,8 @@ export class ImportService {
 
     if (!(result?.buffer instanceof Uint8ClampedArray)) return; // user cancelled
 
-    // Populate the palette with all colors from the imported (and possibly quantized) layer.
-    this.colorService.setPalette(result.palette);
+    // Merge imported colors into the existing palette (does not replace it).
+    this.colorService.mergePalette(result.palette);
 
     // Add a new layer and copy the mapped pixel data.
     this.layerService.addLayer(canvasW, canvasH, bufferPixelCount);
@@ -235,10 +235,10 @@ export class ImportService {
     // Hydrate history
     if (pxl.history) {
       const undoStack = pxl.history.undoStack.map((e) =>
-        deserializeCommand(e, this.layerService),
+        deserializeCommand(e, this.layerService, this.colorService),
       );
       const redoStack = pxl.history.redoStack.map((e) =>
-        deserializeCommand(e, this.layerService),
+        deserializeCommand(e, this.layerService, this.colorService),
       );
       this.historyService.setStacks(undoStack, redoStack);
     } else {

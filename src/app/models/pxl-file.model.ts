@@ -42,7 +42,7 @@ export interface PxlHistory {
   redoStack: SerializedHistoryEntry[];
 }
 
-export type HistoryEntryType = 'draw' | 'fill' | 'layer' | 'duplicate-layer' | 'move-layer';
+export type HistoryEntryType = 'draw' | 'fill' | 'layer' | 'duplicate-layer' | 'move-layer' | 'replace-color';
 
 export interface SerializedHistoryEntry {
   type: HistoryEntryType;
@@ -75,6 +75,12 @@ export interface SerializedHistoryEntry {
   fromIndex?: number;
   /** For 'move-layer' commands */
   toIndex?: number;
+  /** For 'replace-color' commands */
+  paletteIndex?: number;
+  /** For 'replace-color' commands */
+  oldColor?: Color;
+  /** For 'replace-color' commands */
+  newColor?: Color;
 }
 
 export interface SerializedModifiedPixel {

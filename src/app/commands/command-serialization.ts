@@ -5,7 +5,9 @@ import { FillCommand } from './fill.command';
 import { LayerCommand } from './layer.command';
 import { DuplicateLayerCommand } from './duplicate-layer.command';
 import { MoveLayerCommand } from './move-layer.command';
+import { ReplaceColorCommand } from './replace-color.command';
 import { LayerService } from '../services/layer.service';
+import { ColorService } from '../services/color.service';
 
 /**
  * Remap legacy 'triangular-slow' gridType to unified 'triangular'
@@ -111,6 +113,18 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
     };
   }
 
+  if (command instanceof ReplaceColorCommand) {
+    return {
+      type: 'replace-color',
+      description: command.description,
+      layerIndex: 0,
+      canvasWidth: 0,
+      paletteIndex: command.paletteIndex,
+      oldColor: { ...command.oldColor },
+      newColor: { ...command.newColor },
+    };
+  }
+
   return null;
 }
 
@@ -121,6 +135,7 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
 export function deserializeCommand(
   entry: SerializedHistoryEntry,
   layerService: LayerService,
+  colorService: ColorService,
 ): Command {
   switch (entry.type) {
     case 'draw': {
@@ -191,6 +206,19 @@ export function deserializeCommand(
         throw new Error('move-layer entry is missing fromIndex or toIndex');
       }
       return new MoveLayerCommand(layerService, entry.fromIndex, entry.toIndex);
+
+    case 'replace-color': {
+      if (entry.paletteIndex == null || !entry.oldColor || !entry.newColor) {
+        throw new Error('replace-color entry is missing paletteIndex, oldColor, or newColor');
+      }
+      return new ReplaceColorCommand(
+        layerService,
+        colorService,
+        entry.paletteIndex,
+        { ...entry.oldColor },
+        { ...entry.newColor },
+      );
+    }
 
     default:
       throw new Error(`Unknown history entry type: ${entry.type}`);

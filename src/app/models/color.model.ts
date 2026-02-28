@@ -55,6 +55,24 @@ export function colorInPalette(color: Color, palette: Color[]): boolean {
   return palette.some((p) => colorsEqual(p, color));
 }
 
+/**
+ * Deduplicate a `Color[]` array, preserving insertion order.
+ * Unlike `extractUniqueColors`, this accepts an already-decoded `Color[]`
+ * and does not skip transparent entries.
+ */
+export function deduplicateColorList(colors: Color[]): Color[] {
+  const seen = new Set<string>();
+  const result: Color[] = [];
+  for (const c of colors) {
+    const key = `${c.r},${c.g},${c.b},${c.a}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(c);
+    }
+  }
+  return result;
+}
+
 export const TRANSPARENT: Color = { r: 0, g: 0, b: 0, a: 0 };
 export const BLACK: Color = { r: 0, g: 0, b: 0, a: 255 };
 export const WHITE: Color = { r: 255, g: 255, b: 255, a: 255 };

@@ -1,5 +1,5 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { Color, BLACK, WHITE, DEFAULT_PALETTE } from '../models';
+import { Color, BLACK, WHITE, DEFAULT_PALETTE, colorsEqual, deduplicateColorList } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class ColorService {
@@ -46,6 +46,21 @@ export class ColorService {
 
   setPalette(colors: Color[]): void {
     this.palette.set(colors.map((c) => ({ ...c })));
+  }
+
+  /**
+   * Add each color in `colors` to the palette if it is not already present.
+   * Existing palette entries are preserved.
+   */
+  mergePalette(colors: Color[]): void {
+    if (colors.length === 0) return;
+    const current = this.palette();
+    const toAdd = deduplicateColorList(colors).filter(
+      (c) => !current.some((p) => colorsEqual(p, c)),
+    );
+    if (toAdd.length > 0) {
+      this.palette.update((p) => [...p, ...toAdd.map((c) => ({ ...c }))]);
+    }
   }
 
   private toHex(c: Color): string {

@@ -1,4 +1,5 @@
 import type { Color } from '../models/color.model';
+import { deduplicateColorList } from '../models/color.model';
 
 // ── Distance ──────────────────────────────────────────────────────────────────
 
@@ -85,7 +86,7 @@ export function medianCut(pixels: Color[], n: number): Color[] {
   if (pixels.length <= n) return [...pixels];
 
   // Work with a deduplicated copy to keep buckets small.
-  const unique = deduplicateColors(pixels);
+  const unique = deduplicateColorList(pixels);
   if (unique.length <= n) return unique;
 
   let buckets: Color[][] = [unique];
@@ -128,7 +129,7 @@ export function medianCut(pixels: Color[], n: number): Color[] {
 export function kMeans(pixels: Color[], n: number, maxIter = 20): Color[] {
   if (n <= 0 || pixels.length === 0) return [];
 
-  const unique = deduplicateColors(pixels);
+  const unique = deduplicateColorList(pixels);
   if (unique.length <= n) return unique;
 
   // k-means++ initialisation.
@@ -220,14 +221,5 @@ export function quantizeBuffer(buffer: Uint8ClampedArray, palette: Color[]): Uin
   return out;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
-function deduplicateColors(pixels: Color[]): Color[] {
-  const seen = new Set<string>();
-  const result: Color[] = [];
-  for (const c of pixels) {
-    const key = `${c.r},${c.g},${c.b},${c.a}`;
-    if (!seen.has(key)) { seen.add(key); result.push(c); }
-  }
-  return result;
-}
+

@@ -162,4 +162,50 @@ describe('ColorService', () => {
       expect(service.palette()[0].r).toBe(10);
     });
   });
+
+  describe('mergePalette', () => {
+    const RED: Color = { r: 255, g: 0, b: 0, a: 255 };
+    const GREEN: Color = { r: 0, g: 255, b: 0, a: 255 };
+
+    // Start each test with a known, controlled palette
+    beforeEach(() => {
+      service.setPalette([RED]);
+    });
+
+    it('should append colors not already in the palette', () => {
+      expect(service.palette().length).toBe(1);
+      service.mergePalette([GREEN]);
+      expect(service.palette().length).toBe(2);
+      expect(colorsEqual(service.palette()[1], GREEN)).toBe(true);
+    });
+
+    it('should not append colors that already exist in the palette', () => {
+      service.mergePalette([RED]);
+      expect(service.palette().length).toBe(1);
+    });
+
+    it('should deduplicate its own input — duplicate entries appended only once', () => {
+      service.mergePalette([GREEN, GREEN, GREEN]);
+      expect(service.palette().length).toBe(2);
+    });
+
+    it('should add multiple distinct new colors', () => {
+      const BLUE: Color = { r: 0, g: 0, b: 255, a: 255 };
+      service.mergePalette([GREEN, BLUE]);
+      expect(service.palette().length).toBe(3);
+    });
+
+    it('should be a no-op for an empty array', () => {
+      service.mergePalette([]);
+      expect(service.palette().length).toBe(1);
+    });
+
+    it('should defensively copy added colors', () => {
+      const color: Color = { r: 77, g: 88, b: 99, a: 255 };
+      service.mergePalette([color]);
+      color.r = 1;
+      const last = service.palette()[service.palette().length - 1];
+      expect(last.r).toBe(77);
+    });
+  });
 });

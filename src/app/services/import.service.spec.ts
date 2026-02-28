@@ -276,6 +276,66 @@ describe('ImportService', () => {
     });
   });
 
+  // ── PNG/JPG import — palette merge behavior ───────────────────────────
+
+  describe('importPng/Jpg – palette merge', () => {
+    beforeEach(() => mockCanvasApis());
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('should add new palette colors from import without removing existing ones', async () => {
+      const RED = { r: 255, g: 0, b: 0, a: 255 };
+      const BLUE = { r: 0, g: 0, b: 255, a: 255 };
+
+      // Set up an existing single-color palette
+      colorService.setPalette([RED]);
+      const paletteBefore = colorService.palette().length;
+
+      // Dialog returns a buffer with BLUE pixels
+      dialogMock.open.mockReturnValueOnce({
+        afterClosed: () => of({ buffer: new Uint8ClampedArray(4 * 4 * 4), palette: [BLUE] } satisfies ImportPngResult),
+      });
+
+      await service.importFromBuffer(createMinimalPng(), 'import.png');
+
+      const palette = colorService.palette();
+      // Existing RED is still there
+      expect(palette.some((c) => c.r === 255 && c.g === 0 && c.b === 0)).toBe(true);
+      // BLUE was added
+      expect(palette.some((c) => c.r === 0 && c.g === 0 && c.b === 255)).toBe(true);
+      // Palette grew by exactly 1
+      expect(palette.length).toBe(paletteBefore + 1);
+    });
+
+    it('should not duplicate palette entries already present', async () => {
+      const RED = { r: 255, g: 0, b: 0, a: 255 };
+      colorService.setPalette([RED]);
+
+      // Dialog returns a palette that includes RED again
+      dialogMock.open.mockReturnValueOnce({
+        afterClosed: () => of({ buffer: new Uint8ClampedArray(4 * 4 * 4), palette: [RED] } satisfies ImportPngResult),
+      });
+
+      await service.importFromBuffer(createMinimalPng(), 'import.png');
+
+      const palette = colorService.palette();
+      const redCount = palette.filter((c) => c.r === 255 && c.g === 0 && c.b === 0).length;
+      expect(redCount).toBe(1);
+    });
+
+    it('should not modify the palette when all imported colors are transparent (empty palette list)', async () => {
+      const ORIGINAL = colorService.palette().slice();
+
+      // Dialog returns an empty palette (all-transparent image)
+      dialogMock.open.mockReturnValueOnce({
+        afterClosed: () => of({ buffer: new Uint8ClampedArray(4 * 4 * 4), palette: [] } satisfies ImportPngResult),
+      });
+
+      await service.importFromBuffer(createMinimalPng(), 'import.png');
+
+      expect(colorService.palette().length).toBe(ORIGINAL.length);
+    });
+  });
+
   // ── PXL import ────────────────────────────────────────────────────────
 
   describe('importPxl', () => {

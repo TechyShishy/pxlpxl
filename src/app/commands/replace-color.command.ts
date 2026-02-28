@@ -21,9 +21,9 @@ export class ReplaceColorCommand implements Command {
   constructor(
     private readonly layerService: LayerService,
     private readonly colorService: ColorService,
-    private readonly paletteIndex: number,
-    private readonly oldColor: Color,
-    private readonly newColor: Color,
+    readonly paletteIndex: number,
+    readonly oldColor: Color,
+    readonly newColor: Color,
   ) {}
 
   execute(): void {

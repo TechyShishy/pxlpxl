@@ -5,7 +5,9 @@ import { FillCommand } from './fill.command';
 import { LayerCommand } from './layer.command';
 import { DuplicateLayerCommand } from './duplicate-layer.command';
 import { MoveLayerCommand } from './move-layer.command';
+import { ReplaceColorCommand } from './replace-color.command';
 import { LayerService } from '../services/layer.service';
+import { ColorService } from '../services/color.service';
 import {
   ModifiedPixel,
   Color,
@@ -22,10 +24,12 @@ function makePixel(x: number, y: number, oldColor: Color, newColor: Color): Modi
 
 describe('Command Serialization', () => {
   let layerService: LayerService;
+  let colorService: ColorService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
     layerService = TestBed.inject(LayerService);
+    colorService = TestBed.inject(ColorService);
     layerService.initLayers(4, 4);
   });
 
@@ -41,7 +45,7 @@ describe('Command Serialization', () => {
       expect(serialized.canvasWidth).toBe(4);
       expect(serialized.modifiedPixels?.length).toBe(1);
 
-      const restored = deserializeCommand(serialized, layerService) as DrawCommand;
+      const restored = deserializeCommand(serialized, layerService, colorService) as DrawCommand;
       expect(restored.description).toBe('Test draw');
       expect(restored.modifiedPixels.length).toBe(1);
       expect(restored.modifiedPixels[0].coord.x).toBe(1);
@@ -52,7 +56,7 @@ describe('Command Serialization', () => {
       const pixels = [makePixel(0, 0, TRANSPARENT, BLACK)];
       const cmd = new DrawCommand(layerService, 0, 4, pixels);
       const serialized = serializeCommand(cmd)!;
-      const restored = deserializeCommand(serialized, layerService);
+      const restored = deserializeCommand(serialized, layerService, colorService);
 
       restored.execute();
       expect(colorsEqual(layerService.getPixel(0, 0, 0, 4), BLACK)).toBe(true);
@@ -74,7 +78,7 @@ describe('Command Serialization', () => {
       expect(serialized.type).toBe('fill');
       expect(serialized.modifiedPixels?.length).toBe(2);
 
-      const restored = deserializeCommand(serialized, layerService) as FillCommand;
+      const restored = deserializeCommand(serialized, layerService, colorService) as FillCommand;
       expect(restored.description).toContain('Fill');
       expect(restored.modifiedPixels.length).toBe(2);
     });
@@ -83,7 +87,7 @@ describe('Command Serialization', () => {
       const pixels = [makePixel(0, 0, TRANSPARENT, WHITE)];
       const cmd = new FillCommand(layerService, 0, 4, pixels);
       const serialized = serializeCommand(cmd)!;
-      const restored = deserializeCommand(serialized, layerService);
+      const restored = deserializeCommand(serialized, layerService, colorService);
 
       restored.execute();
       expect(colorsEqual(layerService.getPixel(0, 0, 0, 4), WHITE)).toBe(true);
@@ -106,7 +110,7 @@ describe('Command Serialization', () => {
       expect(serialized.previousData).toBeDefined();
       expect(serialized.newData).toBeDefined();
 
-      const restored = deserializeCommand(serialized, layerService) as LayerCommand;
+      const restored = deserializeCommand(serialized, layerService, colorService) as LayerCommand;
       expect(restored.description).toBe('Layer op');
     });
 
@@ -118,7 +122,7 @@ describe('Command Serialization', () => {
       const cmd = new LayerCommand(layerService, 0, prev, next, 'Swap');
 
       const serialized = serializeCommand(cmd)!;
-      const restored = deserializeCommand(serialized, layerService);
+      const restored = deserializeCommand(serialized, layerService, colorService);
 
       restored.execute();
       const pixel = layerService.getPixel(0, 0, 0, 4);
@@ -147,7 +151,7 @@ describe('Command Serialization', () => {
         layerIndex: 0,
         canvasWidth: 4,
       };
-      expect(() => deserializeCommand(badEntry, layerService)).toThrow('Unknown history entry type');
+      expect(() => deserializeCommand(badEntry, layerService, colorService)).toThrow('Unknown history entry type');
     });
   });
 
@@ -173,7 +177,7 @@ describe('Command Serialization', () => {
       expect(serialized.duplicatedLayer?.name).toBe('Copy of Layer 1');
       expect(serialized.duplicatedLayer?.opacity).toBe(0.75);
 
-      const restored = deserializeCommand(serialized, layerService) as DuplicateLayerCommand;
+      const restored = deserializeCommand(serialized, layerService, colorService) as DuplicateLayerCommand;
       expect(restored.description).toBe('Duplicate layer');
       expect(restored.insertIndex).toBe(1);
       expect(restored.layer.id).toBe('test-id');
@@ -191,7 +195,7 @@ describe('Command Serialization', () => {
       };
       const cmd = new DuplicateLayerCommand(layerService, 1, layer);
       const serialized = serializeCommand(cmd)!;
-      const restored = deserializeCommand(serialized, layerService);
+      const restored = deserializeCommand(serialized, layerService, colorService);
 
       restored.execute();
       expect(layerService.layerCount()).toBe(2);
@@ -217,7 +221,7 @@ describe('Command Serialization', () => {
       expect(serialized.fromIndex).toBe(0);
       expect(serialized.toIndex).toBe(1);
 
-      const restored = deserializeCommand(serialized, layerService) as MoveLayerCommand;
+      const restored = deserializeCommand(serialized, layerService, colorService) as MoveLayerCommand;
       expect(restored.description).toBe('Move layer');
       expect(restored.fromIndex).toBe(0);
       expect(restored.toIndex).toBe(1);
@@ -229,7 +233,7 @@ describe('Command Serialization', () => {
 
       const cmd = new MoveLayerCommand(layerService, 0, 1);
       const serialized = serializeCommand(cmd)!;
-      const restored = deserializeCommand(serialized, layerService);
+      const restored = deserializeCommand(serialized, layerService, colorService);
 
       restored.execute();
       expect(layerService.layers()[1].name).toBe(nameAtZero);
@@ -238,6 +242,50 @@ describe('Command Serialization', () => {
       restored.undo();
       expect(layerService.layers()[0].name).toBe(nameAtZero);
       expect(layerService.layers()[1].name).toBe(nameAtOne);
+    });
+  });
+
+  describe('ReplaceColorCommand round-trip', () => {
+    const OLD_COLOR: Color = { r: 255, g: 0, b: 0, a: 255 };
+    const NEW_COLOR: Color = { r: 0, g: 0, b: 255, a: 255 };
+
+    it('should serialize and deserialize a replace-color command', () => {
+      colorService.updatePaletteColor(0, OLD_COLOR);
+      const cmd = new ReplaceColorCommand(layerService, colorService, 0, OLD_COLOR, NEW_COLOR);
+
+      const serialized = serializeCommand(cmd)!;
+      expect(serialized.type).toBe('replace-color');
+      expect(serialized.description).toBe('Replace palette color');
+      expect(serialized.paletteIndex).toBe(0);
+      expect(serialized.oldColor).toEqual(OLD_COLOR);
+      expect(serialized.newColor).toEqual(NEW_COLOR);
+    });
+
+    it('should produce a working command after deserialization', () => {
+      colorService.updatePaletteColor(0, OLD_COLOR);
+      layerService.setPixel(0, 0, 0, 4, OLD_COLOR);
+
+      // Serialize BEFORE executing so the deserialized command can run freely
+      const cmd = new ReplaceColorCommand(layerService, colorService, 0, OLD_COLOR, NEW_COLOR);
+      const serialized = serializeCommand(cmd)!;
+      const restored = deserializeCommand(serialized, layerService, colorService);
+
+      // execute on the restored command: pixels and palette switch to NEW_COLOR
+      restored.execute();
+      expect(colorsEqual(layerService.getPixel(0, 0, 0, 4), NEW_COLOR)).toBe(true);
+      expect(colorsEqual(colorService.palette()[0], NEW_COLOR)).toBe(true);
+
+      // undo reverts to OLD_COLOR
+      restored.undo();
+      expect(colorsEqual(layerService.getPixel(0, 0, 0, 4), OLD_COLOR)).toBe(true);
+      expect(colorsEqual(colorService.palette()[0], OLD_COLOR)).toBe(true);
+    });
+
+    it('should throw on deserialization if fields are missing', () => {
+      const bad = { type: 'replace-color' as const, description: 'x', layerIndex: 0, canvasWidth: 0 };
+      expect(() => deserializeCommand(bad, layerService, colorService)).toThrow(
+        'replace-color entry is missing paletteIndex, oldColor, or newColor',
+      );
     });
   });
 });

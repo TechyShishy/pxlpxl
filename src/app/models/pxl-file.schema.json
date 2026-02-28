@@ -128,7 +128,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["draw", "fill", "layer", "duplicate-layer", "move-layer"],
+          "enum": ["draw", "fill", "layer", "duplicate-layer", "move-layer", "replace-color"],
           "description": "Command type discriminator."
         },
         "description": { "type": "string", "description": "Human-readable description of the operation." },
@@ -192,6 +192,19 @@
           "type": "integer",
           "minimum": 0,
           "description": "For 'move-layer' commands: destination index of the moved layer."
+        },
+        "paletteIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "For 'replace-color' commands: index of the palette entry being replaced."
+        },
+        "oldColor": {
+          "$ref": "#/$defs/Color",
+          "description": "For 'replace-color' commands: the color before replacement."
+        },
+        "newColor": {
+          "$ref": "#/$defs/Color",
+          "description": "For 'replace-color' commands: the color after replacement."
         }
       },
       "additionalProperties": false

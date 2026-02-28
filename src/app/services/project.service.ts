@@ -113,10 +113,10 @@ export class ProjectService {
     this.colorService.setPalette(project.palette);
     if (project.history) {
       const undoStack = project.history.undoStack.map((e) =>
-        deserializeCommand(e, this.layerService),
+        deserializeCommand(e, this.layerService, this.colorService),
       );
       const redoStack = project.history.redoStack.map((e) =>
-        deserializeCommand(e, this.layerService),
+        deserializeCommand(e, this.layerService, this.colorService),
       );
       this.historyService.setStacks(undoStack, redoStack);
     } else {

@@ -6,6 +6,7 @@ export {
   colorsEqual,
   extractUniqueColors,
   colorInPalette,
+  deduplicateColorList,
   TRANSPARENT,
   BLACK,
   WHITE,
