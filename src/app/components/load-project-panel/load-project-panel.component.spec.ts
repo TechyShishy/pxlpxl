@@ -1,8 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { LoadProjectPanelComponent } from './load-project-panel.component';
 import { ProjectService } from '../../services/project.service';
-import { Project } from '../../models/project.model';
+import { Project } from '../../models';
 
 const MOCK_PROJECTS: Project[] = [
   {
@@ -39,6 +40,7 @@ describe('LoadProjectPanelComponent', () => {
     deleteProject: ReturnType<typeof vi.fn>;
     renameProject: ReturnType<typeof vi.fn>;
   };
+  let mockSnackBar: { open: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     savedProjectsSignal = signal<Project[]>([...MOCK_PROJECTS]);
@@ -53,9 +55,14 @@ describe('LoadProjectPanelComponent', () => {
       }),
     };
 
+    mockSnackBar = { open: vi.fn() };
+
     await TestBed.configureTestingModule({
       imports: [LoadProjectPanelComponent],
-      providers: [{ provide: ProjectService, useValue: mockProjectService }],
+      providers: [
+        { provide: ProjectService, useValue: mockProjectService },
+        { provide: MatSnackBar, useValue: mockSnackBar },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(LoadProjectPanelComponent);
@@ -315,6 +322,44 @@ describe('LoadProjectPanelComponent', () => {
       await component.commitEdit(MOCK_PROJECTS[0]);
 
       expect(mockProjectService.renameProject).toHaveBeenCalledWith(1, 'Trimmed Name');
+    });
+  });
+
+  describe('error handling', () => {
+    it('should show snackbar when delete fails', async () => {
+      fixture.detectChanges();
+      mockProjectService.deleteProject.mockRejectedValue(new Error('Delete failed'));
+
+      await component.onDelete(new Event('click'), MOCK_PROJECTS[0]);
+
+      expect(mockSnackBar.open).toHaveBeenCalledWith(
+        expect.stringContaining('Delete failed'),
+        'Dismiss',
+        expect.objectContaining({ duration: expect.any(Number) }),
+      );
+    });
+
+    it('should show snackbar when rename fails', async () => {
+      fixture.detectChanges();
+      mockProjectService.renameProject.mockRejectedValue(new Error('Rename failed'));
+
+      component.startEdit(MOCK_PROJECTS[0]);
+      component.editControl.setValue('New Name');
+      await component.commitEdit(MOCK_PROJECTS[0]);
+
+      expect(mockSnackBar.open).toHaveBeenCalledWith(
+        expect.stringContaining('Rename failed'),
+        'Dismiss',
+        expect.objectContaining({ duration: expect.any(Number) }),
+      );
+    });
+
+    it('should not show snackbar when delete succeeds', async () => {
+      fixture.detectChanges();
+
+      await component.onDelete(new Event('click'), MOCK_PROJECTS[0]);
+
+      expect(mockSnackBar.open).not.toHaveBeenCalled();
     });
   });
 });

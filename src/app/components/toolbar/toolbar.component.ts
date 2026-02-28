@@ -15,6 +15,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { HistoryService } from '../../services/history.service';
 import { LayoutService } from '../../services/layout.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
@@ -49,6 +50,7 @@ export class ToolbarComponent implements OnDestroy {
   private readonly exportService = inject(ExportService);
   private readonly importService = inject(ImportService);
   private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
 
   readonly editingTitle = signal(false);
   readonly editControl = new FormControl('', { nonNullable: true });
@@ -148,14 +150,24 @@ export class ToolbarComponent implements OnDestroy {
   }
 
   async onImportFile(): Promise<void> {
-    const file = await this.importService.openFilePicker();
-    if (file) {
-      await this.importService.importFile(file);
+    try {
+      const file = await this.importService.openFilePicker();
+      if (file) {
+        await this.importService.importFile(file);
+      }
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      this.snackBar.open(`Import failed: ${message}`, 'Dismiss', { duration: 5000 });
     }
   }
 
   async onSaveProject(): Promise<void> {
-    await this.projectService.saveProject();
+    try {
+      await this.projectService.saveProject();
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      this.snackBar.open(`Save failed: ${message}`, 'Dismiss', { duration: 5000 });
+    }
   }
 
   onExport(): void {
@@ -163,18 +175,22 @@ export class ToolbarComponent implements OnDestroy {
     dialogRef.afterClosed().subscribe((result: ExportDialogResult | undefined) => {
       if (!result) return;
       const name = this.sanitizeFilename(this.projectService.currentProjectName());
+      const handleError = (e: unknown): void => {
+        const message = e instanceof Error ? e.message : 'Unknown error';
+        this.snackBar.open(`Export failed: ${message}`, 'Dismiss', { duration: 5000 });
+      };
       switch (result.format) {
         case 'pxl':
-          void this.exportService.downloadPxl(`${name}.pxl`);
+          void this.exportService.downloadPxl(`${name}.pxl`).catch(handleError);
           break;
         case 'rgp':
-          void this.exportService.downloadRgp(`${name}.rgp`, result.rgpOddRowDirection);
+          void this.exportService.downloadRgp(`${name}.rgp`, result.rgpOddRowDirection).catch(handleError);
           break;
         default:
           void this.exportService.downloadExport(
             { format: result.format as ExportFormat, scale: result.scale, transparent: result.transparent },
             `${name}.${result.format}`,
-          );
+          ).catch(handleError);
       }
     });
   }

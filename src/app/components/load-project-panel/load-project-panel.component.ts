@@ -16,6 +16,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatRippleModule } from '@angular/material/core';
 import { ProjectService } from '../../services/project.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 const LONG_PRESS_DELAY = 500;
 const MOVE_THRESHOLD = 5;
@@ -36,6 +37,7 @@ const MOVE_THRESHOLD = 5;
 })
 export class LoadProjectPanelComponent implements OnInit, OnDestroy {
   protected readonly projectService = inject(ProjectService);
+  private readonly snackBar = inject(MatSnackBar);
 
   readonly projectSelected = output<number>();
   readonly closed = output<void>();
@@ -102,7 +104,12 @@ export class LoadProjectPanelComponent implements OnInit, OnDestroy {
     event.stopPropagation();
     if (project.id == null) return;
 
-    await this.projectService.deleteProject(project.id);
+    try {
+      await this.projectService.deleteProject(project.id);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      this.snackBar.open(`Delete failed: ${message}`, 'Dismiss', { duration: 5000 });
+    }
   }
 
   startEdit(project: { id?: number; name: string }): void {
@@ -131,7 +138,12 @@ export class LoadProjectPanelComponent implements OnInit, OnDestroy {
 
     if (newName === '' || newName === this.originalName) return;
 
-    await this.projectService.renameProject(id, newName);
+    try {
+      await this.projectService.renameProject(id, newName);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      this.snackBar.open(`Rename failed: ${message}`, 'Dismiss', { duration: 5000 });
+    }
   }
 
   cancelEdit(): void {
