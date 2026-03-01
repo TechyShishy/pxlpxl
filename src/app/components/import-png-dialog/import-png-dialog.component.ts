@@ -613,6 +613,11 @@ export class ImportPngDialogComponent {
     const offscreen = new OffscreenCanvas(vw, vh);
     const ctx = offscreen.getContext('2d')!;
 
+    // For nearest-neighbour sampling, disable browser smoothing so the canvas
+    // picks the closest source pixel.  For area-average sampling, leave
+    // smoothing enabled so the browser blends source pixels when downscaling.
+    ctx.imageSmoothingEnabled = this.samplingMode() === 'area';
+
     // Map the image from dialog-canvas coords to virtual-unit coords.
     const ox = this.imageOffsetX();
     const oy = this.imageOffsetY();
@@ -638,33 +643,11 @@ export class ImportPngDialogComponent {
       ] as const;
     };
 
-    const sampleArea = (vx: number, vy: number): readonly [number, number, number, number] => {
-      // Sample a neighbourhood sized to roughly 1 grid cell in virtual-unit space.
-      const cellPx = this.cellSize / scale;
-      const radius = Math.max(0.5, cellPx / 2);
-      const x0 = Math.max(0, Math.round(vx - radius));
-      const x1 = Math.min(vw - 1, Math.round(vx + radius));
-      const y0 = Math.max(0, Math.round(vy - radius));
-      const y1 = Math.min(vh - 1, Math.round(vy + radius));
-      let r = 0, g = 0, b = 0, a = 0, count = 0;
-      for (let sy = y0; sy <= y1; sy++) {
-        for (let sx = x0; sx <= x1; sx++) {
-          const base = (sy * vw + sx) * 4;
-          r += imageData.data[base];
-          g += imageData.data[base + 1];
-          b += imageData.data[base + 2];
-          a += imageData.data[base + 3];
-          count++;
-        }
-      }
-      if (count === 0) return [0, 0, 0, 0] as const;
-      return [
-        Math.round(r / count),
-        Math.round(g / count),
-        Math.round(b / count),
-        Math.round(a / count),
-      ] as const;
-    };
+    // Area-average sampling: the colour blending is done by the browser when
+    // drawing the image onto the offscreen canvas (imageSmoothingEnabled=true
+    // above).  We read the same centre pixel as nearest — the difference is in
+    // the resampled source data, not in post-hoc neighbourhood averaging.
+    const sampleArea = sampleNearest;
 
     const sample = this.samplingMode() === 'nearest' ? sampleNearest : sampleArea;
 
