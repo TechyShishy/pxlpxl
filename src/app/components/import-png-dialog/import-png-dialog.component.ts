@@ -20,6 +20,7 @@ import { GridService } from '../../services/grid.service';
 import { GridType, triangularRowWidth, pixelOffset, extractUniqueColors } from '../../models';
 import type { Color } from '../../models';
 import { medianCut, kMeans, quantizeBuffer } from '../../utils/color-quantize';
+import { type ColorPoolId, getColorPool } from '../../utils/color-pools';
 
 /** Data passed into the dialog from ImportService. */
 export interface ImportPngDialogData {
@@ -77,6 +78,7 @@ export class ImportPngDialogComponent {
   readonly samplingMode = signal<SamplingMode>('nearest');
   readonly maxColors = signal<number>(32);
   readonly quantizeAlgorithm = signal<QuantizeAlgorithm>('median-cut');
+  readonly colorPoolId = signal<ColorPoolId>('any');
 
   // Image pan/zoom state
   private readonly imageOffsetX = signal(0);
@@ -135,6 +137,7 @@ export class ImportPngDialogComponent {
       this.samplingMode();
       this.maxColors();
       this.quantizeAlgorithm();
+      this.colorPoolId();
       if (!this.layoutReady) return;
       this.invalidateSettled();
       this.scheduleDraw();
@@ -446,12 +449,13 @@ export class ImportPngDialogComponent {
     const raw = this.produceLayerData();
     const uniqueColors = extractUniqueColors(raw);
     const max = this.maxColors();
+    const pool = getColorPool(this.colorPoolId());
 
     if (algorithm !== undefined && max > 0 && uniqueColors.length > max) {
       const palette =
         algorithm === 'k-means'
-          ? kMeans(uniqueColors, max)
-          : medianCut(uniqueColors, max);
+          ? kMeans(uniqueColors, max, 20, pool)
+          : medianCut(uniqueColors, max, pool);
       return { buffer: quantizeBuffer(raw, palette), palette };
     }
 

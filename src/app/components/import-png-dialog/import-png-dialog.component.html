@@ -59,6 +59,18 @@
             <mat-button-toggle value="k-means">K-means</mat-button-toggle>
           </mat-button-toggle-group>
         </div>
+
+        <div class="options-row">
+          <label id="pool-label">Color pool</label>
+          <mat-button-toggle-group
+            aria-labelledby="pool-label"
+            [value]="colorPoolId()"
+            (change)="colorPoolId.set($event.value)"
+          >
+            <mat-button-toggle value="any">Any</mat-button-toggle>
+            <mat-button-toggle value="delica">Delica</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
       }
     </div>
   </div>

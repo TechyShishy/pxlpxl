@@ -3,6 +3,8 @@ import type { Color } from '../models/color.model';
 import {
   colorDistance,
   nearestColor,
+  nearestUnusedColor,
+  colorKey,
   medianCut,
   kMeans,
   quantizeBuffer,
@@ -206,5 +208,163 @@ describe('quantizeBuffer', () => {
     const buf = makeBuffer([RED, GREEN, BLUE, WHITE, BLACK]);
     const out = quantizeBuffer(buf, [RED, GREEN, BLUE, WHITE, BLACK]);
     expect(out).toEqual(buf);
+  });
+});
+
+// ── nearestUnusedColor ────────────────────────────────────────────────────────
+
+describe('nearestUnusedColor', () => {
+  it('returns the closest color when nothing is used', () => {
+    const used = new Set<string>();
+    const result = nearestUnusedColor(RED, [BLUE, RED, GREEN], used);
+    expect(result).toEqual(RED);
+  });
+
+  it('skips used colors and returns the next closest', () => {
+    const used = new Set<string>([colorKey(RED)]);
+    // Dark red is closest to RED, but RED is used → should pick next closest.
+    const darkRed: Color = { r: 200, g: 10, b: 10, a: 255 };
+    const result = nearestUnusedColor(darkRed, [RED, GREEN, BLUE], used);
+    // Should not be RED
+    expect(result).not.toEqual(RED);
+  });
+
+  it('falls back to nearest when all pool entries are used', () => {
+    const pool = [RED, GREEN, BLUE];
+    const used = new Set<string>(pool.map(colorKey));
+    const result = nearestUnusedColor(RED, pool, used);
+    // Falls back to nearestColor — should be RED
+    expect(result).toEqual(RED);
+  });
+});
+
+// ── colorKey ──────────────────────────────────────────────────────────────────
+
+describe('colorKey', () => {
+  it('produces distinct keys for different colors', () => {
+    expect(colorKey(RED)).not.toBe(colorKey(BLUE));
+  });
+
+  it('produces the same key for the same color', () => {
+    expect(colorKey(RED)).toBe(colorKey({ r: 255, g: 0, b: 0, a: 255 }));
+  });
+});
+
+// ── medianCut with colorPool ──────────────────────────────────────────────────
+
+describe('medianCut with colorPool', () => {
+  const POOL = [RED, GREEN, BLUE, WHITE, BLACK];
+
+  it('returns only colors from the pool', () => {
+    const manyColors: Color[] = Array.from({ length: 20 }, (_, i) => ({
+      r: i * 12, g: (20 - i) * 10, b: (i % 5) * 40, a: 255,
+    }));
+    const result = medianCut(manyColors, 4, POOL);
+    for (const c of result) {
+      expect(POOL.some((p) => p.r === c.r && p.g === c.g && p.b === c.b && p.a === c.a)).toBe(true);
+    }
+  });
+
+  it('returns distinct pool colors when buckets would collide', () => {
+    // Many shades of red that would all snap to RED without collision handling.
+    const reds: Color[] = Array.from({ length: 20 }, (_, i) => ({
+      r: 200 + Math.floor(i * 2.5), g: i, b: i, a: 255,
+    }));
+    const result = medianCut(reds, 3, POOL);
+    const keys = result.map(colorKey);
+    // All 3 should be distinct pool entries.
+    expect(new Set(keys).size).toBe(3);
+  });
+
+  it('behaves normally without a pool', () => {
+    const manyColors: Color[] = Array.from({ length: 20 }, (_, i) => ({
+      r: i * 10, g: 0, b: 0, a: 255,
+    }));
+    const result = medianCut(manyColors, 4);
+    expect(result).toHaveLength(4);
+  });
+
+  it('respects the pool size as an upper bound', () => {
+    const tinyPool = [RED, BLUE];
+    const manyColors: Color[] = Array.from({ length: 30 }, (_, i) => ({
+      r: i * 8, g: i * 4, b: i * 2, a: 255,
+    }));
+    const result = medianCut(manyColors, 5, tinyPool);
+    // Can only produce at most 2 distinct pool entries.
+    const keys = new Set(result.map(colorKey));
+    expect(keys.size).toBeLessThanOrEqual(2);
+  });
+
+  it('snaps to pool on pixels.length <= n early return', () => {
+    // 3 pixels, n=5 → pixels.length <= n triggers early return.
+    const nearlyRed: Color = { r: 254, g: 1, b: 1, a: 255 };
+    const nearlyGreen: Color = { r: 1, g: 254, b: 1, a: 255 };
+    const result = medianCut([nearlyRed, nearlyGreen, nearlyRed], 5, POOL);
+    for (const c of result) {
+      expect(POOL.some((p) => p.r === c.r && p.g === c.g && p.b === c.b && p.a === c.a)).toBe(true);
+    }
+  });
+
+  it('snaps to pool on unique.length <= n early return', () => {
+    // 2 unique colors but 10 pixels, n=5 → unique.length <= n triggers early return.
+    const nearlyRed: Color = { r: 254, g: 1, b: 1, a: 255 };
+    const nearlyBlue: Color = { r: 1, g: 1, b: 254, a: 255 };
+    const pixels = Array.from({ length: 10 }, (_, i) => (i % 2 === 0 ? nearlyRed : nearlyBlue));
+    const result = medianCut(pixels, 5, POOL);
+    for (const c of result) {
+      expect(POOL.some((p) => p.r === c.r && p.g === c.g && p.b === c.b && p.a === c.a)).toBe(true);
+    }
+  });
+});
+
+// ── kMeans with colorPool ─────────────────────────────────────────────────────
+
+describe('kMeans with colorPool', () => {
+  const POOL = [RED, GREEN, BLUE, WHITE, BLACK];
+
+  it('returns only colors from the pool', () => {
+    const manyColors: Color[] = Array.from({ length: 50 }, (_, i) => ({
+      r: i * 5, g: (50 - i) * 4, b: (i % 10) * 20, a: 255,
+    }));
+    const result = kMeans(manyColors, 4, 20, POOL);
+    for (const c of result) {
+      expect(POOL.some((p) => p.r === c.r && p.g === c.g && p.b === c.b && p.a === c.a)).toBe(true);
+    }
+  });
+
+  it('returns the requested number of entries', () => {
+    const manyColors: Color[] = Array.from({ length: 50 }, (_, i) => ({
+      r: i * 5, g: (50 - i) * 4, b: (i % 10) * 20, a: 255,
+    }));
+    const result = kMeans(manyColors, 4, 20, POOL);
+    expect(result).toHaveLength(4);
+  });
+
+  it('returns distinct pool colors', () => {
+    const manyColors: Color[] = Array.from({ length: 50 }, (_, i) => ({
+      r: i * 5, g: (50 - i) * 4, b: (i % 10) * 20, a: 255,
+    }));
+    const result = kMeans(manyColors, 4, 20, POOL);
+    const keys = result.map(colorKey);
+    expect(new Set(keys).size).toBe(4);
+  });
+
+  it('behaves normally without a pool', () => {
+    const manyColors: Color[] = Array.from({ length: 50 }, (_, i) => ({
+      r: i * 5, g: (50 - i) * 4, b: (i % 10) * 20, a: 255,
+    }));
+    const result = kMeans(manyColors, 6);
+    expect(result).toHaveLength(6);
+  });
+
+  it('snaps to pool on unique.length <= n early return', () => {
+    // 2 unique colors, n=5 → unique.length <= n triggers early return.
+    const nearlyRed: Color = { r: 254, g: 1, b: 1, a: 255 };
+    const nearlyBlue: Color = { r: 1, g: 1, b: 254, a: 255 };
+    const pixels = Array.from({ length: 10 }, (_, i) => (i % 2 === 0 ? nearlyRed : nearlyBlue));
+    const result = kMeans(pixels, 5, 20, POOL);
+    for (const c of result) {
+      expect(POOL.some((p) => p.r === c.r && p.g === c.g && p.b === c.b && p.a === c.a)).toBe(true);
+    }
   });
 });

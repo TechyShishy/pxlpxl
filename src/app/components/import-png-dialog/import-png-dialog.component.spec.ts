@@ -8,6 +8,7 @@ import {
   QuantizeAlgorithm,
   type ImportPngResult,
 } from './import-png-dialog.component';
+import type { ColorPoolId } from '../../utils/color-pools';
 
 // ── OffscreenCanvas shim for test environment ────────────────────────
 
@@ -249,6 +250,23 @@ describe('ImportPngDialogComponent', () => {
       } finally {
         restore();
       }
+    });
+  });
+
+  describe('colorPoolId', () => {
+    it('should default to "any"', () => {
+      const { component } = setup();
+      const c = component as unknown as { colorPoolId: { (): ColorPoolId } };
+      expect(c.colorPoolId()).toBe('any');
+    });
+
+    it('should allow colorPoolId to be set to "delica"', () => {
+      const { component } = setup();
+      const c = component as unknown as {
+        colorPoolId: { (): ColorPoolId; set: (v: ColorPoolId) => void };
+      };
+      c.colorPoolId.set('delica');
+      expect(c.colorPoolId()).toBe('delica');
     });
   });
 });
