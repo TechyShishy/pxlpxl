@@ -207,6 +207,115 @@ describe('GestureService', () => {
     });
   });
 
+  describe('multi-tap (double / triple tap)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function tap(service: GestureService, x = 50, y = 50): void {
+      service.handlePointerDown(
+        makePointerEvent('pointerdown', { clientX: x, clientY: y, pointerType: 'touch' as unknown as string }),
+        CANVAS_RECT,
+      );
+      service.handlePointerUp(
+        makePointerEvent('pointerup', { clientX: x, clientY: y, pointerType: 'touch' as unknown as string }),
+      );
+    }
+
+    it('should fire onDoubleTap after two quick touch taps', () => {
+      const spy = vi.fn();
+      service.onDoubleTap = spy;
+      tap(service);
+      tap(service);
+      vi.advanceTimersByTime(350);
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should fire onTripleTap after three quick touch taps', () => {
+      const tripleSpy = vi.fn();
+      const doubleSpy = vi.fn();
+      service.onTripleTap = tripleSpy;
+      service.onDoubleTap = doubleSpy;
+      tap(service);
+      tap(service);
+      tap(service);
+      vi.advanceTimersByTime(350);
+      expect(tripleSpy).toHaveBeenCalledTimes(1);
+      expect(doubleSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not fire double-tap for a single tap', () => {
+      const spy = vi.fn();
+      service.onDoubleTap = spy;
+      tap(service);
+      vi.advanceTimersByTime(350);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('should not fire double-tap when taps are too far apart in time', () => {
+      const spy = vi.fn();
+      service.onDoubleTap = spy;
+      tap(service);
+      vi.advanceTimersByTime(400); // exceeds TAP_WINDOW=350
+      tap(service);
+      vi.advanceTimersByTime(350);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('should not fire double-tap for mouse pointerType', () => {
+      const spy = vi.fn();
+      service.onDoubleTap = spy;
+      // mouse pointer events
+      service.handlePointerDown(
+        makePointerEvent('pointerdown', { clientX: 50, clientY: 50, pointerType: 'mouse' as unknown as string }),
+        CANVAS_RECT,
+      );
+      service.handlePointerUp(
+        makePointerEvent('pointerup', { clientX: 50, clientY: 50, pointerType: 'mouse' as unknown as string }),
+      );
+      service.handlePointerDown(
+        makePointerEvent('pointerdown', { clientX: 50, clientY: 50, pointerType: 'mouse' as unknown as string }),
+        CANVAS_RECT,
+      );
+      service.handlePointerUp(
+        makePointerEvent('pointerup', { clientX: 50, clientY: 50, pointerType: 'mouse' as unknown as string }),
+      );
+      vi.advanceTimersByTime(350);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('should not fire double-tap when tap moves more than 5px', () => {
+      const spy = vi.fn();
+      service.onDoubleTap = spy;
+      // First tap: pointer moves 10px during hold
+      service.handlePointerDown(
+        makePointerEvent('pointerdown', { clientX: 50, clientY: 50, pointerType: 'touch' as unknown as string }),
+        CANVAS_RECT,
+      );
+      service.handlePointerMove(makePointerEvent('pointermove', { clientX: 60, clientY: 50 }));
+      service.handlePointerUp(
+        makePointerEvent('pointerup', { clientX: 60, clientY: 50, pointerType: 'touch' as unknown as string }),
+      );
+      tap(service);
+      vi.advanceTimersByTime(350);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('should reset tap state on reset()', () => {
+      const spy = vi.fn();
+      service.onDoubleTap = spy;
+      tap(service);
+      service.reset(); // clears tap state
+      tap(service);
+      vi.advanceTimersByTime(350);
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('unknown pointer handling', () => {
     it('should ignore move for untracked pointer', () => {
       const drawSpy = vi.fn();

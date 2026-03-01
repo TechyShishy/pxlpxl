@@ -432,4 +432,51 @@ describe('RotateTool', () => {
       expect([data[28], data[29], data[30], data[31]]).toEqual([200, 100, 50, 255]);
     });
   });
+
+  describe('rotate90', () => {
+    it('should return the pre-rotation snapshot', () => {
+      const ctx = makeContext();
+      setPixel(layerData, 3, 0, W, 255, 0, 0, 255); // top-right corner
+      const snapshot = tool.rotate90('cw', ctx, layerData);
+      // snapshot must equal original (top-right corner is red)
+      expect(getPixel(snapshot, 3, 0, W)).toEqual([255, 0, 0, 255]);
+    });
+
+    it('should leave originalData null after returning (resets snapshot)', () => {
+      const ctx = makeContext();
+      tool.rotate90('cw', ctx, layerData);
+      expect(tool.getOriginalData()).toBeNull();
+    });
+
+    it('rotate90 cw should move top-right pixel to bottom-right on 4×4', () => {
+      const ctx = makeContext();
+      // Set top-right corner (3, 0) to red
+      setPixel(layerData, 3, 0, W, 255, 0, 0, 255);
+      tool.rotate90('cw', ctx, layerData);
+      // After 90° CW: (x, y) → (maxY - y, x) for square grids (nearest-neighbour)
+      // (3, 0) → (3, 3) in visual space after CW rotation by π/2
+      expect(getPixel(layerData, 3, 3, W)).toEqual([255, 0, 0, 255]);
+    });
+
+    it('rotate90 ccw should move top-right pixel to top-left on 4×4', () => {
+      const ctx = makeContext();
+      // Set top-right corner (3, 0) to blue
+      setPixel(layerData, 3, 0, W, 0, 0, 255, 255);
+      tool.rotate90('ccw', ctx, layerData);
+      // Inverse rotation for -π/2: srcX = -dstY+3, srcY = dstX
+      // (src 3,0) → dst(0,0):  srcX=-0+3=3✓  srcY=0✓
+      expect(getPixel(layerData, 0, 0, W)).toEqual([0, 0, 255, 255]);
+    });
+
+    it('should mutate the passed layerData buffer in-place', () => {
+      const ctx = makeContext();
+      setPixel(layerData, 1, 0, W, 100, 150, 200, 255);
+      const originalRef = layerData;
+      tool.rotate90('cw', ctx, layerData);
+      // Same buffer reference
+      expect(layerData).toBe(originalRef);
+      // Buffer was changed (original pixel at (1,0) is no longer there for the CW case)
+      expect(getPixel(layerData, 1, 0, W)).not.toEqual([100, 150, 200, 255]);
+    });
+  });
 });

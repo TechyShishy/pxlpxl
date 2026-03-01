@@ -5,6 +5,10 @@ import { GestureState, PixelCoord } from '../models';
 const MOVE_THRESHOLD = 5;
 /** Duration in ms to trigger a long-press */
 const LONG_PRESS_DELAY = 500;
+/** Maximum touch duration (ms) to count as a tap (not a hold) */
+const TAP_MAX_DURATION = 250;
+/** Window (ms) within which consecutive taps are counted for multi-tap */
+const TAP_WINDOW = 350;
 
 interface PointerInfo {
   id: number;
@@ -12,6 +16,7 @@ interface PointerInfo {
   startY: number;
   currentX: number;
   currentY: number;
+  downTime: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -30,6 +35,15 @@ export class GestureService {
   onPan: ((deltaX: number, deltaY: number) => void) | null = null;
   onLongPress: ((screenX: number, screenY: number) => void) | null = null;
   onEdgeSwipe: ((direction: 'left' | 'right') => void) | null = null;
+  /** Fired when a touch double-tap is detected (no significant movement, within TAP_WINDOW) */
+  onDoubleTap: (() => void) | null = null;
+  /** Fired when a touch triple-tap is detected */
+  onTripleTap: (() => void) | null = null;
+
+  private tapCount = 0;
+  private tapWindowTimer: ReturnType<typeof setTimeout> | null = null;
+  private tapX = 0;
+  private tapY = 0;
 
   handlePointerDown(e: PointerEvent, canvasRect: DOMRect): void {
     const info: PointerInfo = {
@@ -38,6 +52,7 @@ export class GestureService {
       startY: e.clientY,
       currentX: e.clientX,
       currentY: e.clientY,
+      downTime: Date.now(),
     };
     this.pointers.set(e.pointerId, info);
 
@@ -95,9 +110,25 @@ export class GestureService {
   handlePointerUp(e: PointerEvent): void {
     this.cancelLongPress();
 
+    const info = this.pointers.get(e.pointerId);
     const state = this.gestureState();
     if (state === GestureState.Drawing && this.pointers.size === 1) {
       this.onDraw?.(e.clientX, e.clientY, 'end', e.shiftKey);
+    }
+
+    // Detect touch taps for multi-tap gestures (double/triple tap)
+    if (
+      e.pointerType === 'touch' &&
+      info &&
+      this.pointers.size === 1 // still 1 pointer before delete means this was a solo touch
+    ) {
+      const dx = info.currentX - info.startX;
+      const dy = info.currentY - info.startY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const duration = Date.now() - info.downTime;
+      if (dist <= MOVE_THRESHOLD && duration < TAP_MAX_DURATION) {
+        this.recordTap(info.startX, info.startY);
+      }
     }
 
     this.pointers.delete(e.pointerId);
@@ -130,10 +161,38 @@ export class GestureService {
 
   reset(): void {
     this.cancelLongPress();
+    this.resetTapState();
     this.pointers.clear();
     this.gestureState.set(GestureState.Idle);
     this.initialPinchDistance = 0;
     this.lastPinchDistance = 0;
+  }
+
+  private recordTap(x: number, y: number): void {
+    this.tapX = x;
+    this.tapY = y;
+    this.tapCount++;
+    if (this.tapWindowTimer !== null) {
+      clearTimeout(this.tapWindowTimer);
+    }
+    this.tapWindowTimer = setTimeout(() => {
+      const count = this.tapCount;
+      this.tapCount = 0;
+      this.tapWindowTimer = null;
+      if (count === 2) {
+        this.onDoubleTap?.();
+      } else if (count >= 3) {
+        this.onTripleTap?.();
+      }
+    }, TAP_WINDOW);
+  }
+
+  private resetTapState(): void {
+    this.tapCount = 0;
+    if (this.tapWindowTimer !== null) {
+      clearTimeout(this.tapWindowTimer);
+      this.tapWindowTimer = null;
+    }
   }
 
   private startLongPressTimer(x: number, y: number): void {
