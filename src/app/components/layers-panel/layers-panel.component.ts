@@ -62,7 +62,7 @@ export class LayersPanelComponent implements OnDestroy {
   }
 
   addLayer(): void {
-    this.layerService.addLayer(this.canvasState.bufferWidth(), this.canvasState.bufferHeight());
+    this.layerService.addLayer(this.canvasState.bufferWidth(), this.canvasState.bufferHeight(), this.canvasState.bufferPixelCount());
   }
 
   duplicateLayer(index: number): void {
