@@ -165,7 +165,7 @@ export class CanvasViewportComponent implements OnDestroy {
 
   private setupCanvas(): void {
     const canvas = this.canvasRef().nativeElement;
-    this.ctx = canvas.getContext('2d');
+    this.ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     const getCtx = (ref: ElementRef<HTMLCanvasElement> | undefined) =>
       ref?.nativeElement.getContext('2d') ?? null;
