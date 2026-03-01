@@ -14,3 +14,27 @@
   font-size: 12px;
   color: var(--mat-sys-on-surface-variant);
 }
+
+.status-spacer {
+  flex: 1;
+}
+
+.color-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.color-swatch-box {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.color-db-code {
+  color: var(--mat-sys-on-surface-variant);
+  opacity: 0.7;
+}

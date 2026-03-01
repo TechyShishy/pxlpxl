@@ -4,4 +4,16 @@
   >
   <span class="status-item">Zoom: {{ canvasState.zoomPercent() }}%</span>
   <span class="status-item">Tool: {{ activeToolLabel() }}</span>
+  <span class="status-spacer"></span>
+  <span class="status-item color-info">
+    <span
+      class="color-swatch-box"
+      [style.background]="primaryColorRgba()"
+      aria-hidden="true"
+    ></span
+    >{{ colorService.primaryColorHexShort() }}
+    @if (colorService.primaryColorDbCode()) {
+      <span class="color-db-code">{{ colorService.primaryColorDbCode() }}</span>
+    }
+  </span>
 </div>

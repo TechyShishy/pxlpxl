@@ -1,5 +1,6 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { Color, BLACK, WHITE, DEFAULT_PALETTE, colorsEqual, deduplicateColorList } from '../models';
+import { colorToDbCode } from '../utils/color-pools';
 
 @Injectable({ providedIn: 'root' })
 export class ColorService {
@@ -20,6 +21,12 @@ export class ColorService {
     const c = this._secondaryColor();
     return this.toHex(c);
   });
+
+  /** 6-char `#rrggbb` hex of the primary color (no alpha). */
+  readonly primaryColorHexShort = this.primaryColorHex;
+
+  /** Miyuki Delica DB code for the primary color, or `null` if not in catalog. */
+  readonly primaryColorDbCode = computed(() => colorToDbCode(this._primaryColor()));
 
   setPrimaryColor(color: Color): void {
     this._primaryColor.set({ ...color });
