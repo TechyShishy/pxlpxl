@@ -311,4 +311,92 @@ describe('CanvasStateService', () => {
       expect(Number.isFinite(t.offsetY)).toBe(true);
     });
   });
+
+  describe('screenToPixel', () => {
+    function makeDOMRect(): DOMRect {
+      return {
+        left: 0, top: 0, right: 2000, bottom: 2000,
+        x: 0, y: 0, width: 2000, height: 2000,
+        toJSON: () => ({}),
+      } as DOMRect;
+    }
+
+    describe('non-clone path', () => {
+      it('should map screen coords to buffer pixel at default zoom for square grid', () => {
+        // pixel (2, 3) at zoom=10 has screen-space center at (2*10+5, 3*10+5) = (25, 35)
+        service.setGridType('square');
+        service.setCanvasSize(10, 10);
+        service.setZoom(10);
+        expect(service.screenToPixel(25, 35, makeDOMRect())).toEqual({ x: 2, y: 3 });
+      });
+
+      it('should return null for out-of-bounds coordinates', () => {
+        service.setGridType('square');
+        service.setCanvasSize(5, 5);
+        service.setZoom(10);
+        expect(service.screenToPixel(-5, 5, makeDOMRect())).toBeNull();
+      });
+    });
+
+    describe('clone path (triangular grid)', () => {
+      beforeEach(() => {
+        // a=1, d=1 (dNum=1,dDen=1) → sideCount=3 (triangle), peyote stagger, 10 rows
+        service.setGridType('triangular');
+        service.setCanvasSize(1, 10);
+        service.setTriangularParams(1, 1, 1, 1, 0);
+        service.setZoom(10);
+      });
+
+      it('should map a point in wedge 0 to the same pixel whether clones are on or off', () => {
+        const bs = service.beadSize();
+        // Row 0 has 1 pixel. maxWidth=10, centerOffset=9.
+        // Pixel (0,0) center in raw wedge space: (9.5 * bs.width, bs.height/2)
+        const rawX = 9.5 * bs.width;
+        const rawY = bs.height / 2;
+
+        // showClones=false: raw coords map directly to the pixel
+        const withoutClones = service.screenToPixel(rawX, rawY, makeDOMRect());
+        expect(withoutClones).toEqual({ x: 0, y: 0 });
+
+        // showClones=true: the rendered wedge is shifted down by centeringOffsetY,
+        // so the click must be at rawY + centeringOffsetY to hit the same pixel.
+        service.toggleClones();
+        // pivotY = -(a * dDen/dNum) * (bs.height/2) = -bs.height/2
+        const pivotY = -(bs.height / 2);
+        const wedgeHeight = 9 * (bs.height / 2) + bs.height;
+        const centeringOffsetY = wedgeHeight / 2 - pivotY;
+
+        const withClones = service.screenToPixel(rawX, rawY + centeringOffsetY, makeDOMRect());
+        expect(withClones).toEqual({ x: 0, y: 0 });
+      });
+
+      it('should map a point in a rotated clone back to the originating buffer pixel', () => {
+        service.toggleClones();
+
+        const bs = service.beadSize();
+        // Pixel (0,0) center in raw wedge space
+        const pivotX = 9.5 * bs.width;  // maxWidth=10, (10-0.5)*bs.width for peyote
+        const pivotY = -(bs.height / 2);
+        const wedgeHeight = 9 * (bs.height / 2) + bs.height;
+        const c = wedgeHeight / 2 - pivotY;
+
+        // Compute the screen position of pixel (0,0)'s center as rendered in clone 1
+        // (rotated 2π/3 around the pivot, with centering offset applied).
+        const angle = (2 * Math.PI) / 3;
+        const offsetX = 0;                  // sxCenter - pivotX = 9.5*bs.width - 9.5*bs.width = 0
+        const offsetY = bs.height;          // syCenter - pivotY = bs.height/2 - (-bs.height/2)
+        const cloneScreenX = offsetX * Math.cos(angle) - offsetY * Math.sin(angle) + pivotX;
+        const cloneScreenY = offsetX * Math.sin(angle) + offsetY * Math.cos(angle) + pivotY + c;
+
+        const result = service.screenToPixel(cloneScreenX, cloneScreenY, makeDOMRect());
+        expect(result).toEqual({ x: 0, y: 0 });
+      });
+
+      it('should return null when no clone wedge contains the hit point', () => {
+        service.toggleClones();
+        // A point far outside all wedges maps to null
+        expect(service.screenToPixel(1e6, 1e6, makeDOMRect())).toBeNull();
+      });
+    });
+  });
 });
