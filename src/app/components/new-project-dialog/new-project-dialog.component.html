@@ -6,6 +6,15 @@
       <input matInput [(ngModel)]="name" placeholder="Untitled" aria-label="Project name" />
     </mat-form-field>
 
+    <mat-form-field appearance="outline">
+      <mat-label>Grid Type</mat-label>
+      <mat-select [(ngModel)]="gridType" aria-label="Grid type">
+        <mat-option value="square">Square</mat-option>
+        <mat-option value="peyote">Peyote</mat-option>
+        <mat-option value="triangular">Triangular</mat-option>
+      </mat-select>
+    </mat-form-field>
+
     @if (gridType === 'square') {
       <div class="dimensions">
         <mat-form-field appearance="outline">
@@ -117,15 +126,6 @@
         </mat-form-field>
       </div>
     }
-
-    <mat-form-field appearance="outline">
-      <mat-label>Grid Type</mat-label>
-      <mat-select [(ngModel)]="gridType" aria-label="Grid type">
-        <mat-option value="square">Square</mat-option>
-        <mat-option value="peyote">Peyote</mat-option>
-        <mat-option value="triangular">Triangular</mat-option>
-      </mat-select>
-    </mat-form-field>
 
     @if (gridType === 'square') {
       <div class="presets">
