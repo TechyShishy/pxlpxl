@@ -1,6 +1,7 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { BeadSize, ViewTransform, GridType, computeBufferDimensions, computeBufferPixelCount } from '../models';
 import { GridService } from './grid.service';
+import { clonePivot } from './clone-geometry';
 
 @Injectable({ providedIn: 'root' })
 export class CanvasStateService {
@@ -228,12 +229,7 @@ export class CanvasStateService {
     const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
     const bs = this.beadSize();
 
-    // Pivot — must match renderTriangularClones / getClonePivot
-    const rowSpacing = usesPeyote ? bs.height / 2 : bs.height;
-    const pivotY = -(a * dDen / dNum) * rowSpacing;
-    const pivotX = usesPeyote
-      ? (maxWidth - 0.5) * bs.width
-      : (maxWidth / 2) * bs.width;
+    const { x: pivotX, y: pivotY } = clonePivot(bs, maxWidth, usesPeyote, a, dNum, dDen);
 
     const wedgeHeight = usesPeyote
       ? (totalRows - 1) * (bs.height / 2) + bs.height
@@ -323,13 +319,8 @@ export class CanvasStateService {
         totalRows, gridType, a, d, dNum, dDen, shift,
       );
       const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
-      // Pivot at the theoretical apex where the wedge converges to zero
-      // width: r_apex = -(a·dDen/dNum), in screen space × rowSpacing.
-      const rowSpacing = usesPeyote ? bs.height / 2 : bs.height;
-      const pivotY = -(a * dDen / dNum) * rowSpacing;
-      const pivot = usesPeyote
-        ? { x: (maxWidth - 0.5) * bs.width, y: pivotY }
-        : { x: (maxWidth / 2) * bs.width, y: pivotY };
+      // Pivot at the theoretical apex where the wedge converges to zero width.
+      const pivot = clonePivot(bs, maxWidth, usesPeyote, a, dNum, dDen);
 
       // Match the centering offset applied in renderTriangularClones.
       const wedgeHeight = usesPeyote

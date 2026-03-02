@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { LayerService } from './layer.service';
 import { CanvasStateService } from './canvas-state.service';
 import { GridService } from './grid.service';
+import { clonePivot } from './clone-geometry';
 import { BeadSize, Color, GridType, PixelCoord, pixelOffset, triangularRowWidth } from '../models';
 
 @Injectable({ providedIn: 'root' })
@@ -273,7 +274,7 @@ export class RenderService {
     );
     const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
     const beadSize = this.canvasState.beadSize();
-    const pivot = this.getClonePivot(beadSize, maxWidth, usesPeyote, a, dNum, dDen);
+    const pivot = clonePivot(beadSize, maxWidth, usesPeyote, a, dNum, dDen);
 
     ctx.save();
     ctx.translate(transform.offsetX, transform.offsetY);
@@ -445,30 +446,6 @@ export class RenderService {
       ctx.lineTo((lastCenterOffset + lastRowWidth) * beadSize.width, bottomY);
       ctx.stroke();
     }
-  }
-
-  /**
-   * Compute the pivot point for radial clone rotation.
-   * The pivot is the center of the first-row pixel(s) — the apex of the wedge.
-   */
-  private getClonePivot(
-    beadSize: BeadSize,
-    maxWidth: number,
-    usesPeyote: boolean,
-    a: number,
-    dNum: number,
-    dDen: number,
-  ): { x: number; y: number } {
-    // The pivot is the theoretical apex where the wedge converges to
-    // zero width.  Row r has width ≈ a + r·dNum/dDen, so extrapolating
-    // back to width 0 gives r_apex = -(a·dDen/dNum).  In screen space
-    // that's r_apex × rowSpacing above the first row.
-    const rowSpacing = usesPeyote ? beadSize.height / 2 : beadSize.height;
-    const pivotY = -(a * dDen / dNum) * rowSpacing;
-    if (usesPeyote) {
-      return { x: (maxWidth - 0.5) * beadSize.width, y: pivotY };
-    }
-    return { x: (maxWidth / 2) * beadSize.width, y: pivotY };
   }
 
   /** Render peyote layers bead-by-bead onto the viewport canvas. */
