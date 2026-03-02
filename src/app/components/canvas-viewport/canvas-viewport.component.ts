@@ -87,6 +87,9 @@ export class CanvasViewportComponent implements OnDestroy {
   private panLastY = 0;
   private isPanning = false;
 
+  /** Previous value of showClones for edge detection in effect. */
+  private previousShowClones = false;
+
   constructor() {
     // Set up gesture callbacks
     this.gestureService.onDraw = (x, y, phase, shiftKey) => this.handleDraw(x, y, phase, shiftKey);
@@ -128,6 +131,19 @@ export class CanvasViewportComponent implements OnDestroy {
       this.canvasState.showClones();
       this.layerService.layers();
       this.requestRender();
+    });
+
+    // Center the view when shadow clones are turned on
+    effect(() => {
+      const showClones = this.canvasState.showClones();
+      const wasFalse = !this.previousShowClones;
+      this.previousShowClones = showClones;
+      if (showClones && wasFalse) {
+        const canvas = this.canvasRef()?.nativeElement;
+        if (canvas) {
+          this.canvasState.centerOnClones(canvas.width, canvas.height);
+        }
+      }
     });
 
     // Re-render rulers when ruler-relevant state changes

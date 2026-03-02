@@ -169,6 +169,110 @@ export class CanvasStateService {
     this._showClones.update((v) => !v);
   }
 
+  /**
+   * Pan the viewport so the full shadow-clone polygon is centered,
+   * keeping the current zoom level unchanged.
+   */
+  centerOnClones(viewportWidth: number, viewportHeight: number): void {
+    const gridType = this._gridType();
+    if (gridType !== 'triangular') return;
+    const sides = this.sideCount();
+    if (sides < 3) return;
+
+    const t = this._transform();
+    const scale = t.scale;
+    const a = this._triangularA();
+    const d = this._triangularD();
+    const dNum = this._triangularDNum();
+    const dDen = this._triangularDDen();
+    const shift = this._triangularShift();
+    const totalRows = this.bufferHeight();
+    const maxWidth = this.gridService.getAnyTriangularMaxWidth(
+      totalRows, gridType, a, d, dNum, dDen, shift,
+    );
+    const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
+
+    // Pivot — must match renderTriangularClones / getClonePivot
+    const rowSpacing = usesPeyote ? scale / 2 : scale;
+    const pivotY = -(a * dDen / dNum) * rowSpacing;
+    const pivotX = usesPeyote
+      ? (maxWidth - 0.5) * scale
+      : (maxWidth / 2) * scale;
+
+    const wedgeHeight = usesPeyote
+      ? (totalRows - 1) * (scale / 2) + scale
+      : totalRows * scale;
+
+    // x-scale correction — must match renderTriangularClones
+    const halfWidth = usesPeyote
+      ? maxWidth * scale
+      : ((maxWidth + 1) / 2) * scale;
+    const dy = (totalRows - 0.5) * rowSpacing;
+    const targetAngle = Math.PI / sides;
+    const xScale = (Math.tan(targetAngle) * dy) / halfWidth;
+
+    // Centering offset applied during rendering
+    const centeringOffsetY = wedgeHeight / 2 - pivotY;
+
+    // Compute the bounding box of the full polygon.
+    // Each wedge corner (before x-scale) is at
+    //   top-left  (0, 0)
+    //   top-right  (wedgeRawW, 0)
+    //   bot-left  (0, wedgeHeight)
+    //   bot-right (wedgeRawW, wedgeHeight)
+    // After x-scale around pivotX and rotation around pivot,
+    // we track every corner through these transforms.
+    const wedgeRawW = usesPeyote
+      ? (maxWidth * 2 - 1) * scale   // peyote visual width
+      : maxWidth * scale;
+
+    const corners = [
+      { x: 0, y: 0 },
+      { x: wedgeRawW, y: 0 },
+      { x: 0, y: wedgeHeight },
+      { x: wedgeRawW, y: wedgeHeight },
+    ];
+
+    const angleStep = (2 * Math.PI) / sides;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    for (let i = 0; i < sides; i++) {
+      const angle = i * angleStep;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      for (const c of corners) {
+        // Apply x-scale correction around pivotX
+        const sx = pivotX + (c.x - pivotX) * xScale;
+        const sy = c.y;
+        // Apply centering offset
+        const cy = sy + centeringOffsetY;
+        // Rotate around pivot
+        const dx = sx - pivotX;
+        const ddy = cy - pivotY;
+        const rx = pivotX + dx * cos - ddy * sin;
+        const ry = pivotY + dx * sin + ddy * cos;
+        minX = Math.min(minX, rx);
+        maxX = Math.max(maxX, rx);
+        minY = Math.min(minY, ry);
+        maxY = Math.max(maxY, ry);
+      }
+    }
+
+    const polyWidth = maxX - minX;
+    const polyHeight = maxY - minY;
+    const polyCenterX = minX + polyWidth / 2;
+    const polyCenterY = minY + polyHeight / 2;
+
+    // Set offsets so the polygon center lands at the viewport center
+    this.setPan(
+      viewportWidth / 2 - polyCenterX,
+      viewportHeight / 2 - polyCenterY,
+    );
+  }
+
   /** Convert screen coordinates to buffer coordinates on the canvas */
   screenToPixel(
     screenX: number,
