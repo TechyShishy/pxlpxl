@@ -88,7 +88,7 @@ export class CanvasViewportComponent implements OnDestroy {
   private isPanning = false;
 
   /** Previous value of showClones for edge detection in effect. */
-  private previousShowClones = false;
+  private previousShowClones = this.canvasState.showClones();
 
   constructor() {
     // Set up gesture callbacks
