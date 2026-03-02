@@ -39,6 +39,14 @@ export interface ToolContext {
   triangularDDen?: number;
   /** Phase shift (0..dDen-1) for triangular grids */
   triangularShift?: number;
+  /**
+   * Bead width-to-height aspect ratio at the current zoom level.
+   * For square/peyote grids this is 1. For triangular grids the width
+   * is narrower than the height to produce the correct wedge angle.
+   * Use this in shape tools to map buffer coords to a physically correct
+   * intermediate space before computing ellipses or rectangles.
+   */
+  beadAspectRatio?: number;
 }
 
 export enum ToolType {

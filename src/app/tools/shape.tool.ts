@@ -106,8 +106,10 @@ export abstract class ShapeTool implements Tool {
       return this.computeShapePoints(from, to);
     }
 
-    // Map buffer coords to visual-space centers, compute shape there, map back
-    const beadSize: BeadSize = { width: 100, height: 100 };
+    // Map buffer coords to visual-space centers, compute shape there, map back.
+    // Use the bead aspect ratio from context so that triangular-grid wedge beads
+    // (which are narrower than tall) produce undistorted ellipses and rectangles.
+    const beadSize: BeadSize = { width: 100 * (ctx.beadAspectRatio ?? 1), height: 100 };
     const fromV = gridService.pixelToScreen(
       from.x, from.y, beadSize,
       ctx.gridType, ctx.triangularA, ctx.triangularD,

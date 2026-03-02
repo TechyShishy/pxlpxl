@@ -415,6 +415,7 @@ export class CanvasViewportComponent implements OnDestroy {
       triangularDNum: isTriangular ? this.canvasState.triangularDNum() : undefined,
       triangularDDen: isTriangular ? this.canvasState.triangularDDen() : undefined,
       triangularShift: isTriangular ? this.canvasState.triangularShift() : undefined,
+      beadAspectRatio: this.canvasState.beadSize().width / this.canvasState.beadSize().height,
     };
 
     const previousData = rotateTool.rotate90(direction, ctx, activeLayer.data);
@@ -483,6 +484,7 @@ export class CanvasViewportComponent implements OnDestroy {
       triangularShift: this.gridService.isAnyTriangular(this.canvasState.gridType())
         ? this.canvasState.triangularShift()
         : undefined,
+      beadAspectRatio: this.canvasState.beadSize().width / this.canvasState.beadSize().height,
     };
 
     let result;
