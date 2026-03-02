@@ -22,6 +22,7 @@ import {
   triangularRowWidth,
   triangularCumPixels,
   computeBufferPixelCount,
+  BeadSize,
 } from '../models';
 import { colorToHex } from '../models';
 import { serializeCommand } from '../commands/command-serialization';
@@ -91,7 +92,14 @@ export class ExportService {
   }
 
   private async exportNonSquare(options: ExportOptions): Promise<Blob> {
-    const composited = this.renderService.compositeToCanvas({ width: options.scale, height: options.scale });
+    // For triangular grids the bead aspect ratio (width/height) may differ
+    // from 1:1. Derive it from the current beadSize signal and apply to the
+    // export scale so the exported image matches what the viewport shows.
+    const bs = this.canvasState.beadSize();
+    const viewZoom = this.canvasState.transform().scale;
+    const xScale = viewZoom > 0 ? bs.width / viewZoom : 1;
+    const exportBeadSize: BeadSize = { width: options.scale * xScale, height: options.scale };
+    const composited = this.renderService.compositeToCanvas(exportBeadSize);
     const w = composited.width;
     const h = composited.height;
 
