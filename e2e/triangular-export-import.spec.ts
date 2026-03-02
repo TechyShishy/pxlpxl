@@ -280,7 +280,7 @@ test.describe('Triangular project: draw → duplicate layer → move layer → e
     expect(fs.existsSync(downloadPath), 'Exported .pxl file should exist on disk').toBe(true);
     expect(fs.statSync(downloadPath).size, 'Exported .pxl file should be non-empty').toBeGreaterThan(0);
 
-    // ── Step 6: Decode the .pxl file and verify layer data sizes ────────
+    // ── Step 7: Decode the .pxl file and verify layer data sizes ────────
     // .pxl files are gzip-compressed JSON. Decompress and parse.
     const compressed = fs.readFileSync(downloadPath);
     const decompressed = zlib.gunzipSync(compressed);
@@ -336,9 +336,6 @@ test.describe('Triangular project: draw → duplicate layer → move layer → e
       page.getByRole('menuitem', { name: 'Import File' }).click(),
     ]);
     await fileChooser.setFiles(downloadPath);
-    await waitForRender(page);
-    // Allow Angular change detection + re-render to settle
-    await page.waitForTimeout(300);
     await waitForRender(page);
 
     // ── Step 10: Verify the layers and pixel content were restored ────
