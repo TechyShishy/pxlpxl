@@ -23,7 +23,8 @@ interface PixelCoord {
 /**
  * Compute the screen-space bounding box for a triangular-grid pixel.
  * Replicates `GridService.pixelToScreen` for triangular grids.
- * Odd d uses 2-stride spacing and half-row Y interleaving.
+ * Odd d uses 2-stride spacing, half-row Y interleaving, and non-square
+ * bead width (beadSize.width = scale * xScale) for radial tiling.
  */
 function triangularPixelBox(
   bx: number,
@@ -35,16 +36,28 @@ function triangularPixelBox(
 ): Box {
   const maxWidth = a + d * Math.max(0, totalRows - 1);
   const rowWidth = a + d * by;
+  let beadWidth = scale;
+  const beadHeight = scale;
+
   if (d % 2 !== 0) {
+    // Compute bead width from xScale (mirrors CanvasStateService.beadSize)
+    const sideCount = Math.round(3 / d); // dNum=d, dDen=1
+    if (sideCount >= 3) {
+      const halfWidth = maxWidth * scale;
+      const rowSpacing = scale / 2;
+      const dy = (totalRows - 0.5) * rowSpacing;
+      const xScale = (Math.tan(Math.PI / sideCount) * dy) / halfWidth;
+      beadWidth = scale * xScale;
+    }
     const centerOffset = maxWidth - rowWidth;
-    const sx = (centerOffset + bx * 2) * scale;
-    const sy = by * (scale / 2);
-    return { left: sx, top: sy, right: sx + scale, bottom: sy + scale };
+    const sx = (centerOffset + bx * 2) * beadWidth;
+    const sy = by * (beadHeight / 2);
+    return { left: sx, top: sy, right: sx + beadWidth, bottom: sy + beadHeight };
   }
   const centerOffset = (maxWidth - rowWidth) / 2;
-  const sx = (centerOffset + bx) * scale;
-  const sy = by * scale;
-  return { left: sx, top: sy, right: sx + scale, bottom: sy + scale };
+  const sx = (centerOffset + bx) * beadWidth;
+  const sy = by * beadHeight;
+  return { left: sx, top: sy, right: sx + beadWidth, bottom: sy + beadHeight };
 }
 
 /**

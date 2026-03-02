@@ -52,6 +52,7 @@ describe('RenderService', () => {
             gridType: vi.fn(() => 'square'),
             showGrid: vi.fn(() => false),
             transform: vi.fn(() => ({ scale: 10, offsetX: 0, offsetY: 0 })),
+            beadSize: vi.fn(() => ({ width: 10, height: 10 })),
             triangularA: vi.fn(() => 1),
             triangularD: vi.fn(() => 1),
             triangularDNum: vi.fn(() => 1),
@@ -66,7 +67,7 @@ describe('RenderService', () => {
             isAnyTriangular: vi.fn(() => false),
             isValidPixel: vi.fn(() => true),
             pixelToScreen: vi.fn(
-              (bx: number, by: number, scale: number) => ({ sx: bx * scale, sy: by * scale }),
+              (bx: number, by: number, beadSize: { width: number; height: number }) => ({ sx: bx * beadSize.width, sy: by * beadSize.height }),
             ),
             bufferToVisual: vi.fn((bx: number, by: number) => ({ col: bx, beadRow: by })),
             getAnyTriangularRowWidth: vi.fn(() => 1),

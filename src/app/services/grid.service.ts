@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { GridType, PixelCoord, triangularRowWidth, resolveTriangularD } from '../models';
+import { BeadSize, GridType, PixelCoord, triangularRowWidth, resolveTriangularD } from '../models';
 
 /**
  * Utility service for grid-type-aware coordinate mapping and neighbor lookups.
@@ -99,7 +99,7 @@ export class GridService {
   pixelToScreen(
     bx: number,
     by: number,
-    scale: number,
+    beadSize: BeadSize,
     gridType: GridType,
     triangularA?: number,
     triangularD?: number,
@@ -117,25 +117,25 @@ export class GridService {
       if (this.usesPeyoteStagger(gridType, triangularD ?? 1, triangularDNum, triangularDDen)) {
         // Peyote-style: 2-stride spacing + half-row interleaving
         const centerOffset = maxWidth - rowWidth;
-        const sx = (centerOffset + bx * 2) * scale;
-        const sy = by * (scale / 2);
+        const sx = (centerOffset + bx * 2) * beadSize.width;
+        const sy = by * (beadSize.height / 2);
         return { sx, sy };
       }
       // Even effective d: uniform layout, no gaps.
       const centerOffset = (maxWidth - rowWidth) / 2;
-      const sx = (centerOffset + bx) * scale;
-      return { sx, sy: by * scale };
+      const sx = (centerOffset + bx) * beadSize.width;
+      return { sx, sy: by * beadSize.height };
     }
 
     if (gridType !== 'peyote') {
-      return { sx: bx * scale, sy: by * scale };
+      return { sx: bx * beadSize.width, sy: by * beadSize.height };
     }
     const { col, beadRow } = this.bufferToVisual(bx, by);
     const isOddCol = col % 2 === 1;
-    const offsetY = isOddCol ? scale / 2 : 0;
+    const offsetY = isOddCol ? beadSize.height / 2 : 0;
     return {
-      sx: col * scale,
-      sy: beadRow * scale + offsetY,
+      sx: col * beadSize.width,
+      sy: beadRow * beadSize.height + offsetY,
     };
   }
 
@@ -154,7 +154,7 @@ export class GridService {
   screenToPixel(
     localX: number,
     localY: number,
-    scale: number,
+    beadSize: BeadSize,
     bufferWidth: number,
     bufferHeight: number,
     gridType: GridType,
@@ -168,27 +168,27 @@ export class GridService {
     if (gridType === 'triangular' && triangularA !== undefined) {
       const { dNum, dDen } = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
       return this.screenToPixelTriangular(
-        localX, localY, scale, bufferHeight, triangularA, dNum, dDen, triangularShift ?? 0,
+        localX, localY, beadSize, bufferHeight, triangularA, dNum, dDen, triangularShift ?? 0,
       );
     }
 
     if (gridType !== 'peyote') {
-      const x = Math.floor(localX / scale);
-      const y = Math.floor(localY / scale);
+      const x = Math.floor(localX / beadSize.width);
+      const y = Math.floor(localY / beadSize.height);
       if (x < 0 || x >= bufferWidth || y < 0 || y >= bufferHeight) return null;
       return { x, y };
     }
 
     const visCols = visualColumns ?? bufferWidth * 2;
-    const col = Math.floor(localX / scale);
+    const col = Math.floor(localX / beadSize.width);
     if (col < 0 || col >= visCols) return null;
 
     const isOddCol = col % 2 === 1;
     let effectiveY = localY;
     if (isOddCol) {
-      effectiveY -= scale / 2;
+      effectiveY -= beadSize.height / 2;
     }
-    const beadRow = Math.floor(effectiveY / scale);
+    const beadRow = Math.floor(effectiveY / beadSize.height);
     const beadsPerCol = bufferHeight / 2;
     if (beadRow < 0 || beadRow >= beadsPerCol) return null;
 
@@ -205,7 +205,7 @@ export class GridService {
   private screenToPixelTriangular(
     localX: number,
     localY: number,
-    scale: number,
+    beadSize: BeadSize,
     totalRows: number,
     a: number,
     dNum: number,
@@ -218,26 +218,26 @@ export class GridService {
 
     if (!usePeyote) {
       // Even effective d: square-style uniform row height
-      const by = Math.floor(localY / scale);
+      const by = Math.floor(localY / beadSize.height);
       if (by < 0 || by >= totalRows) return null;
       const rowWidth = triangularRowWidth(by, a, dNum, dDen, shift);
       const centerOffset = (maxWidth - rowWidth) / 2;
-      const bx = Math.floor(localX / scale - centerOffset);
+      const bx = Math.floor(localX / beadSize.width - centerOffset);
       if (bx < 0 || bx >= rowWidth) return null;
       return { x: bx, y: by };
     }
 
     // Peyote-style half-row interleaving with 2-stride pixel spacing.
-    const rowSpacing = scale / 2;
-    const minRow = Math.max(0, Math.ceil((localY - scale) / rowSpacing));
+    const rowSpacing = beadSize.height / 2;
+    const minRow = Math.max(0, Math.ceil((localY - beadSize.height) / rowSpacing));
     const maxRowCandidate = Math.min(totalRows - 1, Math.floor(localY / rowSpacing));
 
     for (let candidate = minRow; candidate <= maxRowCandidate; candidate++) {
       const rowY = candidate * rowSpacing;
-      if (localY >= rowY && localY < rowY + scale) {
+      if (localY >= rowY && localY < rowY + beadSize.height) {
         const rowWidth = triangularRowWidth(candidate, a, dNum, dDen, shift);
         const centerOffset = maxWidth - rowWidth;
-        const relativeCol = Math.floor(localX / scale) - centerOffset;
+        const relativeCol = Math.floor(localX / beadSize.width) - centerOffset;
         if (relativeCol < 0 || relativeCol % 2 !== 0) continue;
         const bx = relativeCol / 2;
         if (bx < rowWidth) {

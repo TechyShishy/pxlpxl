@@ -102,6 +102,8 @@ async function createTriangularProject(
 /**
  * Compute screen-space bounding box for a triangular-grid pixel.
  * Mirrors GridService.pixelToScreen for odd-d grids with 2-stride layout.
+ * Accounts for non-square bead dimensions (beadSize) via the xScale factor
+ * that makes wedge beads the correct width for radial tiling.
  */
 function triangularPixelBox(
   bx: number,
@@ -111,22 +113,33 @@ function triangularPixelBox(
   d: number,
   totalRows: number,
 ): { left: number; top: number; right: number; bottom: number } {
+  const maxWidth = a + d * (totalRows - 1);
+  let beadWidth = scale;
+  const beadHeight = scale;
+
   if (d % 2 === 1) {
     // Odd-d: 2-stride horizontal, half-row vertical interleaving
+    // Compute bead width from xScale (mirrors CanvasStateService.beadSize)
+    const sideCount = Math.round(3 / d); // dNum=d, dDen=1
+    if (sideCount >= 3) {
+      const halfWidth = maxWidth * scale;
+      const rowSpacing = scale / 2;
+      const dy = (totalRows - 0.5) * rowSpacing;
+      const xScale = (Math.tan(Math.PI / sideCount) * dy) / halfWidth;
+      beadWidth = scale * xScale;
+    }
     const rowWidth = a + d * by;
-    const maxRowWidth = a + d * (totalRows - 1);
-    const centerOffset = maxRowWidth - rowWidth;
-    const sx = (centerOffset + bx * 2) * scale;
-    const sy = by * Math.ceil(scale / 2);
-    return { left: sx, top: sy, right: sx + scale, bottom: sy + scale };
+    const centerOffset = maxWidth - rowWidth;
+    const sx = (centerOffset + bx * 2) * beadWidth;
+    const sy = by * Math.ceil(beadHeight / 2);
+    return { left: sx, top: sy, right: sx + beadWidth, bottom: sy + beadHeight };
   }
-  // Even-d: standard row-major layout
+  // Even-d: standard row-major layout (sideCount < 3, beadWidth = scale)
   const rowWidth = a + d * by;
-  const maxRowWidth = a + d * (totalRows - 1);
-  const leftPad = ((maxRowWidth - rowWidth) / 2) * scale;
-  const sx = leftPad + bx * scale;
-  const sy = by * scale;
-  return { left: sx, top: sy, right: sx + scale, bottom: sy + scale };
+  const leftPad = ((maxWidth - rowWidth) / 2) * beadWidth;
+  const sx = leftPad + bx * beadWidth;
+  const sy = by * beadHeight;
+  return { left: sx, top: sy, right: sx + beadWidth, bottom: sy + beadHeight };
 }
 
 /**

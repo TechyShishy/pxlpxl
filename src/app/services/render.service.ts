@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { LayerService } from './layer.service';
 import { CanvasStateService } from './canvas-state.service';
 import { GridService } from './grid.service';
-import { Color, GridType, PixelCoord, pixelOffset, triangularRowWidth } from '../models';
+import { BeadSize, Color, GridType, PixelCoord, pixelOffset, triangularRowWidth } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class RenderService {
@@ -118,10 +118,10 @@ export class RenderService {
   }
 
   /**
-   * Render all visible layers to an OffscreenCanvas at the given scale,
+   * Render all visible layers to an OffscreenCanvas at the given bead size,
    * drawing beads in peyote/triangular layout. Used for non-square export.
    */
-  compositeToCanvas(scale: number): OffscreenCanvas {
+  compositeToCanvas(beadSize: BeadSize): OffscreenCanvas {
     const visualWidth = this.canvasState.canvasWidth();
     const visualHeight = this.canvasState.canvasHeight();
     const bufWidth = this.canvasState.bufferWidth();
@@ -141,18 +141,18 @@ export class RenderService {
       const usesPeyote = this.gridService.usesPeyoteStagger(gridType, triD, triDNum, triDDen);
       if (usesPeyote) {
         // Peyote-style: 2-stride spacing + half-row interleaving
-        canvasW = ((maxRowWidth - 1) * 2 + 1) * scale;
-        canvasH = (bufHeight - 1) * Math.ceil(scale / 2) + scale;
+        canvasW = ((maxRowWidth - 1) * 2 + 1) * beadSize.width;
+        canvasH = (bufHeight - 1) * Math.ceil(beadSize.height / 2) + beadSize.height;
       } else {
-        canvasW = maxRowWidth * scale;
-        canvasH = bufHeight * scale;
+        canvasW = maxRowWidth * beadSize.width;
+        canvasH = bufHeight * beadSize.height;
       }
     } else {
       // Canvas needs extra half-bead height for odd-column offset in peyote
       const beadsPerCol = gridType === 'peyote' ? Math.ceil(bufHeight / 2) : bufHeight;
-      const extraY = gridType === 'peyote' ? Math.ceil(scale / 2) : 0;
-      canvasW = visualWidth * scale;
-      canvasH = beadsPerCol * scale + extraY;
+      const extraY = gridType === 'peyote' ? Math.ceil(beadSize.height / 2) : 0;
+      canvasW = visualWidth * beadSize.width;
+      canvasH = beadsPerCol * beadSize.height + extraY;
     }
 
     const canvas = new OffscreenCanvas(canvasW, canvasH);
@@ -173,10 +173,10 @@ export class RenderService {
             if (a === 0) continue;
 
             const { sx, sy } = this.gridService.pixelToScreen(
-              col, row, scale, gridType, triA, triD, bufHeight, triDNum, triDDen, triShift,
+              col, row, beadSize, gridType, triA, triD, bufHeight, triDNum, triDDen, triShift,
             );
             ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${a / 255})`;
-            ctx.fillRect(sx, sy, scale + 0.5, scale + 0.5);
+            ctx.fillRect(sx, sy, beadSize.width + 0.5, beadSize.height + 0.5);
           }
         }
       }
@@ -192,9 +192,9 @@ export class RenderService {
             const a = layer.data[offset + 3];
             if (a === 0) continue;
 
-            const { sx, sy } = this.gridService.pixelToScreen(bx, by, scale, gridType);
+            const { sx, sy } = this.gridService.pixelToScreen(bx, by, beadSize, gridType);
             ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${a / 255})`;
-            ctx.fillRect(sx, sy, scale, scale);
+            ctx.fillRect(sx, sy, beadSize.width, beadSize.height);
           }
         }
       }
@@ -218,6 +218,7 @@ export class RenderService {
     const dNum = this.canvasState.triangularDNum();
     const dDen = this.canvasState.triangularDDen();
     const shift = this.canvasState.triangularShift();
+    const beadSize = this.canvasState.beadSize();
     ctx.save();
     ctx.translate(transform.offsetX, transform.offsetY);
     ctx.globalAlpha = 0.75;
@@ -225,9 +226,9 @@ export class RenderService {
 
     for (const { x, y } of pixels) {
       const { sx, sy } = this.gridService.pixelToScreen(
-        x, y, transform.scale, gridType, a, d, totalRows, dNum, dDen, shift,
+        x, y, beadSize, gridType, a, d, totalRows, dNum, dDen, shift,
       );
-      ctx.fillRect(sx, sy, transform.scale, transform.scale);
+      ctx.fillRect(sx, sy, beadSize.width, beadSize.height);
     }
 
     ctx.globalAlpha = 1;
@@ -244,7 +245,8 @@ export class RenderService {
   ): void {
     ctx.save();
     ctx.translate(transform.offsetX, transform.offsetY);
-    this.renderTriangularBeads(ctx, totalRows, transform.scale, gridType, layers);
+    const beadSize = this.canvasState.beadSize();
+    this.renderTriangularBeads(ctx, totalRows, beadSize, gridType, layers);
     ctx.globalAlpha = 1;
     ctx.restore();
   }
@@ -270,28 +272,16 @@ export class RenderService {
       totalRows, gridType, a, d, dNum, dDen, shift,
     );
     const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
-    const pivot = this.getClonePivot(transform.scale, maxWidth, usesPeyote, a, dNum, dDen);
+    const beadSize = this.canvasState.beadSize();
+    const pivot = this.getClonePivot(beadSize, maxWidth, usesPeyote, a, dNum, dDen);
 
     ctx.save();
     ctx.translate(transform.offsetX, transform.offsetY);
 
     const angleStep = (2 * Math.PI) / sideCount;
     const wedgeHeight = usesPeyote
-      ? (totalRows - 1) * (transform.scale / 2) + transform.scale
-      : totalRows * transform.scale;
-
-    // Compute x-scale correction so the wedge opening angle matches
-    // exactly 2π/sideCount.  The vertical reference (dy) is measured from
-    // y=0 to the center of the last bead — (R-0.5) × rowSpacing — rather
-    // than from pivot to bead bottom.  This gives the correct angular
-    // extent without any empirical fudge factor.
-    const halfWidth = usesPeyote
-      ? maxWidth * transform.scale
-      : ((maxWidth + 1) / 2) * transform.scale;
-    const rowSpacing = usesPeyote ? transform.scale / 2 : transform.scale;
-    const dy = (totalRows - 0.5) * rowSpacing;
-    const targetAngle = Math.PI / sideCount;
-    const xScale = (Math.tan(targetAngle) * dy) / halfWidth;
+      ? (totalRows - 1) * (beadSize.height / 2) + beadSize.height
+      : totalRows * beadSize.height;
 
     // Shift the polygon group down so the pivot (polygon center) aligns with
     // the vertical center of the original single-wedge extent.
@@ -299,8 +289,9 @@ export class RenderService {
     ctx.translate(0, centeringOffsetY);
 
     const showGrid = this.canvasState.showGrid();
-    // Render each wedge: checkerboard + beads + optional grid,
-    // with x-scale correction applied around the pivot.
+    // Render each wedge: checkerboard + beads + optional grid.
+    // No xScale correction needed — beadSize.width already has the
+    // correct angular extent baked in.
     for (let i = 0; i < sideCount; i++) {
       ctx.save();
       if (i > 0) {
@@ -308,15 +299,11 @@ export class RenderService {
         ctx.rotate(i * angleStep);
         ctx.translate(-pivot.x, -pivot.y);
       }
-      // Apply x-scale correction around pivot.x
-      ctx.translate(pivot.x, 0);
-      ctx.scale(xScale, 1);
-      ctx.translate(-pivot.x, 0);
 
-      this.renderTriangularCheckerboard(ctx, totalRows, transform.scale, gridType);
-      this.renderTriangularBeads(ctx, totalRows, transform.scale, gridType, layers);
+      this.renderTriangularCheckerboard(ctx, totalRows, beadSize, gridType);
+      this.renderTriangularBeads(ctx, totalRows, beadSize, gridType, layers);
       if (showGrid) {
-        this.renderTriangularGrid(ctx, totalRows, transform.scale, gridType);
+        this.renderTriangularGrid(ctx, totalRows, beadSize, gridType);
       }
       ctx.restore();
     }
@@ -332,7 +319,7 @@ export class RenderService {
   private renderTriangularBeads(
     ctx: CanvasRenderingContext2D,
     totalRows: number,
-    scale: number,
+    beadSize: BeadSize,
     gridType: GridType,
     layers: readonly { visible: boolean; opacity: number; data: Uint8ClampedArray }[],
   ): void {
@@ -355,10 +342,10 @@ export class RenderService {
           if (alpha === 0) continue;
 
           const { sx, sy } = this.gridService.pixelToScreen(
-            col, row, scale, gridType, a, d, totalRows, dNum, dDen, shift,
+            col, row, beadSize, gridType, a, d, totalRows, dNum, dDen, shift,
           );
           ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${alpha / 255})`;
-          ctx.fillRect(sx, sy, scale + 0.5, scale + 0.5);
+          ctx.fillRect(sx, sy, beadSize.width + 0.5, beadSize.height + 0.5);
         }
       }
     }
@@ -371,7 +358,7 @@ export class RenderService {
   private renderTriangularCheckerboard(
     ctx: CanvasRenderingContext2D,
     totalRows: number,
-    scale: number,
+    beadSize: BeadSize,
     gridType: GridType,
   ): void {
     const a = this.canvasState.triangularA();
@@ -387,9 +374,9 @@ export class RenderService {
         const isLight = (col + row) % 2 === 0;
         ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
         const { sx, sy } = this.gridService.pixelToScreen(
-          col, row, scale, gridType, a, d, totalRows, dNum, dDen, shift,
+          col, row, beadSize, gridType, a, d, totalRows, dNum, dDen, shift,
         );
-        ctx.fillRect(sx, sy, scale + 0.5, scale + 0.5);
+        ctx.fillRect(sx, sy, beadSize.width + 0.5, beadSize.height + 0.5);
       }
     }
   }
@@ -401,7 +388,7 @@ export class RenderService {
   private renderTriangularGrid(
     ctx: CanvasRenderingContext2D,
     totalRows: number,
-    scale: number,
+    beadSize: BeadSize,
     gridType: GridType,
   ): void {
     const a = this.canvasState.triangularA();
@@ -413,7 +400,7 @@ export class RenderService {
       totalRows, gridType, a, d, dNum, dDen, shift,
     );
     const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
-    const rowSpacing = usesPeyote ? scale / 2 : scale;
+    const rowSpacing = usesPeyote ? beadSize.height / 2 : beadSize.height;
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.lineWidth = 1;
@@ -425,8 +412,8 @@ export class RenderService {
         const centerOffset = maxWidth - rowWidth;
         const y = row * rowSpacing;
         for (let col = 0; col < rowWidth; col++) {
-          const x = (centerOffset + col * 2) * scale;
-          ctx.strokeRect(x, y, scale, scale);
+          const x = (centerOffset + col * 2) * beadSize.width;
+          ctx.strokeRect(x, y, beadSize.width, beadSize.height);
         }
       }
     } else {
@@ -434,17 +421,17 @@ export class RenderService {
         const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen, shift);
         const centerOffset = (maxWidth - rowWidth) / 2;
         const y = row * rowSpacing;
-        const startX = centerOffset * scale;
-        const endX = (centerOffset + rowWidth) * scale;
+        const startX = centerOffset * beadSize.width;
+        const endX = (centerOffset + rowWidth) * beadSize.width;
         ctx.beginPath();
         ctx.moveTo(startX, y);
         ctx.lineTo(endX, y);
         ctx.stroke();
         for (let col = 0; col <= rowWidth; col++) {
-          const x = (centerOffset + col) * scale;
+          const x = (centerOffset + col) * beadSize.width;
           ctx.beginPath();
           ctx.moveTo(x, y);
-          ctx.lineTo(x, y + scale);
+          ctx.lineTo(x, y + beadSize.height);
           ctx.stroke();
         }
       }
@@ -452,10 +439,10 @@ export class RenderService {
       const lastRow = totalRows - 1;
       const lastRowWidth = this.gridService.getAnyTriangularRowWidth(lastRow, gridType, a, d, dNum, dDen, shift);
       const lastCenterOffset = (maxWidth - lastRowWidth) / 2;
-      const bottomY = lastRow * rowSpacing + scale;
+      const bottomY = lastRow * rowSpacing + beadSize.height;
       ctx.beginPath();
-      ctx.moveTo(lastCenterOffset * scale, bottomY);
-      ctx.lineTo((lastCenterOffset + lastRowWidth) * scale, bottomY);
+      ctx.moveTo(lastCenterOffset * beadSize.width, bottomY);
+      ctx.lineTo((lastCenterOffset + lastRowWidth) * beadSize.width, bottomY);
       ctx.stroke();
     }
   }
@@ -465,7 +452,7 @@ export class RenderService {
    * The pivot is the center of the first-row pixel(s) — the apex of the wedge.
    */
   private getClonePivot(
-    scale: number,
+    beadSize: BeadSize,
     maxWidth: number,
     usesPeyote: boolean,
     a: number,
@@ -476,12 +463,12 @@ export class RenderService {
     // zero width.  Row r has width ≈ a + r·dNum/dDen, so extrapolating
     // back to width 0 gives r_apex = -(a·dDen/dNum).  In screen space
     // that's r_apex × rowSpacing above the first row.
-    const rowSpacing = usesPeyote ? scale / 2 : scale;
+    const rowSpacing = usesPeyote ? beadSize.height / 2 : beadSize.height;
     const pivotY = -(a * dDen / dNum) * rowSpacing;
     if (usesPeyote) {
-      return { x: (maxWidth - 0.5) * scale, y: pivotY };
+      return { x: (maxWidth - 0.5) * beadSize.width, y: pivotY };
     }
-    return { x: (maxWidth / 2) * scale, y: pivotY };
+    return { x: (maxWidth / 2) * beadSize.width, y: pivotY };
   }
 
   /** Render peyote layers bead-by-bead onto the viewport canvas. */
@@ -496,6 +483,7 @@ export class RenderService {
   ): void {
     ctx.save();
     ctx.translate(transform.offsetX, transform.offsetY);
+    const beadSize = this.canvasState.beadSize();
 
     for (const layer of layers) {
       if (!layer.visible || layer.opacity === 0) continue;
@@ -508,9 +496,9 @@ export class RenderService {
           const a = layer.data[offset + 3];
           if (a === 0) continue;
 
-          const { sx, sy } = this.gridService.pixelToScreen(bx, by, transform.scale, gridType);
+          const { sx, sy } = this.gridService.pixelToScreen(bx, by, beadSize, gridType);
           ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${a / 255})`;
-          ctx.fillRect(sx, sy, transform.scale, transform.scale);
+          ctx.fillRect(sx, sy, beadSize.width, beadSize.height);
         }
       }
     }
@@ -530,6 +518,7 @@ export class RenderService {
   ): void {
     ctx.save();
     ctx.translate(transform.offsetX, transform.offsetY);
+    const beadSize = this.canvasState.beadSize();
 
     if (this.gridService.isPeyote(gridType)) {
       // Draw checkerboard bead-by-bead for peyote
@@ -539,8 +528,8 @@ export class RenderService {
           const { col } = this.gridService.bufferToVisual(bx, by);
           const isLight = col % 2 === 0;
           ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
-          const { sx, sy } = this.gridService.pixelToScreen(bx, by, transform.scale, gridType);
-          ctx.fillRect(sx, sy, transform.scale, transform.scale);
+          const { sx, sy } = this.gridService.pixelToScreen(bx, by, beadSize, gridType);
+          ctx.fillRect(sx, sy, beadSize.width, beadSize.height);
         }
       }
     } else if (this.gridService.isAnyTriangular(gridType)) {
@@ -556,9 +545,9 @@ export class RenderService {
           const isLight = (col + row) % 2 === 0;
           ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
           const { sx, sy } = this.gridService.pixelToScreen(
-            col, row, transform.scale, gridType, a, d, bufHeight, dNum, dDen, shift,
+            col, row, beadSize, gridType, a, d, bufHeight, dNum, dDen, shift,
           );
-          ctx.fillRect(sx, sy, transform.scale + 0.5, transform.scale + 0.5);
+          ctx.fillRect(sx, sy, beadSize.width + 0.5, beadSize.height + 0.5);
         }
       }
     } else {
@@ -566,7 +555,7 @@ export class RenderService {
         for (let x = 0; x < bufWidth; x++) {
           const isLight = (x + y) % 2 === 0;
           ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
-          ctx.fillRect(x * transform.scale, y * transform.scale, transform.scale, transform.scale);
+          ctx.fillRect(x * beadSize.width, y * beadSize.height, beadSize.width, beadSize.height);
         }
       }
     }
@@ -587,6 +576,7 @@ export class RenderService {
     ctx.translate(transform.offsetX, transform.offsetY);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.lineWidth = 1;
+    const beadSize = this.canvasState.beadSize();
 
     if (this.gridService.isPeyote(gridType)) {
       // beadsPerColumn for even/odd visual columns
@@ -597,10 +587,10 @@ export class RenderService {
       // Draw per-column grid for peyote using visual columns
       for (let col = 0; col <= visualWidth; col++) {
         ctx.beginPath();
-        ctx.moveTo(col * transform.scale, 0);
+        ctx.moveTo(col * beadSize.width, 0);
         ctx.lineTo(
-          col * transform.scale,
-          maxBeads * transform.scale + transform.scale / 2,
+          col * beadSize.width,
+          maxBeads * beadSize.height + beadSize.height / 2,
         );
         ctx.stroke();
       }
@@ -608,14 +598,14 @@ export class RenderService {
       // Horizontal lines per visual column
       for (let col = 0; col < visualWidth; col++) {
         const isOddCol = col % 2 === 1;
-        const offsetY = isOddCol ? transform.scale / 2 : 0;
+        const offsetY = isOddCol ? beadSize.height / 2 : 0;
         const colBeads = isOddCol ? beadsOdd : beadsEven;
 
         for (let beadRow = 0; beadRow <= colBeads; beadRow++) {
-          const sy = beadRow * transform.scale + offsetY;
+          const sy = beadRow * beadSize.height + offsetY;
           ctx.beginPath();
-          ctx.moveTo(col * transform.scale, sy);
-          ctx.lineTo((col + 1) * transform.scale, sy);
+          ctx.moveTo(col * beadSize.width, sy);
+          ctx.lineTo((col + 1) * beadSize.width, sy);
           ctx.stroke();
         }
       }
@@ -629,7 +619,7 @@ export class RenderService {
       const totalRows = bufHeight;
       const maxWidth = this.gridService.getAnyTriangularMaxWidth(totalRows, gridType, a, d, dNum, dDen, shift);
       const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
-      const rowSpacing = usesPeyote ? transform.scale / 2 : transform.scale;
+      const rowSpacing = usesPeyote ? beadSize.height / 2 : beadSize.height;
 
       if (usesPeyote) {
         // Peyote-stagger: draw individual cell outlines
@@ -638,8 +628,8 @@ export class RenderService {
           const centerOffset = maxWidth - rowWidth;
           const y = row * rowSpacing;
           for (let col = 0; col < rowWidth; col++) {
-            const x = (centerOffset + col * 2) * transform.scale;
-            ctx.strokeRect(x, y, transform.scale, transform.scale);
+            const x = (centerOffset + col * 2) * beadSize.width;
+            ctx.strokeRect(x, y, beadSize.width, beadSize.height);
           }
         }
       } else {
@@ -649,18 +639,18 @@ export class RenderService {
           const centerOffset = (maxWidth - rowWidth) / 2;
           const y = row * rowSpacing;
 
-          const startX = centerOffset * transform.scale;
-          const endX = (centerOffset + rowWidth) * transform.scale;
+          const startX = centerOffset * beadSize.width;
+          const endX = (centerOffset + rowWidth) * beadSize.width;
           ctx.beginPath();
           ctx.moveTo(startX, y);
           ctx.lineTo(endX, y);
           ctx.stroke();
 
           for (let col = 0; col <= rowWidth; col++) {
-            const x = (centerOffset + col) * transform.scale;
+            const x = (centerOffset + col) * beadSize.width;
             ctx.beginPath();
             ctx.moveTo(x, y);
-            ctx.lineTo(x, y + transform.scale);
+            ctx.lineTo(x, y + beadSize.height);
             ctx.stroke();
           }
         }
@@ -670,9 +660,9 @@ export class RenderService {
           const lastRow = totalRows - 1;
           const lastRowWidth = this.gridService.getAnyTriangularRowWidth(lastRow, gridType, a, d, dNum, dDen, shift);
           const lastCenterOffset = (maxWidth - lastRowWidth) / 2;
-          const bottomY = lastRow * rowSpacing + transform.scale;
-          const startX = lastCenterOffset * transform.scale;
-          const endX = (lastCenterOffset + lastRowWidth) * transform.scale;
+          const bottomY = lastRow * rowSpacing + beadSize.height;
+          const startX = lastCenterOffset * beadSize.width;
+          const endX = (lastCenterOffset + lastRowWidth) * beadSize.width;
           ctx.beginPath();
           ctx.moveTo(startX, bottomY);
           ctx.lineTo(endX, bottomY);
@@ -683,15 +673,15 @@ export class RenderService {
       // Square grid: uniform vertical and horizontal lines
       for (let x = 0; x <= bufWidth; x++) {
         ctx.beginPath();
-        ctx.moveTo(x * transform.scale, 0);
-        ctx.lineTo(x * transform.scale, bufHeight * transform.scale);
+        ctx.moveTo(x * beadSize.width, 0);
+        ctx.lineTo(x * beadSize.width, bufHeight * beadSize.height);
         ctx.stroke();
       }
 
       for (let y = 0; y <= bufHeight; y++) {
         ctx.beginPath();
-        ctx.moveTo(0, y * transform.scale);
-        ctx.lineTo(bufWidth * transform.scale, y * transform.scale);
+        ctx.moveTo(0, y * beadSize.height);
+        ctx.lineTo(bufWidth * beadSize.width, y * beadSize.height);
         ctx.stroke();
       }
     }

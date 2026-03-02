@@ -27,7 +27,7 @@ function makeCtx(
 }
 
 const BASE_PARAMS: Omit<RulerParams, 'canvasWidth' | 'canvasHeight' | 'gridType'> = {
-  scale: 20,
+  beadSize: { width: 20, height: 20 },
   offsetX: 0,
   offsetY: 0,
   bgColor: '#ffffff',
@@ -211,7 +211,7 @@ describe('renderRowRuler', () => {
       const { ctx, labels } = makeCtx(20, 1000);
       renderRowRuler(ctx, {
         ...BASE_PARAMS,
-        scale: 40,
+        beadSize: { width: 40, height: 40 },
         canvasWidth: 5,
         canvasHeight: 5,
         gridType: 'triangular',
@@ -231,7 +231,7 @@ describe('renderRowRuler', () => {
       const { ctx, labels } = makeCtx(20, 1000);
       renderRowRuler(ctx, {
         ...BASE_PARAMS,
-        scale: 40,
+        beadSize: { width: 40, height: 40 },
         canvasWidth: 5,
         canvasHeight: 5,
         gridType: 'triangular',

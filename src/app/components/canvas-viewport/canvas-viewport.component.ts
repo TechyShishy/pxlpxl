@@ -286,13 +286,13 @@ export class CanvasViewportComponent implements OnDestroy {
       return;
     }
 
-    const { scale, offsetX, offsetY } = this.canvasState.transform();
+    const { offsetX, offsetY } = this.canvasState.transform();
     const style = getComputedStyle(this.elementRef.nativeElement);
     const bgColor = style.getPropertyValue('--mat-sys-surface-variant').trim() || '#e0e0e0';
     const textColor = style.getPropertyValue('--mat-sys-on-surface-variant').trim() || '#555555';
 
     const params: RulerParams = {
-      scale,
+      beadSize: this.canvasState.beadSize(),
       offsetX,
       offsetY,
       canvasWidth: this.canvasState.canvasWidth(),

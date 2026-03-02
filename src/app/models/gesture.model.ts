@@ -6,6 +6,19 @@ export enum GestureState {
   LongPress = 'long-press',
 }
 
+/**
+ * Screen-space bead dimensions (width and height in pixels).
+ * For square/peyote grids both are equal to the zoom scale.
+ * For triangular grids the width is narrower than the height to
+ * produce the correct wedge opening angle for radial tiling.
+ */
+export interface BeadSize {
+  /** Bead width in screen pixels. */
+  width: number;
+  /** Bead height in screen pixels. */
+  height: number;
+}
+
 export interface ViewTransform {
   /** Zoom scale factor (1 = 100%) */
   scale: number;

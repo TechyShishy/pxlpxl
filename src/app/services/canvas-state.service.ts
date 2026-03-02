@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { ViewTransform, GridType, computeBufferDimensions, computeBufferPixelCount } from '../models';
+import { BeadSize, ViewTransform, GridType, computeBufferDimensions, computeBufferPixelCount } from '../models';
 import { GridService } from './grid.service';
 
 @Injectable({ providedIn: 'root' })
@@ -95,6 +95,43 @@ export class CanvasStateService {
     ),
   );
 
+  /**
+   * Screen-space bead dimensions at the current zoom level.
+   * For triangular grids the width is narrower than the height
+   * (baking in the old xScale correction), so wedge beads already
+   * have the correct width for radial tiling.
+   * For square/peyote grids width === height === zoom scale.
+   */
+  readonly beadSize = computed<BeadSize>(() => {
+    const scale = this._transform().scale;
+    const gridType = this._gridType();
+    if (gridType !== 'triangular') {
+      return { width: scale, height: scale };
+    }
+    const a = this._triangularA();
+    const d = this._triangularD();
+    const dNum = this._triangularDNum();
+    const dDen = this._triangularDDen();
+    const shift = this._triangularShift();
+    const totalRows = this.bufferHeight();
+    const maxWidth = this.gridService.getAnyTriangularMaxWidth(
+      totalRows, gridType, a, d, dNum, dDen, shift,
+    );
+    const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
+    const halfWidth = usesPeyote
+      ? maxWidth * scale
+      : ((maxWidth + 1) / 2) * scale;
+    const rowSpacing = usesPeyote ? scale / 2 : scale;
+    const dy = (totalRows - 0.5) * rowSpacing;
+    const sides = this.sideCount();
+    if (sides < 3) {
+      return { width: scale, height: scale };
+    }
+    const targetAngle = Math.PI / sides;
+    const xScale = (Math.tan(targetAngle) * dy) / halfWidth;
+    return { width: scale * xScale, height: scale };
+  });
+
   private readonly _transform = signal<ViewTransform>({
     scale: 10,
     offsetX: 0,
@@ -179,8 +216,6 @@ export class CanvasStateService {
     const sides = this.sideCount();
     if (sides < 3) return;
 
-    const t = this._transform();
-    const scale = t.scale;
     const a = this._triangularA();
     const d = this._triangularD();
     const dNum = this._triangularDNum();
@@ -191,40 +226,27 @@ export class CanvasStateService {
       totalRows, gridType, a, d, dNum, dDen, shift,
     );
     const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
+    const bs = this.beadSize();
 
     // Pivot — must match renderTriangularClones / getClonePivot
-    const rowSpacing = usesPeyote ? scale / 2 : scale;
+    const rowSpacing = usesPeyote ? bs.height / 2 : bs.height;
     const pivotY = -(a * dDen / dNum) * rowSpacing;
     const pivotX = usesPeyote
-      ? (maxWidth - 0.5) * scale
-      : (maxWidth / 2) * scale;
+      ? (maxWidth - 0.5) * bs.width
+      : (maxWidth / 2) * bs.width;
 
     const wedgeHeight = usesPeyote
-      ? (totalRows - 1) * (scale / 2) + scale
-      : totalRows * scale;
-
-    // x-scale correction — must match renderTriangularClones
-    const halfWidth = usesPeyote
-      ? maxWidth * scale
-      : ((maxWidth + 1) / 2) * scale;
-    const dy = (totalRows - 0.5) * rowSpacing;
-    const targetAngle = Math.PI / sides;
-    const xScale = (Math.tan(targetAngle) * dy) / halfWidth;
+      ? (totalRows - 1) * (bs.height / 2) + bs.height
+      : totalRows * bs.height;
 
     // Centering offset applied during rendering
     const centeringOffsetY = wedgeHeight / 2 - pivotY;
 
     // Compute the bounding box of the full polygon.
-    // Each wedge corner (before x-scale) is at
-    //   top-left  (0, 0)
-    //   top-right  (wedgeRawW, 0)
-    //   bot-left  (0, wedgeHeight)
-    //   bot-right (wedgeRawW, wedgeHeight)
-    // After x-scale around pivotX and rotation around pivot,
-    // we track every corner through these transforms.
+    // Wedge corners are already in correct screen space (no separate xScale).
     const wedgeRawW = usesPeyote
-      ? (maxWidth * 2 - 1) * scale   // peyote visual width
-      : maxWidth * scale;
+      ? (maxWidth * 2 - 1) * bs.width   // peyote visual width
+      : maxWidth * bs.width;
 
     const corners = [
       { x: 0, y: 0 },
@@ -244,8 +266,8 @@ export class CanvasStateService {
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
       for (const c of corners) {
-        // Apply x-scale correction around pivotX
-        const sx = pivotX + (c.x - pivotX) * xScale;
+        // No xScale correction — beadSize.width already has it baked in
+        const sx = c.x;
         const sy = c.y;
         // Apply centering offset
         const cy = sy + centeringOffsetY;
@@ -286,6 +308,7 @@ export class CanvasStateService {
     const gridType = this._gridType();
     const showClones = this._showClones();
     const sides = this.sideCount();
+    const bs = this.beadSize();
 
     // When clones are active for triangular grids, try inverse rotation
     // for each wedge to find which one the user clicked on.
@@ -302,26 +325,17 @@ export class CanvasStateService {
       const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
       // Pivot at the theoretical apex where the wedge converges to zero
       // width: r_apex = -(a·dDen/dNum), in screen space × rowSpacing.
-      const rowSpacing = usesPeyote ? t.scale / 2 : t.scale;
+      const rowSpacing = usesPeyote ? bs.height / 2 : bs.height;
       const pivotY = -(a * dDen / dNum) * rowSpacing;
       const pivot = usesPeyote
-        ? { x: (maxWidth - 0.5) * t.scale, y: pivotY }
-        : { x: (maxWidth / 2) * t.scale, y: pivotY };
+        ? { x: (maxWidth - 0.5) * bs.width, y: pivotY }
+        : { x: (maxWidth / 2) * bs.width, y: pivotY };
 
       // Match the centering offset applied in renderTriangularClones.
       const wedgeHeight = usesPeyote
-        ? (totalRows - 1) * (t.scale / 2) + t.scale
-        : totalRows * t.scale;
+        ? (totalRows - 1) * (bs.height / 2) + bs.height
+        : totalRows * bs.height;
       const centeringOffsetY = wedgeHeight / 2 - pivot.y;
-
-      // x-scale correction factor (must match renderTriangularClones)
-      // dy = (R-0.5) × rowSpacing = center of last bead from y=0.
-      const halfWidth = usesPeyote
-        ? maxWidth * t.scale
-        : ((maxWidth + 1) / 2) * t.scale;
-      const dy = (totalRows - 0.5) * rowSpacing;
-      const targetAngle = Math.PI / sides;
-      const xScale = (Math.tan(targetAngle) * dy) / halfWidth;
 
       const angleStep = (2 * Math.PI) / sides;
       // Try wedge 0 (original) first, then clones
@@ -329,17 +343,17 @@ export class CanvasStateService {
         const angle = -i * angleStep; // inverse rotation
         const cos = Math.cos(angle);
         const sin = Math.sin(angle);
-        // Subtract the centering offset, then undo x-scale, then inverse rotation
+        // Subtract the centering offset, then inverse rotation
         const dx = localX - pivot.x;
         const dy = localY - centeringOffsetY - pivot.y;
         const rotX = dx * cos - dy * sin;
         const rotY = dx * sin + dy * cos;
-        // Undo x-scale correction to get original bead coordinates
-        const unscaledX = rotX / xScale + pivot.x;
-        const unscaledY = rotY + pivot.y;
+        // No xScale to undo — beadSize.width already has correct width
+        const hitX = rotX + pivot.x;
+        const hitY = rotY + pivot.y;
 
         const hit = this.gridService.screenToPixel(
-          unscaledX, unscaledY, t.scale,
+          hitX, hitY, bs,
           this.bufferWidth(), this.bufferHeight(),
           gridType, this._canvasWidth(),
           a, d, dNum, dDen, shift,
@@ -352,7 +366,7 @@ export class CanvasStateService {
     return this.gridService.screenToPixel(
       localX,
       localY,
-      t.scale,
+      bs,
       this.bufferWidth(),
       this.bufferHeight(),
       gridType,

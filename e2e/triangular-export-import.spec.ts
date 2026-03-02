@@ -104,6 +104,7 @@ async function createTriangularProject(
 /**
  * Compute screen-space center for a triangular-grid pixel (odd-d layout).
  * Mirrors GridService.pixelToScreen for odd-d grids with 2-stride layout.
+ * Accounts for non-square bead width via xScale.
  */
 function triangularPixelCenter(
   bx: number,
@@ -113,24 +114,38 @@ function triangularPixelCenter(
   d: number,
   totalRows: number,
 ): { x: number; y: number } {
+  const maxWidth = a + d * (totalRows - 1);
+  let beadWidth = scale;
+  const beadHeight = scale;
+
+  // Compute bead width for odd-d grids (mirrors CanvasStateService.beadSize)
+  if (d % 2 === 1) {
+    const sideCount = Math.round(3 / d); // dNum=d, dDen=1
+    if (sideCount >= 3) {
+      const halfWidth = maxWidth * scale;
+      const rowSpacing = scale / 2;
+      const dy = (totalRows - 0.5) * rowSpacing;
+      const xScale = (Math.tan(Math.PI / sideCount) * dy) / halfWidth;
+      beadWidth = scale * xScale;
+    }
+  }
+
   let left: number;
   let top: number;
   if (d % 2 === 1) {
     const rowWidth = a + d * by;
-    const maxRowWidth = a + d * (totalRows - 1);
-    const centerOffset = maxRowWidth - rowWidth;
-    left = (centerOffset + bx * 2) * scale;
-    top = by * Math.ceil(scale / 2);
+    const centerOffset = maxWidth - rowWidth;
+    left = (centerOffset + bx * 2) * beadWidth;
+    top = by * Math.ceil(beadHeight / 2);
   } else {
     const rowWidth = a + d * by;
-    const maxRowWidth = a + d * (totalRows - 1);
-    const leftPad = ((maxRowWidth - rowWidth) / 2) * scale;
-    left = leftPad + bx * scale;
-    top = by * scale;
+    const leftPad = ((maxWidth - rowWidth) / 2) * beadWidth;
+    left = leftPad + bx * beadWidth;
+    top = by * beadHeight;
   }
   return {
-    x: Math.round(left + scale / 2),
-    y: Math.round(top + scale / 2),
+    x: Math.round(left + beadWidth / 2),
+    y: Math.round(top + beadHeight / 2),
   };
 }
 

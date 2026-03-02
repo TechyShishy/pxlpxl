@@ -91,7 +91,7 @@ export class ExportService {
   }
 
   private async exportNonSquare(options: ExportOptions): Promise<Blob> {
-    const composited = this.renderService.compositeToCanvas(options.scale);
+    const composited = this.renderService.compositeToCanvas({ width: options.scale, height: options.scale });
     const w = composited.width;
     const h = composited.height;
 

@@ -2,7 +2,7 @@
  * Pure rendering utilities for row and column ruler labels.
  * No Angular DI — these are plain functions, fully unit-testable.
  */
-import { GridType, resolveTriangularD, triangularRowWidth } from '../../models';
+import { BeadSize, GridType, resolveTriangularD, triangularRowWidth } from '../../models';
 
 /** Minimum screen-pixel gap between the centres of two adjacent labels. */
 const MIN_LABEL_SPACING = 14;
@@ -10,8 +10,8 @@ const MIN_LABEL_SPACING = 14;
 const FONT = '9px monospace';
 
 export interface RulerParams {
-  /** Current zoom scale (screen pixels per canvas pixel). */
-  scale: number;
+  /** Bead dimensions — width/height may differ for triangular grids. */
+  beadSize: BeadSize;
   /** Viewport pan X offset in screen pixels. */
   offsetX: number;
   /** Viewport pan Y offset in screen pixels. */
@@ -75,7 +75,7 @@ export function renderColumnRuler(
   const { canvas } = ctx;
   if (canvas.width === 0 || canvas.height === 0) return;
 
-  const { scale, offsetX, canvasWidth, canvasHeight, bgColor, textColor, gridType, triangularA, triangularD, triangularDNum, triangularDDen, triangularShift } = params;
+  const { beadSize, offsetX, canvasWidth, canvasHeight, bgColor, textColor, gridType, triangularA, triangularD, triangularDNum, triangularDDen, triangularShift } = params;
   const vpWidth = canvas.width;
   const rulerHeight = canvas.height;
 
@@ -114,7 +114,7 @@ export function renderColumnRuler(
       const colNumber = c + 1;
       if (colParity === 'odd' && colNumber % 2 === 0) continue;
       if (colParity === 'even' && colNumber % 2 === 1) continue;
-      const screenX = c * scale + offsetX + scale / 2;
+      const screenX = c * beadSize.width + offsetX + beadSize.width / 2;
       if (screenX < 0 || screenX > vpWidth) continue;
       if (screenX - lastDrawnX < MIN_LABEL_SPACING) continue;
       ctx.fillText(String(colNumber), screenX, midY);
@@ -127,7 +127,7 @@ export function renderColumnRuler(
     const colNumber = c + 1;
     if (colParity === 'odd' && colNumber % 2 === 0) continue;
     if (colParity === 'even' && colNumber % 2 === 1) continue;
-    const screenX = c * scale + offsetX + scale / 2;
+    const screenX = c * beadSize.width + offsetX + beadSize.width / 2;
     if (screenX < 0 || screenX > vpWidth) continue;
     if (screenX - lastDrawnX < MIN_LABEL_SPACING) continue;
 
@@ -153,7 +153,7 @@ export function renderRowRuler(
   const { canvas } = ctx;
   if (canvas.width === 0 || canvas.height === 0) return;
 
-  const { scale, offsetY, canvasHeight, bgColor, textColor, gridType, triangularD, triangularDNum, triangularDDen } = params;
+  const { beadSize, offsetY, canvasHeight, bgColor, textColor, gridType, triangularD, triangularDNum, triangularDDen } = params;
   const rulerWidth = canvas.width;
   const vpHeight = canvas.height;
 
@@ -173,7 +173,7 @@ export function renderRowRuler(
   // 1-based row numbers in screen-Y order.
   const positions: number[] = [];
 
-  // Triangular with peyote stagger: rows are spaced at scale/2
+  // Triangular with peyote stagger: rows are spaced at beadSize.height/2
   // vertically (peyote-style row pitch).
   const usesPeyoteStaggerRow = (() => {
     if (gridType !== 'triangular' || triangularD === undefined) return false;
@@ -184,7 +184,7 @@ export function renderRowRuler(
 
   if (usesPeyoteStaggerRow) {
     for (let r = 0; r < canvasHeight; r++) {
-      positions.push(r * (scale / 2) + offsetY + scale / 2);
+      positions.push(r * (beadSize.height / 2) + offsetY + beadSize.height / 2);
     }
   } else {
     // For peyote, canvasHeight = visual rows.  beadsPerColumn = ceil(canvasHeight/2)
@@ -194,13 +194,13 @@ export function renderRowRuler(
 
     for (let r = 0; r < beadsEven; r++) {
       // Even-column bead centre (all grid types).
-      positions.push(r * scale + offsetY + scale / 2);
+      positions.push(r * beadSize.height + offsetY + beadSize.height / 2);
     }
 
     if (isPeyote) {
       for (let r = 0; r < beadsOdd; r++) {
-        // Odd-column bead centre: shifted down by scale/2 relative to even columns.
-        positions.push(r * scale + offsetY + scale);
+        // Odd-column bead centre: shifted down by beadSize.height/2 relative to even columns.
+        positions.push(r * beadSize.height + offsetY + beadSize.height);
       }
     }
 

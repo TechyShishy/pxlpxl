@@ -6,6 +6,7 @@ import {
   ModifiedPixel,
   PixelCoord,
   Color,
+  BeadSize,
   pixelOffset,
 } from '../models';
 import { GridService } from '../services/grid.service';
@@ -106,21 +107,21 @@ export abstract class ShapeTool implements Tool {
     }
 
     // Map buffer coords to visual-space centers, compute shape there, map back
-    const scale = 100;
+    const beadSize: BeadSize = { width: 100, height: 100 };
     const fromV = gridService.pixelToScreen(
-      from.x, from.y, scale,
+      from.x, from.y, beadSize,
       ctx.gridType, ctx.triangularA, ctx.triangularD,
       ctx.canvasHeight, ctx.triangularDNum, ctx.triangularDDen,
       ctx.triangularShift,
     );
     const toV = gridService.pixelToScreen(
-      to.x, to.y, scale,
+      to.x, to.y, beadSize,
       ctx.gridType, ctx.triangularA, ctx.triangularD,
       ctx.canvasHeight, ctx.triangularDNum, ctx.triangularDDen,
       ctx.triangularShift,
     );
-    const fromCenter = { x: fromV.sx + scale / 2, y: fromV.sy + scale / 2 };
-    const toCenter = { x: toV.sx + scale / 2, y: toV.sy + scale / 2 };
+    const fromCenter = { x: fromV.sx + beadSize.width / 2, y: fromV.sy + beadSize.height / 2 };
+    const toCenter = { x: toV.sx + beadSize.width / 2, y: toV.sy + beadSize.height / 2 };
 
     const visualPoints = this.computeShapePoints(
       { x: Math.round(fromCenter.x), y: Math.round(fromCenter.y) },
@@ -131,7 +132,7 @@ export abstract class ShapeTool implements Tool {
     const result: PixelCoord[] = [];
     for (const vp of visualPoints) {
       const lp = gridService.screenToPixel(
-        vp.x, vp.y, scale,
+        vp.x, vp.y, beadSize,
         ctx.canvasWidth, ctx.canvasHeight,
         ctx.gridType, ctx.visualColumns,
         ctx.triangularA, ctx.triangularD,

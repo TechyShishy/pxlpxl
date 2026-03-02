@@ -96,86 +96,86 @@ describe('GridService', () => {
 
   describe('pixelToScreen', () => {
     it('should return bx*scale, by*scale for square grid', () => {
-      const result = service.pixelToScreen(3, 5, 10, 'square');
+      const result = service.pixelToScreen(3, 5, { width: 10, height: 10 }, 'square');
       expect(result).toEqual({ sx: 30, sy: 50 });
     });
 
     it('should map peyote even buffer row to even visual column', () => {
       // bx=0, by=0 → col=0, beadRow=0 → no offset
-      const result = service.pixelToScreen(0, 0, 10, 'peyote');
+      const result = service.pixelToScreen(0, 0, { width: 10, height: 10 }, 'peyote');
       expect(result).toEqual({ sx: 0, sy: 0 });
     });
 
     it('should map peyote odd buffer row to odd visual column with half-bead offset', () => {
       // bx=0, by=1 → col=1, beadRow=0 → offsetY = 5
-      const result = service.pixelToScreen(0, 1, 10, 'peyote');
+      const result = service.pixelToScreen(0, 1, { width: 10, height: 10 }, 'peyote');
       expect(result).toEqual({ sx: 10, sy: 5 });
     });
 
     it('should compute correct screen position for higher buffer coords', () => {
       // bx=2, by=4 → col=4, beadRow=2 → even col, no offset
-      const result = service.pixelToScreen(2, 4, 10, 'peyote');
+      const result = service.pixelToScreen(2, 4, { width: 10, height: 10 }, 'peyote');
       expect(result).toEqual({ sx: 40, sy: 20 });
     });
 
     it('should add half-scale offset for odd column', () => {
       // bx=1, by=3 → col=3, beadRow=1 → odd col
-      const result = service.pixelToScreen(1, 3, 10, 'peyote');
+      const result = service.pixelToScreen(1, 3, { width: 10, height: 10 }, 'peyote');
       expect(result).toEqual({ sx: 30, sy: 15 });
     });
 
     it('should handle scale of 1', () => {
       // bx=1, by=1 → col=3, beadRow=0 → odd col, offsetY = 0.5
-      const result = service.pixelToScreen(1, 1, 1, 'peyote');
+      const result = service.pixelToScreen(1, 1, { width: 1, height: 1 }, 'peyote');
       expect(result).toEqual({ sx: 3, sy: 0.5 });
     });
   });
 
   describe('screenToPixel', () => {
     it('should convert screen coords to pixel coords for square grid', () => {
-      const result = service.screenToPixel(15, 25, 10, 8, 8, 'square');
+      const result = service.screenToPixel(15, 25, { width: 10, height: 10 }, 8, 8, 'square');
       expect(result).toEqual({ x: 1, y: 2 });
     });
 
     it('should return null for out-of-bounds coordinates', () => {
-      expect(service.screenToPixel(-5, 0, 10, 8, 8, 'square')).toBeNull();
-      expect(service.screenToPixel(0, -5, 10, 8, 8, 'square')).toBeNull();
-      expect(service.screenToPixel(80, 0, 10, 8, 8, 'square')).toBeNull();
-      expect(service.screenToPixel(0, 80, 10, 8, 8, 'square')).toBeNull();
+      expect(service.screenToPixel(-5, 0, { width: 10, height: 10 }, 8, 8, 'square')).toBeNull();
+      expect(service.screenToPixel(0, -5, { width: 10, height: 10 }, 8, 8, 'square')).toBeNull();
+      expect(service.screenToPixel(80, 0, { width: 10, height: 10 }, 8, 8, 'square')).toBeNull();
+      expect(service.screenToPixel(0, 80, { width: 10, height: 10 }, 8, 8, 'square')).toBeNull();
     });
 
     it('should map peyote screen position on even column to buffer coords', () => {
       // screen (0, 15) with scale=10 → col=0, beadRow=1 → bx=0, by=2
-      const result = service.screenToPixel(0, 15, 10, 4, 8, 'peyote', 8);
+      const result = service.screenToPixel(0, 15, { width: 10, height: 10 }, 4, 8, 'peyote', 8);
       expect(result).toEqual({ x: 0, y: 2 });
     });
 
     it('should account for peyote odd-column half-bead offset', () => {
       // screen (10, 15) with scale=10 → col=1 (odd), effectiveY=15-5=10, beadRow=1
       // visualToBuffer(1, 1) → bx=0, by=3
-      const result = service.screenToPixel(10, 15, 10, 4, 8, 'peyote', 8);
+      const result = service.screenToPixel(10, 15, { width: 10, height: 10 }, 4, 8, 'peyote', 8);
       expect(result).toEqual({ x: 0, y: 3 });
     });
 
     it('should return null for peyote click above the odd column', () => {
       // screen (10, 2) with scale=10 → col=1 (odd), effectiveY=2-5=-3, beadRow=-1
-      const result = service.screenToPixel(10, 2, 10, 4, 8, 'peyote', 8);
+      const result = service.screenToPixel(10, 2, { width: 10, height: 10 }, 4, 8, 'peyote', 8);
       expect(result).toBeNull();
     });
 
     it('should return null for peyote click beyond visual columns', () => {
       // 7 visual columns, click at col=7 which is out of range
-      const result = service.screenToPixel(70, 0, 10, 4, 8, 'peyote', 7);
+      const result = service.screenToPixel(70, 0, { width: 10, height: 10 }, 4, 8, 'peyote', 7);
       expect(result).toBeNull();
     });
 
     it('should handle exact grid boundary (x=0, y=0)', () => {
-      const result = service.screenToPixel(0, 0, 10, 8, 8, 'square');
+      const result = service.screenToPixel(0, 0, { width: 10, height: 10 }, 8, 8, 'square');
       expect(result).toEqual({ x: 0, y: 0 });
     });
 
     it('should handle position just inside last pixel', () => {
-      const result = service.screenToPixel(79, 79, 10, 8, 8, 'square');
+      const result = service.screenToPixel(79, 79, { width: 10, height: 10 }, 8, 8, 'square');
       expect(result).toEqual({ x: 7, y: 7 });
     });
   });
@@ -362,26 +362,26 @@ describe('GridService', () => {
       // Row 3: width 7, centerOffset = 0
 
       it('should center single pixel in row 0', () => {
-        const result = service.pixelToScreen(0, 0, 10, 'triangular', a, d, totalRows);
+        const result = service.pixelToScreen(0, 0, { width: 10, height: 10 }, 'triangular', a, d, totalRows);
         // centerOffset = 3, sx = (3 + 0) * 10 = 30
         expect(result).toEqual({ sx: 30, sy: 0 });
       });
 
       it('should position first pixel of row 3 at left edge', () => {
-        const result = service.pixelToScreen(0, 3, 10, 'triangular', a, d, totalRows);
+        const result = service.pixelToScreen(0, 3, { width: 10, height: 10 }, 'triangular', a, d, totalRows);
         // centerOffset = 0, sx = 0
         expect(result).toEqual({ sx: 0, sy: 30 });
       });
 
       it('should position middle pixel of row 2', () => {
         // row 2: width 5, centerOffset = (7-5)/2 = 1
-        const result = service.pixelToScreen(2, 2, 10, 'triangular', a, d, totalRows);
+        const result = service.pixelToScreen(2, 2, { width: 10, height: 10 }, 'triangular', a, d, totalRows);
         expect(result).toEqual({ sx: 30, sy: 20 });
       });
 
       it('should not apply vertical stagger for even d', () => {
-        const r0 = service.pixelToScreen(0, 0, 10, 'triangular', a, d, totalRows);
-        const r1 = service.pixelToScreen(0, 1, 10, 'triangular', a, d, totalRows);
+        const r0 = service.pixelToScreen(0, 0, { width: 10, height: 10 }, 'triangular', a, d, totalRows);
+        const r1 = service.pixelToScreen(0, 1, { width: 10, height: 10 }, 'triangular', a, d, totalRows);
         // No stagger — rows are at y=0 and y=10 exactly
         expect(r0.sy).toBe(0);
         expect(r1.sy).toBe(10);
@@ -400,7 +400,7 @@ describe('GridService', () => {
       const oddD = 1;
 
       it('should center first row with whole-pixel offset', () => {
-        const result = service.pixelToScreen(0, 0, 10, 'triangular', oddA, oddD, totalRows);
+        const result = service.pixelToScreen(0, 0, { width: 10, height: 10 }, 'triangular', oddA, oddD, totalRows);
         // centerOffset = 5-2 = 3, sx = (3 + 0*2) * 10 = 30
         expect(result.sx).toBe(30);
         expect(result.sy).toBe(0);
@@ -408,19 +408,19 @@ describe('GridService', () => {
 
       it('should space pixels within a row with stride 2', () => {
         // Row 3: width 5, centerOffset = 0. Pixels at 0, 20, 40, 60, 80.
-        const p0 = service.pixelToScreen(0, 3, 10, 'triangular', oddA, oddD, totalRows);
-        const p1 = service.pixelToScreen(1, 3, 10, 'triangular', oddA, oddD, totalRows);
-        const p2 = service.pixelToScreen(2, 3, 10, 'triangular', oddA, oddD, totalRows);
+        const p0 = service.pixelToScreen(0, 3, { width: 10, height: 10 }, 'triangular', oddA, oddD, totalRows);
+        const p1 = service.pixelToScreen(1, 3, { width: 10, height: 10 }, 'triangular', oddA, oddD, totalRows);
+        const p2 = service.pixelToScreen(2, 3, { width: 10, height: 10 }, 'triangular', oddA, oddD, totalRows);
         expect(p0.sx).toBe(0);
         expect(p1.sx).toBe(20);
         expect(p2.sx).toBe(40);
       });
 
       it('should use peyote-style half-row Y spacing', () => {
-        const r0 = service.pixelToScreen(0, 0, 10, 'triangular', oddA, oddD, totalRows);
-        const r1 = service.pixelToScreen(0, 1, 10, 'triangular', oddA, oddD, totalRows);
-        const r2 = service.pixelToScreen(0, 2, 10, 'triangular', oddA, oddD, totalRows);
-        const r3 = service.pixelToScreen(0, 3, 10, 'triangular', oddA, oddD, totalRows);
+        const r0 = service.pixelToScreen(0, 0, { width: 10, height: 10 }, 'triangular', oddA, oddD, totalRows);
+        const r1 = service.pixelToScreen(0, 1, { width: 10, height: 10 }, 'triangular', oddA, oddD, totalRows);
+        const r2 = service.pixelToScreen(0, 2, { width: 10, height: 10 }, 'triangular', oddA, oddD, totalRows);
+        const r3 = service.pixelToScreen(0, 3, { width: 10, height: 10 }, 'triangular', oddA, oddD, totalRows);
         expect(r0.sy).toBe(0);
         expect(r1.sy).toBe(5);
         expect(r2.sy).toBe(10);
@@ -429,8 +429,8 @@ describe('GridService', () => {
 
       it('should shift adjacent rows by a whole pixel', () => {
         // Row 0 pixel 0: sx=30. Row 1 pixel 0: sx=20. Shift = 10 (one cell width).
-        const r0 = service.pixelToScreen(0, 0, 10, 'triangular', oddA, oddD, totalRows);
-        const r1 = service.pixelToScreen(0, 1, 10, 'triangular', oddA, oddD, totalRows);
+        const r0 = service.pixelToScreen(0, 0, { width: 10, height: 10 }, 'triangular', oddA, oddD, totalRows);
+        const r1 = service.pixelToScreen(0, 1, { width: 10, height: 10 }, 'triangular', oddA, oddD, totalRows);
         expect(r0.sx - r1.sx).toBe(10);
       });
     });
@@ -442,32 +442,32 @@ describe('GridService', () => {
       // Row 3: width 7, centerOffset=0 → pixel range x∈[0, 70)
 
       it('should identify the single pixel in row 0', () => {
-        const result = service.screenToPixel(35, 5, 10, 0, totalRows, 'triangular', undefined, a, d);
+        const result = service.screenToPixel(35, 5, { width: 10, height: 10 }, 0, totalRows, 'triangular', undefined, a, d);
         expect(result).toEqual({ x: 0, y: 0 });
       });
 
       it('should return null for click outside row 0 pixel', () => {
-        const result = service.screenToPixel(5, 5, 10, 0, totalRows, 'triangular', undefined, a, d);
+        const result = service.screenToPixel(5, 5, { width: 10, height: 10 }, 0, totalRows, 'triangular', undefined, a, d);
         expect(result).toBeNull();
       });
 
       it('should identify first pixel in row 3', () => {
-        const result = service.screenToPixel(5, 35, 10, 0, totalRows, 'triangular', undefined, a, d);
+        const result = service.screenToPixel(5, 35, { width: 10, height: 10 }, 0, totalRows, 'triangular', undefined, a, d);
         expect(result).toEqual({ x: 0, y: 3 });
       });
 
       it('should identify last pixel in row 3', () => {
-        const result = service.screenToPixel(65, 35, 10, 0, totalRows, 'triangular', undefined, a, d);
+        const result = service.screenToPixel(65, 35, { width: 10, height: 10 }, 0, totalRows, 'triangular', undefined, a, d);
         expect(result).toEqual({ x: 6, y: 3 });
       });
 
       it('should return null for y below the grid', () => {
-        const result = service.screenToPixel(35, 45, 10, 0, totalRows, 'triangular', undefined, a, d);
+        const result = service.screenToPixel(35, 45, { width: 10, height: 10 }, 0, totalRows, 'triangular', undefined, a, d);
         expect(result).toBeNull();
       });
 
       it('should return null for negative coordinates', () => {
-        expect(service.screenToPixel(-5, 5, 10, 0, totalRows, 'triangular', undefined, a, d)).toBeNull();
+        expect(service.screenToPixel(-5, 5, { width: 10, height: 10 }, 0, totalRows, 'triangular', undefined, a, d)).toBeNull();
       });
     });
 
@@ -483,14 +483,14 @@ describe('GridService', () => {
       it('should identify pixel in first row', () => {
         // Row 0: pixel 0 at gridCol 3 → screen x in [30, 40)
         // Click at (35, 5): gridCol=3, relCol=3-3=0, even → bx=0
-        const result = service.screenToPixel(35, 5, 10, 0, totalRows, 'triangular', undefined, oddA, oddD);
+        const result = service.screenToPixel(35, 5, { width: 10, height: 10 }, 0, totalRows, 'triangular', undefined, oddA, oddD);
         expect(result).toEqual({ x: 0, y: 0 });
       });
 
       it('should identify pixel in last row', () => {
         // Row 3: pixel 2 at gridCol 4 → screen x in [40, 50)
         // Click at (45, 22): only row 3 contains y=22
-        const result = service.screenToPixel(45, 22, 10, 0, totalRows, 'triangular', undefined, oddA, oddD);
+        const result = service.screenToPixel(45, 22, { width: 10, height: 10 }, 0, totalRows, 'triangular', undefined, oddA, oddD);
         expect(result).toEqual({ x: 2, y: 3 });
       });
 
@@ -498,13 +498,13 @@ describe('GridService', () => {
         // Row 0: pixels at gridCols 3, 5 → gaps at gridCols 4
         // Click at (45, 3): y=3 is only in row 0 band [0, 10).
         // gridCol=4, relCol=4-3=1 (odd → gap)
-        const result = service.screenToPixel(45, 3, 10, 0, totalRows, 'triangular', undefined, oddA, oddD);
+        const result = service.screenToPixel(45, 3, { width: 10, height: 10 }, 0, totalRows, 'triangular', undefined, oddA, oddD);
         expect(result).toBeNull();
       });
 
       it('should return null for click outside row pixels', () => {
         // Row 0: centerOffset=3. Click at (5, 3): gridCol=0, relCol=0-3=-3 → null
-        const result = service.screenToPixel(5, 3, 10, 0, totalRows, 'triangular', undefined, oddA, oddD);
+        const result = service.screenToPixel(5, 3, { width: 10, height: 10 }, 0, totalRows, 'triangular', undefined, oddA, oddD);
         expect(result).toBeNull();
       });
 
@@ -512,7 +512,7 @@ describe('GridService', () => {
         // At y=7, rows 0 and 1 overlap. gridCol 4:
         //   Row 0: relCol=4-3=1 (odd → gap)
         //   Row 1: relCol=4-2=2 (even → bx=1, valid since width=3)
-        const result = service.screenToPixel(45, 7, 10, 0, totalRows, 'triangular', undefined, oddA, oddD);
+        const result = service.screenToPixel(45, 7, { width: 10, height: 10 }, 0, totalRows, 'triangular', undefined, oddA, oddD);
         expect(result).toEqual({ x: 1, y: 1 });
       });
     });
