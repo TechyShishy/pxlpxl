@@ -24,6 +24,8 @@ export class CanvasStateService {
   private readonly _triangularDDen = signal<number>(1);
   /** Phase shift (0..dDen-1) for triangular grids. */
   private readonly _triangularShift = signal<number>(0);
+  /** Whether to show radial shadow clones for triangular grids. */
+  private readonly _showClones = signal<boolean>(false);
 
   readonly canvasWidth = this._canvasWidth.asReadonly();
   readonly canvasHeight = this._canvasHeight.asReadonly();
@@ -35,6 +37,19 @@ export class CanvasStateService {
   readonly triangularDNum = this._triangularDNum.asReadonly();
   readonly triangularDDen = this._triangularDDen.asReadonly();
   readonly triangularShift = this._triangularShift.asReadonly();
+  readonly showClones = this._showClones.asReadonly();
+
+  /**
+   * Auto-detect the number of polygon sides from the triangular growth rate.
+   * Formula: round(3 * dDen / dNum). Only meaningful when gridType is 'triangular'.
+   */
+  readonly sideCount = computed(() => {
+    if (this._gridType() !== 'triangular') return 0;
+    const dNum = this._triangularDNum();
+    const dDen = this._triangularDDen();
+    if (dNum === 0) return 0;
+    return Math.round(3 * dDen / dNum);
+  });
 
   /** Buffer width — for peyote: ceil(visualColumns / 2); for square: same as canvasWidth. */
   readonly bufferWidth = computed(() => {
@@ -150,6 +165,10 @@ export class CanvasStateService {
     this._showRulers.update((v) => !v);
   }
 
+  toggleClones(): void {
+    this._showClones.update((v) => !v);
+  }
+
   /** Convert screen coordinates to buffer coordinates on the canvas */
   screenToPixel(
     screenX: number,
@@ -160,13 +179,79 @@ export class CanvasStateService {
     const localX = screenX - canvasRect.left - t.offsetX;
     const localY = screenY - canvasRect.top - t.offsetY;
 
+    const gridType = this._gridType();
+    const showClones = this._showClones();
+    const sides = this.sideCount();
+
+    // When clones are active for triangular grids, try inverse rotation
+    // for each wedge to find which one the user clicked on.
+    if (gridType === 'triangular' && showClones && sides >= 3) {
+      const a = this._triangularA();
+      const d = this._triangularD();
+      const dNum = this._triangularDNum();
+      const dDen = this._triangularDDen();
+      const shift = this._triangularShift();
+      const totalRows = this.bufferHeight();
+      const maxWidth = this.gridService.getAnyTriangularMaxWidth(
+        totalRows, gridType, a, d, dNum, dDen, shift,
+      );
+      const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
+      // Pivot at the theoretical apex where the wedge converges to zero
+      // width: r_apex = -(a·dDen/dNum), in screen space × rowSpacing.
+      const rowSpacing = usesPeyote ? t.scale / 2 : t.scale;
+      const pivotY = -(a * dDen / dNum) * rowSpacing;
+      const pivot = usesPeyote
+        ? { x: (maxWidth - 0.5) * t.scale, y: pivotY }
+        : { x: (maxWidth / 2) * t.scale, y: pivotY };
+
+      // Match the centering offset applied in renderTriangularClones.
+      const wedgeHeight = usesPeyote
+        ? (totalRows - 1) * (t.scale / 2) + t.scale
+        : totalRows * t.scale;
+      const centeringOffsetY = wedgeHeight / 2 - pivot.y;
+
+      // x-scale correction factor (must match renderTriangularClones)
+      // dy = (R-0.5) × rowSpacing = center of last bead from y=0.
+      const halfWidth = usesPeyote
+        ? maxWidth * t.scale
+        : ((maxWidth + 1) / 2) * t.scale;
+      const dy = (totalRows - 0.5) * rowSpacing;
+      const targetAngle = Math.PI / sides;
+      const xScale = (Math.tan(targetAngle) * dy) / halfWidth;
+
+      const angleStep = (2 * Math.PI) / sides;
+      // Try wedge 0 (original) first, then clones
+      for (let i = 0; i < sides; i++) {
+        const angle = -i * angleStep; // inverse rotation
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        // Subtract the centering offset, then undo x-scale, then inverse rotation
+        const dx = localX - pivot.x;
+        const dy = localY - centeringOffsetY - pivot.y;
+        const rotX = dx * cos - dy * sin;
+        const rotY = dx * sin + dy * cos;
+        // Undo x-scale correction to get original bead coordinates
+        const unscaledX = rotX / xScale + pivot.x;
+        const unscaledY = rotY + pivot.y;
+
+        const hit = this.gridService.screenToPixel(
+          unscaledX, unscaledY, t.scale,
+          this.bufferWidth(), this.bufferHeight(),
+          gridType, this._canvasWidth(),
+          a, d, dNum, dDen, shift,
+        );
+        if (hit) return hit;
+      }
+      return null;
+    }
+
     return this.gridService.screenToPixel(
       localX,
       localY,
       t.scale,
       this.bufferWidth(),
       this.bufferHeight(),
-      this._gridType(),
+      gridType,
       this._canvasWidth(),
       this._triangularA(),
       this._triangularD(),

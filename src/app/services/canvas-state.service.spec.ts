@@ -176,6 +176,55 @@ describe('CanvasStateService', () => {
       service.toggleRulers();
       expect(service.showRulers()).toBe(false);
     });
+
+    it('should toggle clone visibility', () => {
+      expect(service.showClones()).toBe(false);
+      service.toggleClones();
+      expect(service.showClones()).toBe(true);
+      service.toggleClones();
+      expect(service.showClones()).toBe(false);
+    });
+  });
+
+  describe('sideCount', () => {
+    it('should return 0 for non-triangular grids', () => {
+      service.setGridType('square');
+      expect(service.sideCount()).toBe(0);
+    });
+
+    it('should return 3 for triangle box preset (dNum=1, dDen=1)', () => {
+      service.setGridType('triangular');
+      service.setTriangularParams(1, 1, 1, 1, 1);
+      service.setCanvasSize(1, 29);
+      expect(service.sideCount()).toBe(3);
+    });
+
+    it('should return 4 for square box preset (dNum=3, dDen=4)', () => {
+      service.setGridType('triangular');
+      service.setTriangularParams(1, 1, 3, 4, 3);
+      service.setCanvasSize(1, 50);
+      expect(service.sideCount()).toBe(4);
+    });
+
+    it('should return 5 for pentagon box preset (dNum=2, dDen=3)', () => {
+      service.setGridType('triangular');
+      service.setTriangularParams(1, 1, 2, 3, 1);
+      service.setCanvasSize(1, 35);
+      expect(service.sideCount()).toBe(5);
+    });
+
+    it('should return 6 for hexagonal box preset (dNum=1, dDen=2)', () => {
+      service.setGridType('triangular');
+      service.setTriangularParams(1, 1, 1, 2, 0);
+      service.setCanvasSize(1, 39);
+      expect(service.sideCount()).toBe(6);
+    });
+
+    it('should return 0 when dNum is 0', () => {
+      service.setGridType('triangular');
+      service.setTriangularParams(1, 0, 0, 1, 0);
+      expect(service.sideCount()).toBe(0);
+    });
   });
 
   describe('bufferPixelCount', () => {

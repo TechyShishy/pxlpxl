@@ -124,6 +124,18 @@
     <mat-icon>border_all</mat-icon>
   </button>
 
+  @if (canvasState.gridType() === 'triangular') {
+    <button
+      mat-icon-button
+      matTooltip="Toggle shadow clones"
+      (click)="canvasState.toggleClones()"
+      aria-label="Toggle radial shadow clones"
+      [attr.aria-pressed]="canvasState.showClones()"
+    >
+      <mat-icon>hub</mat-icon>
+    </button>
+  }
+
   <button
     mat-icon-button
     matTooltip="Toggle panels"

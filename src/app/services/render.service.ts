@@ -35,12 +35,21 @@ export class RenderService {
     // Clear the viewport
     ctx.clearRect(0, 0, viewportWidth, viewportHeight);
 
-    // Draw checkerboard background (transparency indicator)
-    this.drawCheckerboard(ctx, visualWidth, visualHeight, bufWidth, bufHeight, transform, gridType);
-
     // Composite visible layers
+    const showClones = this.canvasState.showClones();
+    const sideCount = this.canvasState.sideCount();
+
+    // Draw checkerboard background (transparency indicator).
+    // Skip standalone checkerboard when clone mode is active — it will be
+    // rendered per-wedge inside renderTriangularClones instead.
+    const clonesActive = this.gridService.isAnyTriangular(gridType) && showClones && sideCount >= 3;
+    if (!clonesActive) {
+      this.drawCheckerboard(ctx, visualWidth, visualHeight, bufWidth, bufHeight, transform, gridType);
+    }
     if (this.gridService.isPeyote(gridType)) {
       this.renderPeyoteLayers(ctx, visualWidth, bufWidth, bufHeight, transform, gridType, layers);
+    } else if (this.gridService.isAnyTriangular(gridType) && showClones && sideCount >= 3) {
+      this.renderTriangularClones(ctx, bufHeight, transform, gridType, layers, sideCount);
     } else if (this.gridService.isAnyTriangular(gridType)) {
       this.renderTriangularLayers(ctx, bufHeight, transform, gridType, layers);
     } else {
@@ -70,8 +79,9 @@ export class RenderService {
       this.drawPreview(ctx, previewPixels, previewColor, transform, gridType, bufHeight);
     }
 
-    // Draw pixel grid
-    if (this.canvasState.showGrid()) {
+    // Draw pixel grid.
+    // Skip standalone grid when clone mode is active — rendered per-wedge instead.
+    if (this.canvasState.showGrid() && !clonesActive) {
       this.drawGrid(ctx, visualWidth, visualHeight, bufWidth, bufHeight, transform, gridType);
     }
   }
@@ -166,7 +176,7 @@ export class RenderService {
               col, row, scale, gridType, triA, triD, bufHeight, triDNum, triDDen, triShift,
             );
             ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${a / 255})`;
-            ctx.fillRect(sx, sy, scale, scale);
+            ctx.fillRect(sx, sy, scale + 0.5, scale + 0.5);
           }
         }
       }
@@ -232,15 +242,106 @@ export class RenderService {
     gridType: GridType,
     layers: readonly { visible: boolean; opacity: number; data: Uint8ClampedArray }[],
   ): void {
+    ctx.save();
+    ctx.translate(transform.offsetX, transform.offsetY);
+    this.renderTriangularBeads(ctx, totalRows, transform.scale, gridType, layers);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  /**
+   * Render triangular layers with radial shadow clones.
+   * All n wedges share the same buffer, rotated around the apex pivot.
+   */
+  private renderTriangularClones(
+    ctx: CanvasRenderingContext2D,
+    totalRows: number,
+    transform: { scale: number; offsetX: number; offsetY: number },
+    gridType: GridType,
+    layers: readonly { visible: boolean; opacity: number; data: Uint8ClampedArray }[],
+    sideCount: number,
+  ): void {
+    const a = this.canvasState.triangularA();
+    const d = this.canvasState.triangularD();
+    const dNum = this.canvasState.triangularDNum();
+    const dDen = this.canvasState.triangularDDen();
+    const shift = this.canvasState.triangularShift();
+    const maxWidth = this.gridService.getAnyTriangularMaxWidth(
+      totalRows, gridType, a, d, dNum, dDen, shift,
+    );
+    const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
+    const pivot = this.getClonePivot(transform.scale, maxWidth, usesPeyote, a, dNum, dDen);
+
+    ctx.save();
+    ctx.translate(transform.offsetX, transform.offsetY);
+
+    const angleStep = (2 * Math.PI) / sideCount;
+    const wedgeHeight = usesPeyote
+      ? (totalRows - 1) * (transform.scale / 2) + transform.scale
+      : totalRows * transform.scale;
+
+    // Compute x-scale correction so the wedge opening angle matches
+    // exactly 2π/sideCount.  The vertical reference (dy) is measured from
+    // y=0 to the center of the last bead — (R-0.5) × rowSpacing — rather
+    // than from pivot to bead bottom.  This gives the correct angular
+    // extent without any empirical fudge factor.
+    const halfWidth = usesPeyote
+      ? maxWidth * transform.scale
+      : ((maxWidth + 1) / 2) * transform.scale;
+    const rowSpacing = usesPeyote ? transform.scale / 2 : transform.scale;
+    const dy = (totalRows - 0.5) * rowSpacing;
+    const targetAngle = Math.PI / sideCount;
+    const xScale = (Math.tan(targetAngle) * dy) / halfWidth;
+
+    // Shift the polygon group down so the pivot (polygon center) aligns with
+    // the vertical center of the original single-wedge extent.
+    const centeringOffsetY = wedgeHeight / 2 - pivot.y;
+    ctx.translate(0, centeringOffsetY);
+
+    const showGrid = this.canvasState.showGrid();
+    // Render each wedge: checkerboard + beads + optional grid,
+    // with x-scale correction applied around the pivot.
+    for (let i = 0; i < sideCount; i++) {
+      ctx.save();
+      if (i > 0) {
+        ctx.translate(pivot.x, pivot.y);
+        ctx.rotate(i * angleStep);
+        ctx.translate(-pivot.x, -pivot.y);
+      }
+      // Apply x-scale correction around pivot.x
+      ctx.translate(pivot.x, 0);
+      ctx.scale(xScale, 1);
+      ctx.translate(-pivot.x, 0);
+
+      this.renderTriangularCheckerboard(ctx, totalRows, transform.scale, gridType);
+      this.renderTriangularBeads(ctx, totalRows, transform.scale, gridType, layers);
+      if (showGrid) {
+        this.renderTriangularGrid(ctx, totalRows, transform.scale, gridType);
+      }
+      ctx.restore();
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  /**
+   * Render triangular beads without ctx save/translate wrapper.
+   * Caller is responsible for setting up canvas transforms.
+   */
+  private renderTriangularBeads(
+    ctx: CanvasRenderingContext2D,
+    totalRows: number,
+    scale: number,
+    gridType: GridType,
+    layers: readonly { visible: boolean; opacity: number; data: Uint8ClampedArray }[],
+  ): void {
     const a = this.canvasState.triangularA();
     const d = this.canvasState.triangularD();
     const dNum = this.canvasState.triangularDNum();
     const dDen = this.canvasState.triangularDDen();
     const shift = this.canvasState.triangularShift();
     const bufWidth = this.canvasState.bufferWidth();
-
-    ctx.save();
-    ctx.translate(transform.offsetX, transform.offsetY);
 
     for (const layer of layers) {
       if (!layer.visible || layer.opacity === 0) continue;
@@ -254,16 +355,133 @@ export class RenderService {
           if (alpha === 0) continue;
 
           const { sx, sy } = this.gridService.pixelToScreen(
-            col, row, transform.scale, gridType, a, d, totalRows, dNum, dDen, shift,
+            col, row, scale, gridType, a, d, totalRows, dNum, dDen, shift,
           );
           ctx.fillStyle = `rgba(${layer.data[offset]},${layer.data[offset + 1]},${layer.data[offset + 2]},${alpha / 255})`;
-          ctx.fillRect(sx, sy, transform.scale, transform.scale);
+          ctx.fillRect(sx, sy, scale + 0.5, scale + 0.5);
         }
       }
     }
+  }
+
+  /**
+   * Render the triangular checkerboard (transparency indicator) for a single wedge.
+   * No ctx save/restore — caller handles transforms.
+   */
+  private renderTriangularCheckerboard(
+    ctx: CanvasRenderingContext2D,
+    totalRows: number,
+    scale: number,
+    gridType: GridType,
+  ): void {
+    const a = this.canvasState.triangularA();
+    const d = this.canvasState.triangularD();
+    const dNum = this.canvasState.triangularDNum();
+    const dDen = this.canvasState.triangularDDen();
+    const shift = this.canvasState.triangularShift();
 
     ctx.globalAlpha = 1;
-    ctx.restore();
+    for (let row = 0; row < totalRows; row++) {
+      const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen, shift);
+      for (let col = 0; col < rowWidth; col++) {
+        const isLight = (col + row) % 2 === 0;
+        ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
+        const { sx, sy } = this.gridService.pixelToScreen(
+          col, row, scale, gridType, a, d, totalRows, dNum, dDen, shift,
+        );
+        ctx.fillRect(sx, sy, scale + 0.5, scale + 0.5);
+      }
+    }
+  }
+
+  /**
+   * Render the triangular pixel grid for a single wedge.
+   * No ctx save/restore — caller handles transforms.
+   */
+  private renderTriangularGrid(
+    ctx: CanvasRenderingContext2D,
+    totalRows: number,
+    scale: number,
+    gridType: GridType,
+  ): void {
+    const a = this.canvasState.triangularA();
+    const d = this.canvasState.triangularD();
+    const dNum = this.canvasState.triangularDNum();
+    const dDen = this.canvasState.triangularDDen();
+    const shift = this.canvasState.triangularShift();
+    const maxWidth = this.gridService.getAnyTriangularMaxWidth(
+      totalRows, gridType, a, d, dNum, dDen, shift,
+    );
+    const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
+    const rowSpacing = usesPeyote ? scale / 2 : scale;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 1;
+
+    if (usesPeyote) {
+      for (let row = 0; row < totalRows; row++) {
+        const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen, shift);
+        const centerOffset = maxWidth - rowWidth;
+        const y = row * rowSpacing;
+        for (let col = 0; col < rowWidth; col++) {
+          const x = (centerOffset + col * 2) * scale;
+          ctx.strokeRect(x, y, scale, scale);
+        }
+      }
+    } else {
+      for (let row = 0; row < totalRows; row++) {
+        const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen, shift);
+        const centerOffset = (maxWidth - rowWidth) / 2;
+        const y = row * rowSpacing;
+        const startX = centerOffset * scale;
+        const endX = (centerOffset + rowWidth) * scale;
+        ctx.beginPath();
+        ctx.moveTo(startX, y);
+        ctx.lineTo(endX, y);
+        ctx.stroke();
+        for (let col = 0; col <= rowWidth; col++) {
+          const x = (centerOffset + col) * scale;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x, y + scale);
+          ctx.stroke();
+        }
+      }
+      // Bottom border of last row
+      const lastRow = totalRows - 1;
+      const lastRowWidth = this.gridService.getAnyTriangularRowWidth(lastRow, gridType, a, d, dNum, dDen, shift);
+      const lastCenterOffset = (maxWidth - lastRowWidth) / 2;
+      const bottomY = lastRow * rowSpacing + scale;
+      ctx.beginPath();
+      ctx.moveTo(lastCenterOffset * scale, bottomY);
+      ctx.lineTo((lastCenterOffset + lastRowWidth) * scale, bottomY);
+      ctx.stroke();
+    }
+  }
+
+  /**
+   * Compute the pivot point for radial clone rotation.
+   * The pivot is the center of the first-row pixel(s) — the apex of the wedge.
+   */
+  private getClonePivot(
+    scale: number,
+    maxWidth: number,
+    usesPeyote: boolean,
+    a: number,
+    dNum: number,
+    dDen: number,
+  ): { x: number; y: number } {
+    // The pivot is the theoretical apex where the wedge converges to
+    // zero width.  Row r has width ≈ a + r·dNum/dDen, so extrapolating
+    // back to width 0 gives r_apex = -(a·dDen/dNum).  In screen space
+    // that's r_apex × rowSpacing above the first row.
+    const rowSpacing = usesPeyote ? scale / 2 : scale;
+    const pivotY = -(a * dDen / dNum) * rowSpacing;
+    if (usesPeyote) {
+      return { x: (maxWidth - 0.5) * scale, y: pivotY };
+    }
+    return { x: (maxWidth / 2) * scale, y: pivotY };
   }
 
   /** Render peyote layers bead-by-bead onto the viewport canvas. */
@@ -340,7 +558,7 @@ export class RenderService {
           const { sx, sy } = this.gridService.pixelToScreen(
             col, row, transform.scale, gridType, a, d, bufHeight, dNum, dDen, shift,
           );
-          ctx.fillRect(sx, sy, transform.scale, transform.scale);
+          ctx.fillRect(sx, sy, transform.scale + 0.5, transform.scale + 0.5);
         }
       }
     } else {

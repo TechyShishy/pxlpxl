@@ -125,6 +125,7 @@ export class CanvasViewportComponent implements OnDestroy {
       this.canvasState.triangularDNum();
       this.canvasState.triangularDDen();
       this.canvasState.triangularShift();
+      this.canvasState.showClones();
       this.layerService.layers();
       this.requestRender();
     });
