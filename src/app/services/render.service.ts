@@ -587,65 +587,7 @@ export class RenderService {
         }
       }
     } else if (this.gridService.isAnyTriangular(gridType)) {
-      // Triangular grid: draw cell outlines per row
-      const a = this.canvasState.triangularA();
-      const d = this.canvasState.triangularD();
-      const dNum = this.canvasState.triangularDNum();
-      const dDen = this.canvasState.triangularDDen();
-      const shift = this.canvasState.triangularShift();
-      const totalRows = bufHeight;
-      const maxWidth = this.gridService.getAnyTriangularMaxWidth(totalRows, gridType, a, d, dNum, dDen, shift);
-      const usesPeyote = this.gridService.usesPeyoteStagger(gridType, d, dNum, dDen);
-      const rowSpacing = usesPeyote ? beadSize.height / 2 : beadSize.height;
-
-      if (usesPeyote) {
-        // Peyote-stagger: draw individual cell outlines
-        for (let row = 0; row < totalRows; row++) {
-          const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen, shift);
-          const centerOffset = maxWidth - rowWidth;
-          const y = row * rowSpacing;
-          for (let col = 0; col < rowWidth; col++) {
-            const x = (centerOffset + col * 2) * beadSize.width;
-            ctx.strokeRect(x, y, beadSize.width, beadSize.height);
-          }
-        }
-      } else {
-        // Full-height centered: continuous rows
-        for (let row = 0; row < totalRows; row++) {
-          const rowWidth = this.gridService.getAnyTriangularRowWidth(row, gridType, a, d, dNum, dDen, shift);
-          const centerOffset = (maxWidth - rowWidth) / 2;
-          const y = row * rowSpacing;
-
-          const startX = centerOffset * beadSize.width;
-          const endX = (centerOffset + rowWidth) * beadSize.width;
-          ctx.beginPath();
-          ctx.moveTo(startX, y);
-          ctx.lineTo(endX, y);
-          ctx.stroke();
-
-          for (let col = 0; col <= rowWidth; col++) {
-            const x = (centerOffset + col) * beadSize.width;
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x, y + beadSize.height);
-            ctx.stroke();
-          }
-        }
-
-        // Bottom border of last row
-        {
-          const lastRow = totalRows - 1;
-          const lastRowWidth = this.gridService.getAnyTriangularRowWidth(lastRow, gridType, a, d, dNum, dDen, shift);
-          const lastCenterOffset = (maxWidth - lastRowWidth) / 2;
-          const bottomY = lastRow * rowSpacing + beadSize.height;
-          const startX = lastCenterOffset * beadSize.width;
-          const endX = (lastCenterOffset + lastRowWidth) * beadSize.width;
-          ctx.beginPath();
-          ctx.moveTo(startX, bottomY);
-          ctx.lineTo(endX, bottomY);
-          ctx.stroke();
-        }
-      }
+      this.renderTriangularGrid(ctx, bufHeight, beadSize, gridType);
     } else {
       // Square grid: uniform vertical and horizontal lines
       for (let x = 0; x <= bufWidth; x++) {
