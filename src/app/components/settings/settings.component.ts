@@ -2,9 +2,8 @@ import {
   Component,
   ChangeDetectionStrategy,
   inject,
-  OnInit,
-  OnDestroy,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -16,7 +15,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { Subscription } from 'rxjs';
 import { distinctUntilChanged } from 'rxjs/operators';
 import { SettingsService } from '../../services/settings.service';
 import { DEFAULT_SETTINGS } from '../../models/settings.model';
@@ -39,7 +37,7 @@ import { DEFAULT_SETTINGS } from '../../models/settings.model';
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss',
 })
-export class SettingsComponent implements OnInit, OnDestroy {
+export class SettingsComponent {
   private readonly router = inject(Router);
   protected readonly settingsService = inject(SettingsService);
   private readonly fb = inject(FormBuilder);
@@ -62,18 +60,15 @@ export class SettingsComponent implements OnInit, OnDestroy {
     defaultQuantizeAlgorithm: [this.settingsService.settings().defaultQuantizeAlgorithm],
   });
 
-  private subscription: Subscription | undefined;
-
-  ngOnInit(): void {
-    this.subscription = this.form.valueChanges
-      .pipe(distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)))
+  constructor() {
+    this.form.valueChanges
+      .pipe(
+        distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
+        takeUntilDestroyed(),
+      )
       .subscribe((value) => {
         this.settingsService.update(value);
       });
-  }
-
-  ngOnDestroy(): void {
-    this.subscription?.unsubscribe();
   }
 
   goBack(): void {
