@@ -5,6 +5,7 @@ import { LayerCommand } from './layer.command';
 import { DuplicateLayerCommand } from './duplicate-layer.command';
 import { MoveLayerCommand } from './move-layer.command';
 import { MovePaletteCommand } from './move-palette.command';
+import { SortPaletteCommand } from './sort-palette.command';
 import { ReplaceColorCommand } from './replace-color.command';
 import { FlattenLayerCommand } from './flatten-layer.command';
 import { LayerService } from '../services/layer.service';
@@ -125,6 +126,17 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
     };
   }
 
+  if (command instanceof SortPaletteCommand) {
+    return {
+      type: 'sort-palette',
+      description: command.description,
+      layerIndex: 0,
+      canvasWidth: 0,
+      beforePalette: command.beforePalette.map((c) => ({ ...c })),
+      afterPalette: command.afterPalette.map((c) => ({ ...c })),
+    };
+  }
+
   if (command instanceof ReplaceColorCommand) {
     return {
       type: 'replace-color',
@@ -242,6 +254,14 @@ export function deserializeCommand(
         throw new Error('move-palette entry is missing fromIndex or toIndex');
       }
       return new MovePaletteCommand(colorService, entry.fromIndex, entry.toIndex);
+
+    case 'sort-palette':
+      return new SortPaletteCommand(
+        colorService,
+        (entry.beforePalette ?? []).map((c) => ({ ...c })),
+        (entry.afterPalette ?? []).map((c) => ({ ...c })),
+        entry.description,
+      );
 
     case 'replace-color': {
       if (entry.paletteIndex == null || !entry.oldColor || !entry.newColor) {

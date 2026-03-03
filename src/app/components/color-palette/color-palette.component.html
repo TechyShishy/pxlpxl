@@ -14,7 +14,31 @@
     >
       <mat-icon>add</mat-icon>
     </button>
+    <button
+      mat-icon-button
+      matTooltip="Sort palette"
+      [matMenuTriggerFor]="sortMenu"
+      aria-label="Sort palette"
+      aria-haspopup="true"
+    >
+      <mat-icon>sort</mat-icon>
+    </button>
   </div>
+
+  <mat-menu #sortMenu>
+    <button mat-menu-item (click)="colorService.sortPaletteByPixelCount()">
+      <mat-icon>bar_chart</mat-icon>
+      Pixel count (high → low)
+    </button>
+    <button mat-menu-item (click)="colorService.sortPaletteByDbCode()">
+      <mat-icon>format_list_numbered</mat-icon>
+      DB code (A → Z)
+    </button>
+    <button mat-menu-item (click)="colorService.sortPaletteByColor()">
+      <mat-icon>palette</mat-icon>
+      Color (hue)
+    </button>
+  </mat-menu>
 
   <div
     class="swatches"

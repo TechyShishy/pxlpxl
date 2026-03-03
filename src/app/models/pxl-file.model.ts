@@ -50,6 +50,7 @@ export type HistoryEntryType =
   | 'move-layer'
   | 'replace-color'
   | 'move-palette'
+  | 'sort-palette'
   | 'flatten-layer';
 
 /** Common fields shared by all serialized history entries. */
@@ -102,6 +103,12 @@ export interface SerializedMovePaletteEntry extends SerializedHistoryEntryBase {
   toIndex?: number;
 }
 
+export interface SerializedSortPaletteEntry extends SerializedHistoryEntryBase {
+  type: 'sort-palette';
+  beforePalette?: Color[];
+  afterPalette?: Color[];
+}
+
 export interface SerializedReplaceColorEntry extends SerializedHistoryEntryBase {
   type: 'replace-color';
   paletteIndex?: number;
@@ -130,6 +137,7 @@ export type SerializedHistoryEntry =
   | SerializedDuplicateLayerEntry
   | SerializedMoveLayerEntry
   | SerializedMovePaletteEntry
+  | SerializedSortPaletteEntry
   | SerializedReplaceColorEntry
   | SerializedFlattenLayerEntry;
 
@@ -178,6 +186,7 @@ export const PxlFileSchema = z.object({
             'move-layer',
             'replace-color',
             'move-palette',
+            'sort-palette',
             'flatten-layer',
           ]),
           description: z.string(),
@@ -195,6 +204,7 @@ export const PxlFileSchema = z.object({
             'move-layer',
             'replace-color',
             'move-palette',
+            'sort-palette',
             'flatten-layer',
           ]),
           description: z.string(),

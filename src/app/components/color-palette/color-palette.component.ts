@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatDialog } from '@angular/material/dialog';
 import { CdkDragDrop, CdkDropList, CdkDrag } from '@angular/cdk/drag-drop';
 import { ColorService } from '../../services/color.service';
@@ -22,7 +23,7 @@ const MOVE_THRESHOLD = 5;
 @Component({
   selector: 'app-color-palette',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, CdkDropList, CdkDrag],
+  imports: [MatButtonModule, MatIconModule, MatTooltipModule, MatMenuModule, CdkDropList, CdkDrag],
   templateUrl: './color-palette.component.html',
   styleUrl: './color-palette.component.scss',
 })
