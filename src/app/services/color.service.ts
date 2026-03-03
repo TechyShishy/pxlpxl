@@ -209,6 +209,38 @@ export class ColorService {
     );
   }
 
+  /**
+   * Remove palette entries that are not referenced by any pixel across all layers.
+   * Executes as an undoable command. No-ops when every palette color is in use.
+   * Always retains at least one palette entry.
+   */
+  cleanUnusedColors(): void {
+    const before = this._palette();
+    if (before.length <= 1) return;
+
+    const usedKeys = new Set<number>();
+    for (const layer of this.layerService.layers()) {
+      const data = layer.data;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] === 0) continue;
+        usedKeys.add((data[i] | (data[i + 1] << 8) | (data[i + 2] << 16) | (data[i + 3] << 24)) >>> 0);
+      }
+    }
+
+    const filtered = before.filter(
+      (c) => usedKeys.has(((c.r | (c.g << 8) | (c.b << 16) | (c.a << 24)) >>> 0)),
+    );
+
+    // Always keep at least one entry
+    const after = filtered.length > 0 ? filtered : [before[0]];
+
+    if (after.length === before.length && after.every((c, i) => colorsEqual(c, before[i]))) return;
+
+    this.historyService.execute(
+      new SortPaletteCommand(this, before, after, 'Clean unused colors'),
+    );
+  }
+
   private toHex(c: Color): string {
     const hex = (n: number) => n.toString(16).padStart(2, '0');
     return `#${hex(c.r)}${hex(c.g)}${hex(c.b)}`;

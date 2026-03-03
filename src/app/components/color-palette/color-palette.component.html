@@ -16,6 +16,14 @@
     </button>
     <button
       mat-icon-button
+      matTooltip="Remove unused colors"
+      (click)="colorService.cleanUnusedColors()"
+      aria-label="Remove unused colors"
+    >
+      <mat-icon>mop</mat-icon>
+    </button>
+    <button
+      mat-icon-button
       matTooltip="Sort palette"
       [matMenuTriggerFor]="sortMenu"
       aria-label="Sort palette"

@@ -1,13 +1,19 @@
 import { TestBed } from '@angular/core/testing';
 import { ColorService } from './color.service';
+import { LayerService } from './layer.service';
+import { HistoryService } from './history.service';
 import { BLACK, WHITE, DEFAULT_PALETTE, Color, colorsEqual, colorToHex } from '../models';
 
 describe('ColorService', () => {
   let service: ColorService;
+  let layerService: LayerService;
+  let historyService: HistoryService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
     service = TestBed.inject(ColorService);
+    layerService = TestBed.inject(LayerService);
+    historyService = TestBed.inject(HistoryService);
   });
 
   describe('initial state', () => {
@@ -206,6 +212,100 @@ describe('ColorService', () => {
       color.r = 1;
       const last = service.palette()[service.palette().length - 1];
       expect(last.r).toBe(77);
+    });
+  });
+
+  describe('cleanUnusedColors', () => {
+    const RED: Color = { r: 255, g: 0, b: 0, a: 255 };
+    const GREEN: Color = { r: 0, g: 255, b: 0, a: 255 };
+    const BLUE: Color = { r: 0, g: 0, b: 255, a: 255 };
+
+    beforeEach(() => {
+      // 2×2 empty canvas, all pixels transparent by default
+      layerService.initLayers(2, 2);
+    });
+
+    it('removes colors not used by any pixel', () => {
+      service.setPalette([RED, GREEN, BLUE]);
+      // Paint only RED at (0,0)
+      layerService.setPixel(0, 0, 0, 2, RED);
+
+      service.cleanUnusedColors();
+
+      expect(service.palette().length).toBe(1);
+      expect(colorsEqual(service.palette()[0], RED)).toBe(true);
+    });
+
+    it('retains colors that appear in at least one pixel', () => {
+      service.setPalette([RED, GREEN, BLUE]);
+      layerService.setPixel(0, 0, 0, 2, RED);
+      layerService.setPixel(0, 1, 0, 2, GREEN);
+
+      service.cleanUnusedColors();
+
+      const result = service.palette();
+      expect(result.length).toBe(2);
+      expect(result.some((c) => colorsEqual(c, RED))).toBe(true);
+      expect(result.some((c) => colorsEqual(c, GREEN))).toBe(true);
+      expect(result.some((c) => colorsEqual(c, BLUE))).toBe(false);
+    });
+
+    it('is a no-op when all palette colors are used', () => {
+      service.setPalette([RED, GREEN]);
+      layerService.setPixel(0, 0, 0, 2, RED);
+      layerService.setPixel(0, 1, 0, 2, GREEN);
+      const before = service.palette().slice();
+
+      service.cleanUnusedColors();
+
+      expect(service.palette().length).toBe(before.length);
+      expect(before.every((c, i) => colorsEqual(c, service.palette()[i]))).toBe(true);
+    });
+
+    it('keeps at least one entry when no palette colors are used', () => {
+      service.setPalette([RED, GREEN, BLUE]);
+      // Leave all pixels transparent (already the default)
+
+      service.cleanUnusedColors();
+
+      expect(service.palette().length).toBe(1);
+      expect(colorsEqual(service.palette()[0], RED)).toBe(true);
+    });
+
+    it('is a no-op when the palette has only one entry', () => {
+      service.setPalette([RED]);
+      // Nothing should happen regardless of pixel state
+
+      service.cleanUnusedColors();
+
+      expect(service.palette().length).toBe(1);
+      expect(colorsEqual(service.palette()[0], RED)).toBe(true);
+    });
+
+    it('is undoable via HistoryService', () => {
+      service.setPalette([RED, GREEN, BLUE]);
+      layerService.setPixel(0, 0, 0, 2, RED);
+
+      service.cleanUnusedColors();
+      expect(service.palette().length).toBe(1);
+
+      historyService.undo();
+      expect(service.palette().length).toBe(3);
+      expect(colorsEqual(service.palette()[0], RED)).toBe(true);
+      expect(colorsEqual(service.palette()[1], GREEN)).toBe(true);
+      expect(colorsEqual(service.palette()[2], BLUE)).toBe(true);
+    });
+
+    it('ignores fully-transparent pixels when determining used colors', () => {
+      service.setPalette([RED, GREEN]);
+      // Paint a transparent RED pixel — should not count as "in use"
+      layerService.setPixel(0, 0, 0, 2, { r: 255, g: 0, b: 0, a: 0 });
+      layerService.setPixel(0, 1, 0, 2, GREEN);
+
+      service.cleanUnusedColors();
+
+      expect(service.palette().length).toBe(1);
+      expect(colorsEqual(service.palette()[0], GREEN)).toBe(true);
     });
   });
 });
