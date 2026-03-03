@@ -2,17 +2,19 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { BeadSize, ViewTransform, GridType, computeBufferDimensions, computeBufferPixelCount } from '../models';
 import { GridService } from './grid.service';
 import { clonePivot } from './clone-geometry';
+import { SettingsService } from './settings.service';
 
 @Injectable({ providedIn: 'root' })
 export class CanvasStateService {
   private readonly gridService = inject(GridService);
+  private readonly settingsService = inject(SettingsService);
 
   /** Visual canvas width (number of visual columns). */
   private readonly _canvasWidth = signal<number>(32);
   /** Visual canvas height (for square: rows; for peyote: visible bead rows). */
   private readonly _canvasHeight = signal<number>(32);
-  private readonly _showGrid = signal<boolean>(true);
-  private readonly _showRulers = signal<boolean>(false);
+  private readonly _showGrid = signal<boolean>(this.settingsService.settings().defaultShowGrid);
+  private readonly _showRulers = signal<boolean>(this.settingsService.settings().defaultShowRulers);
   private readonly _gridType = signal<GridType>('square');
 
   /** First-row width for triangular grids. */

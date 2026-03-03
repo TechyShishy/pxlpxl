@@ -10,6 +10,8 @@ import { LayoutService } from '../../services/layout.service';
 import { ToolService } from '../../services/tool.service';
 import { ProjectService } from '../../services/project.service';
 import { ColorService } from '../../services/color.service';
+import { SettingsService } from '../../services/settings.service';
+import { triangularRowWidth } from '../../models';
 import { PencilTool } from '../../tools/pencil.tool';
 import { EraserTool } from '../../tools/eraser.tool';
 import { LineTool } from '../../tools/line.tool';
@@ -41,10 +43,37 @@ export class EditorComponent implements OnInit {
   private readonly toolService = inject(ToolService);
   private readonly projectService = inject(ProjectService);
   private readonly colorService = inject(ColorService);
+  private readonly settings = inject(SettingsService);
 
   ngOnInit(): void {
     this.registerTools();
-    this.projectService.newProject('Untitled', 32, 32);
+    const s = this.settings.settings();
+    let width: number;
+    let height: number;
+    if (s.defaultGridType === 'triangular') {
+      height = s.defaultTriangularRows;
+      width = 0;
+      for (let r = 0; r < height; r++) {
+        width = Math.max(
+          width,
+          triangularRowWidth(r, s.defaultTriangularA, s.defaultTriangularDNum, s.defaultTriangularDDen, s.defaultTriangularShift),
+        );
+      }
+    } else {
+      width = s.defaultWidth;
+      height = s.defaultHeight;
+    }
+    this.projectService.newProject(
+      'Untitled',
+      width,
+      height,
+      s.defaultGridType,
+      s.defaultGridType === 'triangular' ? s.defaultTriangularA : undefined,
+      undefined,
+      s.defaultGridType === 'triangular' ? s.defaultTriangularDNum : undefined,
+      s.defaultGridType === 'triangular' ? s.defaultTriangularDDen : undefined,
+      s.defaultGridType === 'triangular' ? s.defaultTriangularShift : undefined,
+    );
   }
 
   async onProjectSelected(id: number): Promise<void> {

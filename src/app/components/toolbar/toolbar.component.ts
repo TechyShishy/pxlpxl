@@ -7,6 +7,7 @@ import {
   ElementRef,
   viewChildren,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
@@ -51,6 +52,7 @@ export class ToolbarComponent implements OnDestroy {
   private readonly importService = inject(ImportService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly router = inject(Router);
 
   readonly editingTitle = signal(false);
   readonly editControl = new FormControl('', { nonNullable: true });
@@ -197,5 +199,9 @@ export class ToolbarComponent implements OnDestroy {
 
   private sanitizeFilename(name: string): string {
     return name.replace(/[^a-zA-Z0-9_-]/g, '_') || 'untitled';
+  }
+
+  navigateToSettings(): void {
+    this.router.navigate(['/settings']);
   }
 }

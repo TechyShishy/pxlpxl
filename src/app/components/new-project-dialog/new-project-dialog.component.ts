@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
 import { GridType, triangularRowWidth } from '../../models';
+import { SettingsService } from '../../services/settings.service';
 
 export interface NewProjectDialogResult {
   name: string;
@@ -35,18 +36,19 @@ export interface NewProjectDialogResult {
 })
 export class NewProjectDialogComponent {
   private readonly dialogRef = inject(MatDialogRef<NewProjectDialogComponent>);
+  private readonly settingsService = inject(SettingsService);
 
   name = 'Untitled';
-  width = 32;
-  height = 32;
-  gridType: GridType = 'square';
-  triangularA = 1;
+  width = this.settingsService.settings().defaultWidth;
+  height = this.settingsService.settings().defaultHeight;
+  gridType: GridType = this.settingsService.settings().defaultGridType;
+  triangularA = this.settingsService.settings().defaultTriangularA;
   triangularD = 2;
-  triangularDNum = 1;
-  triangularDDen = 2;
-  triangularShift = 0;
+  triangularDNum = this.settingsService.settings().defaultTriangularDNum;
+  triangularDDen = this.settingsService.settings().defaultTriangularDDen;
+  triangularShift = this.settingsService.settings().defaultTriangularShift;
   /** For triangular grids, height = number of rows (R). */
-  triangularRows = 10;
+  triangularRows = this.settingsService.settings().defaultTriangularRows;
 
   get shiftMax(): number {
     return Math.max(0, this.triangularDDen - 1);

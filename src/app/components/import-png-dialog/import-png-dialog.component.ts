@@ -21,6 +21,7 @@ import { GridType, triangularRowWidth, pixelOffset, extractUniqueColors } from '
 import type { Color } from '../../models';
 import { medianCut, kMeans, quantizeBuffer } from '../../utils/color-quantize';
 import { type ColorPoolId, getColorPool } from '../../utils/color-pools';
+import { SettingsService } from '../../services/settings.service';
 
 /** Data passed into the dialog from ImportService. */
 export interface ImportPngDialogData {
@@ -39,8 +40,8 @@ export interface ImportPngDialogData {
   triangularShift?: number;
 }
 
-export type SamplingMode = 'nearest' | 'area';
-export type QuantizeAlgorithm = 'median-cut' | 'k-means';
+export type { SamplingMode, QuantizeAlgorithm } from '../../models/settings.model';
+import type { SamplingMode, QuantizeAlgorithm } from '../../models/settings.model';
 
 /** Value returned when the user confirms the import dialog. */
 export interface ImportPngResult {
@@ -71,14 +72,15 @@ export class ImportPngDialogComponent {
   private readonly dialogRef = inject(MatDialogRef<ImportPngDialogComponent>);
   private readonly data = inject<ImportPngDialogData>(MAT_DIALOG_DATA);
   private readonly gridService = inject(GridService);
+  private readonly settingsService = inject(SettingsService);
 
   private readonly previewCanvas =
     viewChild.required<ElementRef<HTMLCanvasElement>>('preview');
 
-  readonly samplingMode = signal<SamplingMode>('nearest');
-  readonly maxColors = signal<number>(32);
-  readonly quantizeAlgorithm = signal<QuantizeAlgorithm>('median-cut');
-  readonly colorPoolId = signal<ColorPoolId>('any');
+  readonly samplingMode = signal<SamplingMode>(this.settingsService.settings().defaultSamplingMode);
+  readonly maxColors = signal<number>(this.settingsService.settings().defaultMaxColors);
+  readonly quantizeAlgorithm = signal<QuantizeAlgorithm>(this.settingsService.settings().defaultQuantizeAlgorithm);
+  readonly colorPoolId = signal<ColorPoolId>(this.settingsService.settings().defaultColorPool);
 
   // Image pan/zoom state
   private readonly imageOffsetX = signal(0);

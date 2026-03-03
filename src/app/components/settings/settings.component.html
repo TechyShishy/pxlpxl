@@ -1,0 +1,168 @@
+<mat-toolbar class="settings-toolbar safe-area-top">
+  <button
+    mat-icon-button
+    matTooltip="Back to editor"
+    (click)="goBack()"
+    aria-label="Back to editor"
+  >
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <span class="settings-title">Settings</span>
+</mat-toolbar>
+
+<main class="settings-main" [formGroup]="form">
+
+  <!-- ── Appearance ─────────────────────────────────────────────── -->
+  <section class="settings-section">
+    <h2 class="section-heading">Appearance</h2>
+
+    <mat-form-field appearance="fill" class="settings-field">
+      <mat-label>Theme</mat-label>
+      <mat-select formControlName="theme">
+        <mat-option value="dark">Dark</mat-option>
+        <mat-option value="light">Light</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </section>
+
+  <mat-divider></mat-divider>
+
+  <!-- ── Colors ─────────────────────────────────────────────────── -->
+  <section class="settings-section">
+    <h2 class="section-heading">Colors</h2>
+
+    <mat-form-field appearance="fill" class="settings-field">
+      <mat-label>Default color pool</mat-label>
+      <mat-select formControlName="defaultColorPool">
+        <mat-option value="any">Any (Unrestricted)</mat-option>
+        <mat-option value="delica">Miyuki Delica beads</mat-option>
+      </mat-select>
+      <mat-hint>Controls the color palette used for quantization during import and export.</mat-hint>
+    </mat-form-field>
+  </section>
+
+  <mat-divider></mat-divider>
+
+  <!-- ── New Project Defaults ───────────────────────────────────── -->
+  <section class="settings-section">
+    <h2 class="section-heading">New Project Defaults</h2>
+
+    <mat-form-field appearance="fill" class="settings-field">
+      <mat-label>Default grid type</mat-label>
+      <mat-select formControlName="defaultGridType">
+        <mat-option value="square">Square</mat-option>
+        <mat-option value="peyote">Peyote (bead)</mat-option>
+        <mat-option value="triangular">Triangular</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    @if (form.get('defaultGridType')!.value !== 'triangular') {
+      <div class="settings-row">
+        <mat-form-field appearance="fill" class="settings-field settings-field--half">
+          <mat-label>Width (pixels)</mat-label>
+          <input matInput type="number" min="1" max="512" formControlName="defaultWidth" />
+        </mat-form-field>
+
+        <mat-form-field appearance="fill" class="settings-field settings-field--half">
+          <mat-label>Height (pixels)</mat-label>
+          <input matInput type="number" min="1" max="512" formControlName="defaultHeight" />
+        </mat-form-field>
+      </div>
+    }
+
+    @if (form.get('defaultGridType')!.value === 'triangular') {
+      <div class="settings-row">
+        <mat-form-field appearance="fill" class="settings-field settings-field--half">
+          <mat-label>First-row width (A)</mat-label>
+          <input matInput type="number" min="1" formControlName="defaultTriangularA" />
+        </mat-form-field>
+
+        <mat-form-field appearance="fill" class="settings-field settings-field--half">
+          <mat-label>Rows</mat-label>
+          <input matInput type="number" min="1" formControlName="defaultTriangularRows" />
+        </mat-form-field>
+      </div>
+
+      <p class="settings-sublabel">Per-row growth: <code>D = dNum / dDen</code></p>
+      <div class="settings-row">
+        <mat-form-field appearance="fill" class="settings-field settings-field--third">
+          <mat-label>D numerator</mat-label>
+          <input matInput type="number" min="1" formControlName="defaultTriangularDNum" />
+        </mat-form-field>
+
+        <mat-form-field appearance="fill" class="settings-field settings-field--third">
+          <mat-label>D denominator</mat-label>
+          <input matInput type="number" min="1" formControlName="defaultTriangularDDen" />
+        </mat-form-field>
+
+        @if (form.get('defaultTriangularDNum')!.value < form.get('defaultTriangularDDen')!.value) {
+          <mat-form-field appearance="fill" class="settings-field settings-field--third">
+            <mat-label>Phase shift</mat-label>
+            <input matInput type="number" min="0" formControlName="defaultTriangularShift" />
+          </mat-form-field>
+        }
+      </div>
+    }
+  </section>
+
+  <mat-divider></mat-divider>
+
+  <!-- ── Editor Defaults ────────────────────────────────────────── -->
+  <section class="settings-section">
+    <h2 class="section-heading">Editor Defaults</h2>
+
+    <div class="settings-toggles">
+      <mat-slide-toggle formControlName="defaultShowGrid" color="primary">
+        Show grid by default
+      </mat-slide-toggle>
+
+      <mat-slide-toggle formControlName="defaultShowRulers" color="primary">
+        Show rulers by default
+      </mat-slide-toggle>
+    </div>
+  </section>
+
+  <mat-divider></mat-divider>
+
+  <!-- ── Import ─────────────────────────────────────────────────── -->
+  <section class="settings-section">
+    <h2 class="section-heading">Import</h2>
+
+    <div class="settings-row">
+      <mat-form-field appearance="fill" class="settings-field settings-field--half">
+        <mat-label>Default sampling mode</mat-label>
+        <mat-select formControlName="defaultSamplingMode">
+          <mat-option value="nearest">Nearest neighbour</mat-option>
+          <mat-option value="area">Area average</mat-option>
+        </mat-select>
+        <mat-hint>How pixels are sampled when resizing the imported image.</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="fill" class="settings-field settings-field--quarter">
+        <mat-label>Default max colors</mat-label>
+        <input matInput type="number" min="2" max="256" formControlName="defaultMaxColors" />
+        <mat-hint>Palette size limit after quantization.</mat-hint>
+      </mat-form-field>
+    </div>
+
+    <mat-form-field appearance="fill" class="settings-field settings-field--half">
+      <mat-label>Default quantize algorithm</mat-label>
+      <mat-select formControlName="defaultQuantizeAlgorithm">
+        <mat-option value="median-cut">Median cut</mat-option>
+        <mat-option value="k-means">K-means</mat-option>
+      </mat-select>
+      <mat-hint>Algorithm used to reduce the image to the max color count.</mat-hint>
+    </mat-form-field>
+  </section>
+
+  <mat-divider></mat-divider>
+
+  <!-- ── Reset ──────────────────────────────────────────────────── -->
+  <section class="settings-section settings-section--actions">
+    <button mat-stroked-button color="warn" (click)="resetToDefaults()">
+      <mat-icon>restart_alt</mat-icon>
+      Reset to defaults
+    </button>
+  </section>
+
+</main>
