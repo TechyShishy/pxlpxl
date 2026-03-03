@@ -12,6 +12,9 @@
       aria-hidden="true"
     ></span
     >{{ colorService.primaryColorHexShort() }}
+    @if (primaryColorPixelCount() > 0) {
+      <span class="color-pixel-count">{{ primaryColorPixelCount() }} px</span>
+    }
     @if (colorService.primaryColorDbCode()) {
       <span class="color-db-code">{{ colorService.primaryColorDbCode() }}</span>
     }
