@@ -22,24 +22,48 @@
           <input
             matInput
             type="number"
-            [(ngModel)]="width"
+            [ngModel]="width"
+            (ngModelChange)="onWidthChange($event)"
             [min]="1"
             aria-label="Canvas width in pixels"
           />
           <span matSuffix>px</span>
         </mat-form-field>
 
+        <button
+          mat-icon-button
+          class="ar-lock-btn"
+          type="button"
+          (click)="toggleAspectRatioLock()"
+          [matTooltip]="aspectRatioLocked() ? 'Unlock aspect ratio' : 'Lock aspect ratio'"
+          [attr.aria-label]="aspectRatioLocked() ? 'Unlock aspect ratio' : 'Lock aspect ratio'"
+          [attr.aria-pressed]="aspectRatioLocked() ? 'true' : 'false'"
+        >
+          @if (aspectRatioLocked()) {
+            <mat-icon>lock</mat-icon>
+          } @else {
+            <mat-icon>lock_open</mat-icon>
+          }
+        </button>
+
         <mat-form-field appearance="outline">
           <mat-label>Height</mat-label>
           <input
             matInput
             type="number"
-            [(ngModel)]="height"
+            [ngModel]="height"
+            (ngModelChange)="onHeightChange($event)"
             [min]="1"
             aria-label="Canvas height in pixels"
           />
           <span matSuffix>px</span>
         </mat-form-field>
+      </div>
+      <div class="dimension-controls">
+        <button mat-stroked-button type="button" (click)="swapDimensions()" aria-label="Swap width and height">
+          <mat-icon>swap_horiz</mat-icon>
+          Swap orientation
+        </button>
       </div>
     }
 
@@ -50,22 +74,46 @@
           <input
             matInput
             type="number"
-            [(ngModel)]="width"
+            [ngModel]="width"
+            (ngModelChange)="onWidthChange($event)"
             [min]="1"
             aria-label="Number of bead columns"
           />
         </mat-form-field>
+
+        <button
+          mat-icon-button
+          class="ar-lock-btn"
+          type="button"
+          (click)="toggleAspectRatioLock()"
+          [matTooltip]="aspectRatioLocked() ? 'Unlock aspect ratio' : 'Lock aspect ratio'"
+          [attr.aria-label]="aspectRatioLocked() ? 'Unlock aspect ratio' : 'Lock aspect ratio'"
+          [attr.aria-pressed]="aspectRatioLocked() ? 'true' : 'false'"
+        >
+          @if (aspectRatioLocked()) {
+            <mat-icon>lock</mat-icon>
+          } @else {
+            <mat-icon>lock_open</mat-icon>
+          }
+        </button>
 
         <mat-form-field appearance="outline">
           <mat-label>Rows</mat-label>
           <input
             matInput
             type="number"
-            [(ngModel)]="height"
+            [ngModel]="height"
+            (ngModelChange)="onHeightChange($event)"
             [min]="1"
             aria-label="Number of bead rows"
           />
         </mat-form-field>
+      </div>
+      <div class="dimension-controls">
+        <button mat-stroked-button type="button" (click)="swapDimensions()" aria-label="Swap columns and rows">
+          <mat-icon>swap_horiz</mat-icon>
+          Swap orientation
+        </button>
       </div>
     }
 

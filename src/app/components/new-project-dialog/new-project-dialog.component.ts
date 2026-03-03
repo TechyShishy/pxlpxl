@@ -1,9 +1,11 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { FormsModule } from '@angular/forms';
 import { GridType, triangularRowWidth, DEFAULT_PALETTE } from '../../models';
 import type { Color } from '../../models';
@@ -29,9 +31,11 @@ export interface NewProjectDialogResult {
   imports: [
     MatDialogModule,
     MatButtonModule,
+    MatIconModule,
     MatInputModule,
     MatFormFieldModule,
     MatSelectModule,
+    MatTooltipModule,
     FormsModule,
   ],
   templateUrl: './new-project-dialog.component.html',
@@ -51,6 +55,9 @@ export class NewProjectDialogComponent {
   width = this.settingsService.settings().defaultWidth;
   height = this.settingsService.settings().defaultHeight;
   gridType: GridType = this.settingsService.settings().defaultGridType;
+
+  readonly aspectRatioLocked = signal(false);
+  private readonly lockedRatio = signal<number | null>(null);
   triangularA = this.settingsService.settings().defaultTriangularA;
   triangularD = 2;
   triangularDNum = this.settingsService.settings().defaultTriangularDNum;
@@ -63,9 +70,49 @@ export class NewProjectDialogComponent {
     return Math.max(0, this.triangularDDen - 1);
   }
 
+  toggleAspectRatioLock(): void {
+    const locked = !this.aspectRatioLocked();
+    this.aspectRatioLocked.set(locked);
+    if (locked && this.height > 0) {
+      this.lockedRatio.set(this.width / this.height);
+    } else {
+      this.lockedRatio.set(null);
+    }
+  }
+
+  onWidthChange(value: number | string | null): void {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 1) return;
+    this.width = n;
+    const ratio = this.lockedRatio();
+    if (this.aspectRatioLocked() && ratio !== null) {
+      this.height = Math.max(1, Math.round(n / ratio));
+    }
+  }
+
+  onHeightChange(value: number | string | null): void {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 1) return;
+    this.height = n;
+    const ratio = this.lockedRatio();
+    if (this.aspectRatioLocked() && ratio !== null) {
+      this.width = Math.max(1, Math.round(n * ratio));
+    }
+  }
+
+  swapDimensions(): void {
+    [this.width, this.height] = [this.height, this.width];
+    if (this.aspectRatioLocked() && this.height > 0) {
+      this.lockedRatio.set(this.width / this.height);
+    }
+  }
+
   setPreset(w: number, h: number): void {
     this.width = w;
     this.height = h;
+    if (this.aspectRatioLocked() && h > 0) {
+      this.lockedRatio.set(w / h);
+    }
   }
 
   setTriangularPreset(a: number, dNum: number, dDen: number, rows: number, shift: number = 0): void {

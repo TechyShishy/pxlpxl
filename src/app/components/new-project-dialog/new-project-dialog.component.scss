@@ -1,3 +1,5 @@
+@use '../../../styles/variables' as vars;
+
 .new-project-form {
   display: flex;
   flex-direction: column;
@@ -7,11 +9,23 @@
 
 .dimensions {
   display: flex;
-  gap: 16px;
+  align-items: center;
+  gap: vars.$touch-target-spacing;
 }
 
 .dimensions mat-form-field {
   flex: 1;
+}
+
+.ar-lock-btn {
+  flex-shrink: 0;
+}
+
+.dimension-controls {
+  $s: vars.$touch-target-spacing;
+  display: flex;
+  gap: $s;
+  margin-top: -$s;
 }
 
 .presets {
