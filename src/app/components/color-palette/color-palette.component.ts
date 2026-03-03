@@ -37,7 +37,6 @@ export class ColorPaletteComponent {
   private dragStartPos: { x: number; y: number } | null = null;
 
   protected primaryColorRgba = () => colorToRgba(this.colorService.primaryColor());
-  protected secondaryColorRgba = () => colorToRgba(this.colorService.secondaryColor());
 
   protected toRgba(color: Color): string {
     return colorToRgba(color);

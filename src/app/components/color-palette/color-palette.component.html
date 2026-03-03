@@ -7,20 +7,6 @@
       aria-label="Primary color"
     ></button>
     <button
-      class="color-preview secondary"
-      [style.background]="secondaryColorRgba()"
-      matTooltip="Secondary color"
-      aria-label="Secondary color"
-    ></button>
-    <button
-      mat-icon-button
-      matTooltip="Swap colors"
-      (click)="colorService.swapColors()"
-      aria-label="Swap primary and secondary colors"
-    >
-      <mat-icon>swap_horiz</mat-icon>
-    </button>
-    <button
       mat-icon-button
       matTooltip="Add current primary color to palette"
       (click)="addSwatch()"
@@ -44,7 +30,6 @@
         [style.background]="toRgba(color)"
         [class.selected]="isSelected(color)"
         (click)="colorService.setPrimaryColor(color)"
-        (dblclick)="colorService.setSecondaryColor(color)"
         (pointerdown)="onSwatchPointerDown($event, $index)"
         (pointermove)="onSwatchPointerMove($event)"
         (pointerup)="onSwatchPointerUp()"
