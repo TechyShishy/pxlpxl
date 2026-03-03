@@ -78,6 +78,10 @@ export class CanvasViewportComponent implements OnDestroy {
   private cursorY = -1;
   private previewPixels: PixelCoord[] = [];
   private previewColor: Color | undefined;
+  /** Snapshot of the active layer buffer taken at the start of each draw stroke.
+   * Used to revert the buffer cleanly when a two-finger pan cancels the stroke. */
+  private strokeSnapshot: Uint8ClampedArray | null = null;
+  private strokeLayerIndex = -1;
 
   /** Previous value of showClones for edge detection in effect. */
   private previousShowClones = this.canvasState.showClones();
@@ -343,7 +347,12 @@ export class CanvasViewportComponent implements OnDestroy {
   // --- Pointer event handlers ---
 
   onPointerDown(e: PointerEvent): void {
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // Synthetic events (e.g. in tests) may not be in the active pointer list;
+      // swallow the error so gesture handling still proceeds.
+    }
     const rect = this.canvasRef().nativeElement.getBoundingClientRect();
     this.gestureService.handlePointerDown(e, rect);
   }
@@ -430,7 +439,7 @@ export class CanvasViewportComponent implements OnDestroy {
     this.requestRender();
   }
 
-  private handleDraw(screenX: number, screenY: number, phase: 'start' | 'move' | 'end', shiftKey = false): void {
+  private handleDraw(screenX: number, screenY: number, phase: 'start' | 'move' | 'end' | 'cancel', shiftKey = false): void {
     const tool = this.toolService.activeTool;
     if (!tool) return;
 
@@ -438,10 +447,10 @@ export class CanvasViewportComponent implements OnDestroy {
     const rect = canvas.getBoundingClientRect();
     const pixel = this.canvasState.screenToPixel(screenX, screenY, rect);
 
-    // For 'end' phase we must always call onPointerUp to finalise the
-    // command, even when the pointer is over a gap or outside the grid.
-    // For 'start'/'move' we need a valid pixel coordinate.
-    if (!pixel && phase !== 'end') return;
+    // For 'end'/'cancel' we must always call onPointerUp to finalise the
+    // command (or revert it), even when the pointer is over a gap or outside
+    // the grid. For 'start'/'move' we need a valid pixel coordinate.
+    if (!pixel && phase !== 'end' && phase !== 'cancel') return;
 
     const activeLayer = this.layerService.activeLayer();
     if (!activeLayer) return;
@@ -478,6 +487,10 @@ export class CanvasViewportComponent implements OnDestroy {
     let result;
     switch (phase) {
       case 'start':
+        // Snapshot the layer buffer BEFORE any mutations so we can restore it
+        // cleanly if a two-finger pan cancels this stroke.
+        this.strokeSnapshot = new Uint8ClampedArray(activeLayer.data);
+        this.strokeLayerIndex = ctx.layerIndex;
         result = tool.onPointerDown(ctx, activeLayer.data);
         this.previewPixels = tool.getPreview?.() ?? [];
         this.previewColor = ctx.isSecondary ? ctx.secondaryColor : ctx.primaryColor;
@@ -487,6 +500,21 @@ export class CanvasViewportComponent implements OnDestroy {
         this.previewPixels = tool.getPreview?.() ?? [];
         this.previewColor = ctx.isSecondary ? ctx.secondaryColor : ctx.primaryColor;
         break;
+      case 'cancel': {
+        // Two-finger gesture started mid-stroke: revert ALL buffer mutations
+        // made since 'start' by restoring the pre-stroke snapshot.
+        // Drain the tool's internal state without committing anything to history.
+        tool.onPointerUp(ctx, activeLayer.data);
+        if (this.strokeSnapshot && this.strokeLayerIndex === ctx.layerIndex) {
+          activeLayer.data.set(this.strokeSnapshot);
+        }
+        this.strokeSnapshot = null;
+        this.strokeLayerIndex = -1;
+        this.previewPixels = [];
+        this.previewColor = undefined;
+        this.requestRender();
+        return;
+      }
       case 'end':
         result = tool.onPointerUp(ctx, activeLayer.data);
         this.previewPixels = [];
@@ -569,6 +597,13 @@ export class CanvasViewportComponent implements OnDestroy {
           }
         }
         break;
+    }
+
+    // Clear stroke snapshot after every committed phase (start, move, end).
+    // The 'cancel' path returns early and clears it there.
+    if (phase === 'end') {
+      this.strokeSnapshot = null;
+      this.strokeLayerIndex = -1;
     }
 
     this.requestRender();

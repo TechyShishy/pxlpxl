@@ -33,7 +33,7 @@ export class GestureService {
   private hasPanCenter = false;
 
   /** Callbacks set by the canvas viewport */
-  onDraw: ((x: number, y: number, phase: 'start' | 'move' | 'end', shiftKey: boolean) => void) | null = null;
+  onDraw: ((x: number, y: number, phase: 'start' | 'move' | 'end' | 'cancel', shiftKey: boolean) => void) | null = null;
   onPinch: ((scaleDelta: number, centerX: number, centerY: number) => void) | null = null;
   onPan: ((deltaX: number, deltaY: number) => void) | null = null;
   onLongPress: ((screenX: number, screenY: number) => void) | null = null;
@@ -65,14 +65,14 @@ export class GestureService {
       this.gestureState.set(GestureState.Drawing);
       this.onDraw?.(e.clientX, e.clientY, 'start', e.shiftKey);
     } else if (this.pointers.size === 2) {
-      // Flush any in-progress draw stroke before switching to pinch/pan.
-      // Without this, the buffer mutations from onPointerMove are applied
-      // visually but onPointerUp is never called, so no DrawCommand is
-      // created and the stroke becomes non-undoable.
+      // Cancel any in-progress draw stroke before switching to pinch/pan.
+      // Instead of committing the stroke (which would paint pixels the user
+      // never intended — they just wanted to pan), we issue a 'cancel' so
+      // the viewport can revert buffer mutations without pushing to history.
       if (this.gestureState() === GestureState.Drawing) {
         const firstPointer = [...this.pointers.values()].find((p) => p.id !== e.pointerId);
         if (firstPointer) {
-          this.onDraw?.(firstPointer.currentX, firstPointer.currentY, 'end', false);
+          this.onDraw?.(firstPointer.currentX, firstPointer.currentY, 'cancel', false);
         }
       }
       // Two pointers — transition to pinch/pan

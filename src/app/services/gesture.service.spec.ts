@@ -206,7 +206,7 @@ describe('GestureService', () => {
       expect(panSpy).not.toHaveBeenCalled();
     });
 
-    it('should flush an active draw stroke when a second pointer lands', () => {
+    it('should cancel an active draw stroke when a second pointer lands', () => {
       const drawSpy = vi.fn();
       service.onDraw = drawSpy;
 
@@ -220,17 +220,18 @@ describe('GestureService', () => {
       );
       drawSpy.mockClear();
 
-      // Finger 2 lands mid-stroke — should automatically flush with 'end' at finger 1's last position
+      // Finger 2 lands mid-stroke — should cancel (not commit) the stroke at
+      // finger 1's last position so that no pixels are permanently painted.
       service.handlePointerDown(
         makePointerEvent('pointerdown', { pointerId: 2, clientX: 200, clientY: 200 }),
         CANVAS_RECT,
       );
 
-      expect(drawSpy).toHaveBeenCalledWith(65, 75, 'end', false);
+      expect(drawSpy).toHaveBeenCalledWith(65, 75, 'cancel', false);
       expect(service.gestureState()).toBe(GestureState.Pinching);
     });
 
-    it('should not call onDraw end again when fingers lift after a flushed pinch', () => {
+    it('should not call onDraw end again when fingers lift after a cancelled stroke turns into pinch', () => {
       const drawSpy = vi.fn();
       service.onDraw = drawSpy;
 
