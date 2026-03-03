@@ -347,6 +347,7 @@ export function createDefaultProject(
   triangularDNum?: number,
   triangularDDen?: number,
   triangularShift?: number,
+  palette?: Color[],
 ): Project {
   const pixelCount = computeBufferPixelCount(width, height, gridType, triangularA, triangularD, triangularDNum, triangularDDen, triangularShift);
   return {
@@ -368,7 +369,7 @@ export function createDefaultProject(
         data: Array.from(new Uint8ClampedArray(pixelCount * 4)),
       },
     ],
-    palette: [...DEFAULT_PALETTE],
+    palette: palette ? [...palette] : [...DEFAULT_PALETTE],
     createdAt: new Date(),
     updatedAt: new Date(),
   };

@@ -9,6 +9,7 @@ import {
   DEFAULT_PALETTE,
   computeBufferPixelCount,
 } from '../models';
+import type { Color } from '../models';
 import { CanvasStateService } from './canvas-state.service';
 import { LayerService } from './layer.service';
 import { ColorService } from './color.service';
@@ -41,6 +42,7 @@ export class ProjectService {
     triangularA?: number, triangularD?: number,
     triangularDNum?: number, triangularDDen?: number,
     triangularShift?: number,
+    palette?: Color[],
   ): void {
     this.currentProjectId = undefined;
     this.currentProjectName.set(name);
@@ -56,7 +58,7 @@ export class ProjectService {
     this.layerService.initLayers(
       this.canvasState.bufferWidth(), this.canvasState.bufferHeight(), pixelCount,
     );
-    this.colorService.setPalette([...DEFAULT_PALETTE]);
+    this.colorService.setPalette(palette ? [...palette] : [...DEFAULT_PALETTE]);
     this.historyService.clear();
     this.canvasState.resetZoom();
   }

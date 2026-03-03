@@ -5,8 +5,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
-import { GridType, triangularRowWidth } from '../../models';
+import { GridType, triangularRowWidth, DEFAULT_PALETTE } from '../../models';
+import type { Color } from '../../models';
 import { SettingsService } from '../../services/settings.service';
+import { ColorPoolId, DEFAULT_DELICA_PALETTE } from '../../utils/color-pools';
 
 export interface NewProjectDialogResult {
   name: string;
@@ -18,6 +20,7 @@ export interface NewProjectDialogResult {
   triangularDNum?: number;
   triangularDDen?: number;
   triangularShift?: number;
+  colorPool?: Color[];
 }
 
 @Component({
@@ -38,7 +41,13 @@ export class NewProjectDialogComponent {
   private readonly dialogRef = inject(MatDialogRef<NewProjectDialogComponent>);
   private readonly settingsService = inject(SettingsService);
 
+  readonly poolOptions: Array<{ id: ColorPoolId; label: string }> = [
+    { id: 'any', label: 'Default' },
+    { id: 'delica', label: 'Delica' },
+  ];
+
   name = 'Untitled';
+  selectedPoolId: ColorPoolId = this.settingsService.defaultColorPool();
   width = this.settingsService.settings().defaultWidth;
   height = this.settingsService.settings().defaultHeight;
   gridType: GridType = this.settingsService.settings().defaultGridType;
@@ -93,6 +102,7 @@ export class NewProjectDialogComponent {
       triangularDNum: this.isTriangularType ? this.triangularDNum : undefined,
       triangularDDen: this.isTriangularType ? this.triangularDDen : undefined,
       triangularShift: this.isTriangularType ? this.triangularShift : undefined,
+      colorPool: this.selectedPoolId === 'delica' ? [...DEFAULT_DELICA_PALETTE] : [...DEFAULT_PALETTE],
     };
     this.dialogRef.close(result);
   }
