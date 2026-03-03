@@ -155,6 +155,106 @@ describe('GestureService', () => {
       service.handlePointerUp(makePointerEvent('pointerup', { pointerId: 2, clientX: 200, clientY: 200 }));
       expect(service.gestureState()).toBe(GestureState.Panning);
     });
+
+    it('should call onPan with centroid delta when both fingers translate', () => {
+      const panSpy = vi.fn();
+      service.onPan = panSpy;
+
+      // Fingers at (0,0) and (100,0) — centroid = (50,0)
+      service.handlePointerDown(makePointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0 }), CANVAS_RECT);
+      service.handlePointerDown(makePointerEvent('pointerdown', { pointerId: 2, clientX: 100, clientY: 0 }), CANVAS_RECT);
+      // Both fingers translate right by 10px — centroid moves from (50,0) to (60,0)
+      service.handlePointerMove(makePointerEvent('pointermove', { pointerId: 1, clientX: 10, clientY: 0 }));
+      service.handlePointerMove(makePointerEvent('pointermove', { pointerId: 2, clientX: 110, clientY: 0 }));
+
+      expect(panSpy).toHaveBeenCalled();
+      // Sum of dx across both moves should equal 10
+      const totalDx = (panSpy.mock.calls as [number, number][]).reduce((sum, [dx]) => sum + dx, 0);
+      expect(totalDx).toBeCloseTo(10, 5);
+    });
+
+    it('should fire onPan and onPinch independently on the same move', () => {
+      const panSpy = vi.fn();
+      const pinchSpy = vi.fn();
+      service.onPan = panSpy;
+      service.onPinch = pinchSpy;
+
+      // Fingers symmetrically placed at (0,0) and (100,0) — centroid = (50,0)
+      service.handlePointerDown(makePointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0 }), CANVAS_RECT);
+      service.handlePointerDown(makePointerEvent('pointerdown', { pointerId: 2, clientX: 100, clientY: 0 }), CANVAS_RECT);
+      // Move one finger out (pinch-out) AND shift both fingers right (pan right)
+      service.handlePointerMove(makePointerEvent('pointermove', { pointerId: 2, clientX: 200, clientY: 0 }));
+
+      expect(pinchSpy).toHaveBeenCalled();
+      expect(panSpy).toHaveBeenCalled();
+      // Centroid shifted from 50 to 100, so pan dx = 50
+      const [dx] = panSpy.mock.calls[0] as [number, number];
+      expect(dx).toBeCloseTo(50, 5);
+    });
+
+    it('should not call onPan when both fingers repeat their current positions', () => {
+      const panSpy = vi.fn();
+      service.onPan = panSpy;
+
+      // Fingers at (0,0) and (100,0) — centroid = (50,0)
+      service.handlePointerDown(makePointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0 }), CANVAS_RECT);
+      service.handlePointerDown(makePointerEvent('pointerdown', { pointerId: 2, clientX: 100, clientY: 0 }), CANVAS_RECT);
+      // Both fingers report their existing positions — centroid unchanged, no pan delta
+      service.handlePointerMove(makePointerEvent('pointermove', { pointerId: 1, clientX: 0, clientY: 0 }));
+      service.handlePointerMove(makePointerEvent('pointermove', { pointerId: 2, clientX: 100, clientY: 0 }));
+
+      expect(panSpy).not.toHaveBeenCalled();
+    });
+
+    it('should flush an active draw stroke when a second pointer lands', () => {
+      const drawSpy = vi.fn();
+      service.onDraw = drawSpy;
+
+      // Start drawing with finger 1 and move it
+      service.handlePointerDown(
+        makePointerEvent('pointerdown', { pointerId: 1, clientX: 50, clientY: 60 }),
+        CANVAS_RECT,
+      );
+      service.handlePointerMove(
+        makePointerEvent('pointermove', { pointerId: 1, clientX: 65, clientY: 75 }),
+      );
+      drawSpy.mockClear();
+
+      // Finger 2 lands mid-stroke — should automatically flush with 'end' at finger 1's last position
+      service.handlePointerDown(
+        makePointerEvent('pointerdown', { pointerId: 2, clientX: 200, clientY: 200 }),
+        CANVAS_RECT,
+      );
+
+      expect(drawSpy).toHaveBeenCalledWith(65, 75, 'end', false);
+      expect(service.gestureState()).toBe(GestureState.Pinching);
+    });
+
+    it('should not call onDraw end again when fingers lift after a flushed pinch', () => {
+      const drawSpy = vi.fn();
+      service.onDraw = drawSpy;
+
+      service.handlePointerDown(
+        makePointerEvent('pointerdown', { pointerId: 1, clientX: 50, clientY: 60 }),
+        CANVAS_RECT,
+      );
+      service.handlePointerDown(
+        makePointerEvent('pointerdown', { pointerId: 2, clientX: 200, clientY: 200 }),
+        CANVAS_RECT,
+      );
+      drawSpy.mockClear(); // ignore the flush call
+
+      // Lift both fingers — state is Pinching, so no onDraw end should fire
+      service.handlePointerUp(
+        makePointerEvent('pointerup', { pointerId: 2, clientX: 200, clientY: 200 }),
+      );
+      service.handlePointerUp(
+        makePointerEvent('pointerup', { pointerId: 1, clientX: 50, clientY: 60 }),
+      );
+
+      const endCalls = (drawSpy.mock.calls as unknown[][]).filter((args) => args[2] === 'end');
+      expect(endCalls).toHaveLength(0);
+    });
   });
 
   describe('handlePointerCancel', () => {

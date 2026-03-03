@@ -28,6 +28,9 @@ export class GestureService {
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
   private initialPinchDistance = 0;
   private lastPinchDistance = 0;
+  private lastPanCenterX = 0;
+  private lastPanCenterY = 0;
+  private hasPanCenter = false;
 
   /** Callbacks set by the canvas viewport */
   onDraw: ((x: number, y: number, phase: 'start' | 'move' | 'end', shiftKey: boolean) => void) | null = null;
@@ -62,11 +65,25 @@ export class GestureService {
       this.gestureState.set(GestureState.Drawing);
       this.onDraw?.(e.clientX, e.clientY, 'start', e.shiftKey);
     } else if (this.pointers.size === 2) {
+      // Flush any in-progress draw stroke before switching to pinch/pan.
+      // Without this, the buffer mutations from onPointerMove are applied
+      // visually but onPointerUp is never called, so no DrawCommand is
+      // created and the stroke becomes non-undoable.
+      if (this.gestureState() === GestureState.Drawing) {
+        const firstPointer = [...this.pointers.values()].find((p) => p.id !== e.pointerId);
+        if (firstPointer) {
+          this.onDraw?.(firstPointer.currentX, firstPointer.currentY, 'end', false);
+        }
+      }
       // Two pointers — transition to pinch/pan
       this.cancelLongPress();
       this.gestureState.set(GestureState.Pinching);
       this.initialPinchDistance = this.getPointerDistance();
       this.lastPinchDistance = this.initialPinchDistance;
+      const panCenter = this.getPointerCenter();
+      this.lastPanCenterX = panCenter.x;
+      this.lastPanCenterY = panCenter.y;
+      this.hasPanCenter = true;
     }
   }
 
@@ -92,18 +109,27 @@ export class GestureService {
       (state === GestureState.Pinching || state === GestureState.Panning) &&
       this.pointers.size === 2
     ) {
-      // Pinch zoom
+      const center = this.getPointerCenter();
+
+      // Pinch zoom — fires when distance between fingers changes
       const dist = this.getPointerDistance();
       if (this.lastPinchDistance > 0) {
         const scaleDelta = dist / this.lastPinchDistance;
-        const center = this.getPointerCenter();
         this.onPinch?.(scaleDelta, center.x, center.y);
       }
       this.lastPinchDistance = dist;
 
-      // Pan (track midpoint movement)
-      const center = this.getPointerCenter();
-      // Pan is handled implicitly through pinch center tracking
+      // Pan — fires when centroid translates (independent of pinch)
+      if (this.hasPanCenter) {
+        const panDx = center.x - this.lastPanCenterX;
+        const panDy = center.y - this.lastPanCenterY;
+        if (panDx !== 0 || panDy !== 0) {
+          this.onPan?.(panDx, panDy);
+        }
+      }
+      this.lastPanCenterX = center.x;
+      this.lastPanCenterY = center.y;
+      this.hasPanCenter = true;
     }
   }
 
@@ -137,6 +163,7 @@ export class GestureService {
       this.gestureState.set(GestureState.Idle);
       this.initialPinchDistance = 0;
       this.lastPinchDistance = 0;
+      this.hasPanCenter = false;
     } else if (this.pointers.size === 1) {
       // Went from 2 pointers to 1 — don't restart drawing
       this.gestureState.set(GestureState.Panning);
@@ -166,6 +193,7 @@ export class GestureService {
     this.gestureState.set(GestureState.Idle);
     this.initialPinchDistance = 0;
     this.lastPinchDistance = 0;
+    this.hasPanCenter = false;
   }
 
   private recordTap(x: number, y: number): void {

@@ -54,9 +54,6 @@ export class CanvasViewportComponent implements OnDestroy {
 
   protected get activeCursor(): string {
     const tool = this.toolService.activeTool;
-    if (tool?.type === ToolType.Pan) {
-      return this.isPanning ? 'grabbing' : 'grab';
-    }
     return tool?.cursor ?? 'crosshair';
   }
 
@@ -82,11 +79,6 @@ export class CanvasViewportComponent implements OnDestroy {
   private previewPixels: PixelCoord[] = [];
   private previewColor: Color | undefined;
 
-  /** Tracks the last raw screen position during a pan-tool drag. */
-  private panLastX = 0;
-  private panLastY = 0;
-  private isPanning = false;
-
   /** Previous value of showClones for edge detection in effect. */
   private previousShowClones = this.canvasState.showClones();
 
@@ -94,6 +86,7 @@ export class CanvasViewportComponent implements OnDestroy {
     // Set up gesture callbacks
     this.gestureService.onDraw = (x, y, phase, shiftKey) => this.handleDraw(x, y, phase, shiftKey);
     this.gestureService.onPinch = (scaleDelta, cx, cy) => this.handlePinch(scaleDelta);
+    this.gestureService.onPan = (dx, dy) => this.canvasState.pan(dx, dy);
     this.gestureService.onEdgeSwipe = (dir) => this.handleEdgeSwipe(dir);
     this.gestureService.onDoubleTap = () => this.handleTapRotate('cw');
     this.gestureService.onTripleTap = () => this.handleTapRotate('ccw');
@@ -175,6 +168,7 @@ export class CanvasViewportComponent implements OnDestroy {
     // Null out gesture callbacks to release component reference
     this.gestureService.onDraw = null;
     this.gestureService.onPinch = null;
+    this.gestureService.onPan = null;
     this.gestureService.onEdgeSwipe = null;
     this.gestureService.onDoubleTap = null;
     this.gestureService.onTripleTap = null;
@@ -440,12 +434,6 @@ export class CanvasViewportComponent implements OnDestroy {
     const tool = this.toolService.activeTool;
     if (!tool) return;
 
-    // Pan tool operates entirely in screen space — bypass pixel mapping.
-    if (tool.type === ToolType.Pan) {
-      this.handlePanDraw(screenX, screenY, phase);
-      return;
-    }
-
     const canvas = this.canvasRef().nativeElement;
     const rect = canvas.getBoundingClientRect();
     const pixel = this.canvasState.screenToPixel(screenX, screenY, rect);
@@ -584,27 +572,6 @@ export class CanvasViewportComponent implements OnDestroy {
     }
 
     this.requestRender();
-  }
-
-  private handlePanDraw(screenX: number, screenY: number, phase: 'start' | 'move' | 'end'): void {
-    switch (phase) {
-      case 'start':
-        this.panLastX = screenX;
-        this.panLastY = screenY;
-        this.isPanning = true;
-        break;
-      case 'move': {
-        const dx = screenX - this.panLastX;
-        const dy = screenY - this.panLastY;
-        this.canvasState.pan(dx, dy);
-        this.panLastX = screenX;
-        this.panLastY = screenY;
-        break;
-      }
-      case 'end':
-        this.isPanning = false;
-        break;
-    }
   }
 
   private handlePinch(scaleDelta: number): void {

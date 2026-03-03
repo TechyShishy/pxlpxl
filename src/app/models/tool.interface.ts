@@ -58,7 +58,6 @@ export enum ToolType {
   Fill = 'fill',
   Eyedropper = 'eyedropper',
   Move = 'move',
-  Pan = 'pan',
   Rotate = 'rotate',
 }
 
