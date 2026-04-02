@@ -139,9 +139,10 @@ describe('ImportPngDialogComponent', () => {
     };
 
     try {
-      // 4-column peyote: bufferWidth=2, bufferHeight=4, pixelCount=8
+      // 4 visual columns, 2 visual bead rows: canvasWidth = bufferWidth = 2 (column-pair count),
+      // bufferHeight = 4 (interleaved rows), bufferPixelCount = 8.
       const data = makeDialogData({
-        canvasWidth: 4,
+        canvasWidth: 2,
         canvasHeight: 4,
         gridType: 'peyote',
         bufferWidth: 2,
@@ -247,6 +248,81 @@ describe('ImportPngDialogComponent', () => {
         (component as unknown as { onImport: () => void }).onImport();
         const [result] = closeSpy.mock.calls[0] as [ImportPngResult];
         expect(result.palette.length).toBeLessThanOrEqual(1);
+      } finally {
+        restore();
+      }
+    });
+  });
+
+  describe('peyote grid import (new buffer model: canvasWidth = bufferWidth)', () => {
+    function setupPeyoteWithOffscreen(overrides: Partial<ImportPngDialogData> = {}) {
+      const originalOffscreen = (globalThis as Record<string, unknown>)['OffscreenCanvas'];
+      const mockCtx = {
+        imageSmoothingEnabled: false,
+        drawImage: vi.fn(),
+        getImageData: vi.fn((_x: number, _y: number, w: number, h: number) => ({
+          data: new Uint8ClampedArray(w * h * 4).fill(255),
+          width: w,
+          height: h,
+        })),
+      };
+      let createdWidth = 0;
+      (globalThis as Record<string, unknown>)['OffscreenCanvas'] = class {
+        constructor(public width: number, public height: number) {
+          createdWidth = width;
+        }
+        getContext() { return mockCtx; }
+      };
+
+      // New-model peyote: canvasWidth = bufferWidth = 2 (two column-pairs → 4 visual columns).
+      // bufferHeight = 4 (interleaved rows for 2 visual bead rows).
+      const data = makeDialogData({
+        canvasWidth: 2,
+        canvasHeight: 4,
+        gridType: 'peyote',
+        bufferWidth: 2,
+        bufferHeight: 4,
+        bufferPixelCount: 8,
+        ...overrides,
+      });
+
+      const result = setup(data);
+      return {
+        ...result,
+        mockCtx,
+        getCreatedWidth: () => createdWidth,
+        restore: () => {
+          (globalThis as Record<string, unknown>)['OffscreenCanvas'] = originalOffscreen;
+        },
+      };
+    }
+
+    it('should size the offscreen canvas to bufferWidth*2 wide (visual columns)', () => {
+      const { restore, getCreatedWidth, component } = setupPeyoteWithOffscreen();
+      try {
+        // Trigger produceLayerData via onImport
+        (component as unknown as { onImport: () => void }).onImport();
+        // gridVisualW must be bufferWidth * 2 = 4, so the offscreen canvas width = round(4) = 4
+        expect(getCreatedWidth()).toBe(4);
+      } finally {
+        restore();
+      }
+    });
+
+    it('should populate all buffer pixels (no pixels skipped by wrong guard)', () => {
+      const { restore, component, closeSpy } = setupPeyoteWithOffscreen();
+      try {
+        (component as unknown as { onImport: () => void }).onImport();
+        const [result] = closeSpy.mock.calls[0] as [ImportPngResult];
+        // All 8 pixels × 4 bytes.  Source is all-white (alpha=255), so every pixel
+        // should have non-zero alpha.  With the visual-width bug, bx=1 (col 2 & 3)
+        // is skipped, leaving 4 pixels as zero.
+        const alphas: number[] = [];
+        for (let i = 3; i < result.buffer.length; i += 4) {
+          alphas.push(result.buffer[i]);
+        }
+        expect(alphas).toHaveLength(8);
+        expect(alphas.every((a) => a > 0)).toBe(true);
       } finally {
         restore();
       }

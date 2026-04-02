@@ -26,9 +26,9 @@ import { SettingsService } from '../../services/settings.service';
 /** Data passed into the dialog from ImportService. */
 export interface ImportPngDialogData {
   imageBitmap: ImageBitmap;
-  /** Visual canvas width (number of visual columns). */
+  /** Visual canvas width (number of visual columns). For peyote, equals bufferWidth (column-pair count); visual columns = bufferWidth * 2. */
   canvasWidth: number;
-  /** Visual canvas height (visible bead rows for peyote, rows for others). */
+  /** Visual canvas height. For peyote, equals bufferHeight (interleaved row count); visible bead rows = bufferHeight / 2. Not used in the peyote layout path — bufferHeight is used directly. */
   canvasHeight: number;
   gridType: GridType;
   bufferWidth: number;
@@ -186,9 +186,12 @@ export class ImportPngDialogComponent {
         this.gridVisualH = bufferHeight;
       }
     } else if (gridType === 'peyote') {
-      // Each buffer row alternates between even- and odd-column beads.
+      // Each buffer column pair encodes two visual columns (even and odd).
       // beadsPerColumn = bufferHeight / 2; odd columns add a half-bead visual offset.
-      this.gridVisualW = canvasWidth;
+      // bufferWidth is accessed directly (not via the destructure above) because
+      // canvasWidth == bufferWidth for peyote and using bufferWidth makes the
+      // ×2 relationship to visual columns self-documenting.
+      this.gridVisualW = this.data.bufferWidth * 2;
       this.gridVisualH = bufferHeight / 2 + 0.5;
     } else {
       this.gridVisualW = canvasWidth;
@@ -530,7 +533,7 @@ export class ImportPngDialogComponent {
         const a = buffer[off + 3];
         if (a === 0) continue;
         const { col, beadRow } = this.gridService.bufferToVisual(bx, by);
-        if (col >= this.data.canvasWidth) continue;
+        if (col >= this.data.bufferWidth * 2) continue; // unreachable for valid buffer coords
         const isOddCol = col % 2 === 1;
         const vx = col;
         const vy = beadRow + (isOddCol ? 0.5 : 0);
@@ -702,7 +705,7 @@ export class ImportPngDialogComponent {
       for (let by = 0; by < bufferHeight; by++) {
         for (let bx = 0; bx < bufferWidth; bx++) {
           const { col, beadRow } = this.gridService.bufferToVisual(bx, by);
-          if (col >= this.data.canvasWidth) continue;
+          if (col >= bufferWidth * 2) continue; // unreachable for valid buffer coords
           const isOddCol = col % 2 === 1;
           const vx = col;
           const vy = beadRow + (isOddCol ? 0.5 : 0);
