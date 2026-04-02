@@ -124,6 +124,26 @@ describe('medianCut', () => {
     const keys = result.map((c) => `${c.r},${c.g},${c.b},${c.a}`);
     expect(new Set(keys).size).toBe(result.length);
   });
+
+  it('selects the larger bucket for splitting, not the wider one', () => {
+    // 1000 near-red pixels (narrow r-range 200-229) vs 2 near-blue pixels (wide b-range 50-200).
+    // With n=3: the first split separates reds from blues (by r channel, the widest globally).
+    // Old code: picks the 2-pixel blue cluster for split #2 because it has a wider b-range.
+    //   → one of the 3 representatives is blueish.
+    // New code: picks the ~500-pixel red cluster because it is larger.
+    //   → all 3 representatives are in the red region (r > 100).
+    const reds: Color[] = Array.from({ length: 1000 }, (_, i) => ({
+      r: 200 + (i % 30), g: 0, b: 0, a: 255,
+    }));
+    const blues: Color[] = [
+      { r: 0, g: 0, b: 50, a: 255 },
+      { r: 0, g: 0, b: 200, a: 255 },
+    ];
+    const result = medianCut([...reds, ...blues], 3);
+    for (const c of result) {
+      expect(c.r).toBeGreaterThan(100);
+    }
+  });
 });
 
 // ── kMeans ────────────────────────────────────────────────────────────────────

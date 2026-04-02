@@ -129,18 +129,19 @@ export function medianCut(
 ): Color[] {
   if (n <= 0 || pixels.length === 0) return [];
   if (pixels.length <= n) {
+    const deduped = deduplicateColorList(pixels);
     if (colorPool && colorPool.length > 0) {
       const used = new Set<string>();
-      return deduplicateColorList(pixels).map((c) => {
+      return deduped.map((c) => {
         const snapped = nearestUnusedColor(c, colorPool, used);
         used.add(colorKey(snapped));
         return snapped;
       });
     }
-    return [...pixels];
+    return deduped;
   }
 
-  // Work with a deduplicated copy to keep buckets small.
+  // Deduplicate only to check whether there are already ≤ n unique colors.
   const unique = deduplicateColorList(pixels);
   if (unique.length <= n) {
     if (colorPool && colorPool.length > 0) {
@@ -154,21 +155,24 @@ export function medianCut(
     return unique;
   }
 
-  let buckets: Color[][] = [unique];
+  // Use the full pixel list (with duplicates) so bucket sizes reflect actual
+  // pixel frequency — this is the key to correct median-cut behaviour.
+  let buckets: Color[][] = [pixels];
 
   while (buckets.length < n) {
-    // Pick the bucket with the greatest range in its widest channel.
-    let splitIdx = 0;
-    let splitRange = 0;
+    // Pick the largest splittable bucket (most pixels). Frequency-aware
+    // selection ensures dense clusters get subdivided first.
+    let splitIdx = -1;
     for (let i = 0; i < buckets.length; i++) {
+      if (buckets[i].length <= 1) continue;
       const ch = widestChannel(buckets[i]);
-      const r = channelRange(buckets[i], ch);
-      if (r > splitRange) { splitRange = r; splitIdx = i; }
+      if (channelRange(buckets[i], ch) === 0) continue;
+      if (splitIdx === -1 || buckets[i].length > buckets[splitIdx].length) splitIdx = i;
     }
 
-    const bucket = buckets[splitIdx];
-    if (bucket.length <= 1 || splitRange === 0) break; // can't split further
+    if (splitIdx === -1) break; // no more splittable buckets
 
+    const bucket = buckets[splitIdx];
     const ch = widestChannel(bucket);
     const sorted = [...bucket].sort((a, b) => a[ch] - b[ch]);
     const mid = Math.floor(sorted.length / 2);

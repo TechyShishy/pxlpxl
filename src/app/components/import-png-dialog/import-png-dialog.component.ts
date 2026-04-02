@@ -457,10 +457,18 @@ export class ImportPngDialogComponent {
     const pool = getColorPool(this.colorPoolId());
 
     if (algorithm !== undefined && max > 0 && uniqueColors.length > max) {
-      const palette =
-        algorithm === 'k-means'
-          ? kMeans(uniqueColors, max, 20, pool)
-          : medianCut(uniqueColors, max, pool);
+      let palette: Color[];
+      if (algorithm === 'k-means') {
+        palette = kMeans(uniqueColors, max, 20, pool);
+      } else {
+        // Median cut needs frequency information: pass all non-transparent
+        // pixels including duplicates so bucket sizes reflect actual pixel counts.
+        const allPixels: Color[] = [];
+        for (let i = 0; i < raw.length; i += 4) {
+          if (raw[i + 3] !== 0) allPixels.push({ r: raw[i], g: raw[i + 1], b: raw[i + 2], a: raw[i + 3] });
+        }
+        palette = medianCut(allPixels, max, pool);
+      }
       return { buffer: quantizeBuffer(raw, palette), palette };
     }
 
