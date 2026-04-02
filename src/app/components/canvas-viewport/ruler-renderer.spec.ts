@@ -75,6 +75,56 @@ describe('renderColumnRuler', () => {
     });
   });
 
+  describe('peyote grid', () => {
+    it('top ruler (odd parity) labels odd peyote columns centered between visual column pairs', () => {
+      // 3 column-pairs; odd parity shows every other pair: cols 1, 3
+      // Midpoint of peyote col pc = (2*pc+1) * beadSize.width + offsetX
+      const { ctx, labels } = makeCtx(1000, 20);
+      renderColumnRuler(ctx, {
+        ...BASE_PARAMS,
+        canvasWidth: 3,
+        canvasHeight: 4,
+        gridType: 'peyote',
+        columnParity: 'odd',
+      });
+      expect(labels.map((l) => l.text)).toEqual(['1', '3']);
+      // pc=0 (col 1) → (2*0+1)*20 = 20
+      expect(labels[0].x).toBeCloseTo(20);
+      // pc=2 (col 3) → (2*2+1)*20 = 100
+      expect(labels[1].x).toBeCloseTo(100);
+    });
+
+    it('bottom ruler (even parity) labels even peyote columns centered between visual column pairs', () => {
+      // 3 column-pairs; even parity shows col 2
+      const { ctx, labels } = makeCtx(1000, 20);
+      renderColumnRuler(ctx, {
+        ...BASE_PARAMS,
+        canvasWidth: 3,
+        canvasHeight: 4,
+        gridType: 'peyote',
+        columnParity: 'even',
+      });
+      expect(labels.map((l) => l.text)).toEqual(['2']);
+      // pc=1 (col 2) → (2*1+1)*20 = 60
+      expect(labels[0].x).toBeCloseTo(60);
+    });
+
+    it('all parity labels all peyote columns at their midpoints', () => {
+      // 3 column-pairs at x=20, 60, 100
+      const { ctx, labels } = makeCtx(1000, 20);
+      renderColumnRuler(ctx, {
+        ...BASE_PARAMS,
+        canvasWidth: 3,
+        canvasHeight: 4,
+        gridType: 'peyote',
+      });
+      expect(labels.map((l) => l.text)).toEqual(['1', '2', '3']);
+      expect(labels[0].x).toBeCloseTo(20);
+      expect(labels[1].x).toBeCloseTo(60);
+      expect(labels[2].x).toBeCloseTo(100);
+    });
+  });
+
   describe('triangular even-d grid', () => {
     it('labels use the same square-grid formula (uniform spacing)', () => {
       const { ctx, labels } = makeCtx(1000, 20);

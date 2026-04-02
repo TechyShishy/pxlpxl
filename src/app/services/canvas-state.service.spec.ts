@@ -63,15 +63,15 @@ describe('CanvasStateService', () => {
     it('should update buffer width for peyote grid', () => {
       service.setCanvasSize(10, 5);
       service.setGridType('peyote');
-      // peyote bufferWidth = ceil(visualColumns / 2) = ceil(10 / 2) = 5
-      expect(service.bufferWidth()).toBe(5);
+      // peyote bufferWidth = canvasWidth (column-pair count) = 10
+      expect(service.bufferWidth()).toBe(10);
     });
 
     it('should update buffer width for peyote grid with odd columns', () => {
       service.setCanvasSize(11, 5);
       service.setGridType('peyote');
-      // ceil(11 / 2) = 6
-      expect(service.bufferWidth()).toBe(6);
+      // peyote bufferWidth = canvasWidth (column-pair count) = 11
+      expect(service.bufferWidth()).toBe(11);
     });
   });
 

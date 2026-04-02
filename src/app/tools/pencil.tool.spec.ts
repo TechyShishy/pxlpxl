@@ -7,7 +7,6 @@ function makeContext(overrides: Partial<ToolContext> = {}): ToolContext {
     layerIndex: 0,
     canvasWidth: 4,
     canvasHeight: 4,
-    visualColumns: 4,
     primaryColor: { ...BLACK },
     secondaryColor: { ...WHITE },
     isSecondary: false,
@@ -183,7 +182,6 @@ describe('PencilTool', () => {
       return makeContext({
         canvasWidth: TRI_BUF_WIDTH,
         canvasHeight: TRI_HEIGHT,
-        visualColumns: TRI_BUF_WIDTH,
         gridType: 'triangular',
         triangularA: TRI_A,
         triangularDNum: TRI_D_NUM,

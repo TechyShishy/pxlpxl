@@ -152,10 +152,10 @@ describe('Project Model', () => {
     });
 
     it('should use buffer dimensions for peyote layer data', () => {
-      // 10 visual columns, 10 visible rows → bufferWidth=5, bufferHeight=10
+      // 10 column-pairs, 10 visible rows → bufferWidth=10, bufferHeight=10
       const project = createDefaultProject('P', 10, 10, 'peyote');
       const { bufferWidth, bufferHeight } = computeBufferDimensions(10, 10, 'peyote');
-      expect(bufferWidth).toBe(5);
+      expect(bufferWidth).toBe(10);
       expect(bufferHeight).toBe(10);
       expect(project.layers[0].data.length).toBe(bufferWidth * bufferHeight * 4);
     });
@@ -170,13 +170,13 @@ describe('Project Model', () => {
 
     it('should compute dense buffer dims for peyote grid', () => {
       const { bufferWidth, bufferHeight } = computeBufferDimensions(8, 4, 'peyote');
-      expect(bufferWidth).toBe(4);  // ceil(8/2)
+      expect(bufferWidth).toBe(8);  // column-pair count = canvasWidth
       expect(bufferHeight).toBe(4); // same as height (visible rows)
     });
 
-    it('should handle odd visual columns for peyote', () => {
+    it('should handle wide peyote grid', () => {
       const { bufferWidth, bufferHeight } = computeBufferDimensions(7, 3, 'peyote');
-      expect(bufferWidth).toBe(4);  // ceil(7/2)
+      expect(bufferWidth).toBe(7);  // column-pair count = canvasWidth
       expect(bufferHeight).toBe(3); // same as height (visible rows)
     });
   });
@@ -187,8 +187,8 @@ describe('Project Model', () => {
     });
 
     it('should return bufferWidth * bufferHeight for peyote grid', () => {
-      // 8 visual columns, 4 visible rows → bufferWidth=4, bufferHeight=4
-      expect(computeBufferPixelCount(8, 4, 'peyote')).toBe(16);
+      // 8 column-pairs, 4 visible rows → bufferWidth=8, bufferHeight=4
+      expect(computeBufferPixelCount(8, 4, 'peyote')).toBe(32);
     });
 
     it('should compute triangular pixel count with a=1, d=2, R=4', () => {

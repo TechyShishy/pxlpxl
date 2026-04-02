@@ -8,7 +8,6 @@ function makeCtx(overrides: Partial<ToolContext> = {}): ToolContext {
     layerIndex: 0,
     canvasWidth: 4,
     canvasHeight: 4,
-    visualColumns: 4,
     primaryColor: { ...BLACK },
     secondaryColor: { ...BLACK },
     isSecondary: false,

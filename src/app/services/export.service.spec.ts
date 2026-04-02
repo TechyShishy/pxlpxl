@@ -172,7 +172,7 @@ describe('ExportService', () => {
       const json = await decompressBlob(blob);
       const pxl = JSON.parse(json) as PxlFile;
 
-      expect(pxl.version).toBe(1);
+      expect(pxl.version).toBe(2);
       expect(pxl.name).toBe('My Project');
       expect(pxl.width).toBe(2);
       expect(pxl.height).toBe(2);

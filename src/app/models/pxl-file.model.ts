@@ -4,7 +4,7 @@ import { GridType } from './project.model';
 
 // ── .pxl file format (version 1) ──────────────────────────────────────
 
-export const PXL_FORMAT_VERSION = 1;
+export const PXL_FORMAT_VERSION = 2;
 
 export interface PxlFile {
   version: number;

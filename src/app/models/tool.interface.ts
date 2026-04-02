@@ -17,8 +17,6 @@ export interface ToolContext {
   canvasWidth: number;
   /** Buffer height */
   canvasHeight: number;
-  /** Number of visual columns (for peyote: the actual visual column count) */
-  visualColumns: number;
   /** Primary selected color */
   primaryColor: Color;
   /** Secondary selected color */

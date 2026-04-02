@@ -54,7 +54,7 @@ export class CanvasStateService {
     return Math.round(3 * dDen / dNum);
   });
 
-  /** Buffer width — for peyote: ceil(visualColumns / 2); for square: same as canvasWidth. */
+  /** Buffer width — for peyote: equals canvasWidth (one buffer column per peyote column-pair); for square: same as canvasWidth. */
   readonly bufferWidth = computed(() => {
     const { bufferWidth } = computeBufferDimensions(
       this._canvasWidth(),
@@ -348,7 +348,7 @@ export class CanvasStateService {
         const hit = this.gridService.screenToPixel(
           hitX, hitY, bs,
           this.bufferWidth(), this.bufferHeight(),
-          gridType, this._canvasWidth(),
+          gridType,
           a, d, dNum, dDen, shift,
         );
         if (hit) return hit;
@@ -363,7 +363,6 @@ export class CanvasStateService {
       this.bufferWidth(),
       this.bufferHeight(),
       gridType,
-      this._canvasWidth(),
       this._triangularA(),
       this._triangularD(),
       this._triangularDNum(),

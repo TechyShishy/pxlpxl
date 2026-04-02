@@ -32,7 +32,7 @@ export class EyedropperTool implements Tool {
   }
 
   private pickColor(ctx: ToolContext, layerData: Uint8ClampedArray): void {
-    if (!gridService.isValidPixel(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift))
+    if (!gridService.isValidPixel(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift))
       return;
 
     const offset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift);

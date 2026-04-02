@@ -68,14 +68,24 @@ export interface RulerParams {
  * Render 1-indexed column numbers onto a horizontal ruler canvas
  * (used for both the top and bottom rulers).
  */
-export function renderColumnRuler(
-  ctx: CanvasRenderingContext2D,
-  params: RulerParams,
-): void {
+export function renderColumnRuler(ctx: CanvasRenderingContext2D, params: RulerParams): void {
   const { canvas } = ctx;
   if (canvas.width === 0 || canvas.height === 0) return;
 
-  const { beadSize, offsetX, canvasWidth, canvasHeight, bgColor, textColor, gridType, triangularA, triangularD, triangularDNum, triangularDDen, triangularShift } = params;
+  const {
+    beadSize,
+    offsetX,
+    canvasWidth,
+    canvasHeight,
+    bgColor,
+    textColor,
+    gridType,
+    triangularA,
+    triangularD,
+    triangularDNum,
+    triangularDDen,
+    triangularShift,
+  } = params;
   const vpWidth = canvas.width;
   const rulerHeight = canvas.height;
 
@@ -105,7 +115,10 @@ export function renderColumnRuler(
     const resolved = resolveTriangularD(triangularD, triangularDNum, triangularDDen);
     let maxWidth = 0;
     for (let r = 0; r < canvasHeight; r++) {
-      maxWidth = Math.max(maxWidth, triangularRowWidth(r, triangularA!, resolved.dNum, resolved.dDen, triangularShift ?? 0));
+      maxWidth = Math.max(
+        maxWidth,
+        triangularRowWidth(r, triangularA!, resolved.dNum, resolved.dDen, triangularShift ?? 0),
+      );
     }
     // Each bead occupies stride-2 positions; adjacent rows interleave,
     // producing 2 * maxWidth - 1 distinct visual column slots.
@@ -115,6 +128,25 @@ export function renderColumnRuler(
       if (colParity === 'odd' && colNumber % 2 === 0) continue;
       if (colParity === 'even' && colNumber % 2 === 1) continue;
       const screenX = c * beadSize.width + offsetX + beadSize.width / 2;
+      if (screenX < 0 || screenX > vpWidth) continue;
+      if (screenX - lastDrawnX < MIN_LABEL_SPACING) continue;
+      ctx.fillText(String(colNumber), screenX, midY);
+      lastDrawnX = screenX;
+    }
+    return;
+  }
+
+  // Peyote mode: two adjacent visual sub-columns (even + odd) form one peyote column-pair.
+  // Label each column-pair (1, 2, 3…) at the midpoint between its two sub-columns.
+  // Top ruler (odd parity) shows 1, 3, 5…; bottom ruler (even parity) shows 2, 4, 6…
+  if (gridType === 'peyote') {
+    const peyoteCols = canvasWidth;
+    for (let pc = 0; pc < peyoteCols; pc++) {
+      const colNumber = pc + 1;
+      if (colParity === 'odd' && colNumber % 2 === 0) continue;
+      if (colParity === 'even' && colNumber % 2 === 1) continue;
+      // Midpoint between visual col 2*pc and 2*pc+1
+      const screenX = (2 * pc + 1) * beadSize.width + offsetX;
       if (screenX < 0 || screenX > vpWidth) continue;
       if (screenX - lastDrawnX < MIN_LABEL_SPACING) continue;
       ctx.fillText(String(colNumber), screenX, midY);

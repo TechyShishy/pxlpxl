@@ -7,7 +7,6 @@ function makeContext(overrides: Partial<ToolContext> = {}): ToolContext {
     layerIndex: 0,
     canvasWidth: 4,
     canvasHeight: 4,
-    visualColumns: 4,
     primaryColor: { r: 0, g: 0, b: 0, a: 255 },
     secondaryColor: { r: 255, g: 255, b: 255, a: 255 },
     isSecondary: false,
@@ -347,7 +346,6 @@ describe('RotateTool', () => {
         layerIndex: 0,
         canvasWidth: TRI_BUF_W,
         canvasHeight: TRI_H,
-        visualColumns: TRI_BUF_W,
         primaryColor: { r: 0, g: 0, b: 0, a: 255 },
         secondaryColor: { r: 255, g: 255, b: 255, a: 255 },
         isSecondary: false,
@@ -400,7 +398,7 @@ describe('RotateTool', () => {
   });
 
   describe('applyRotation — peyote grid', () => {
-    // Peyote layout: visualColumns=4 → bufferWidth = ceil(4/2) = 2, height=4.
+    // Peyote layout: 2 column-pairs (canvasWidth=2) → bufferWidth=2, bufferHeight=4.
     // Same row-major formula as square: offset = (y * bufW + x) * 4.
     const PEY_W = 2;
     const PEY_H = 4;
@@ -411,7 +409,6 @@ describe('RotateTool', () => {
         layerIndex: 0,
         canvasWidth: PEY_W,
         canvasHeight: PEY_H,
-        visualColumns: 4,
         primaryColor: { r: 0, g: 0, b: 0, a: 255 },
         secondaryColor: { r: 255, g: 255, b: 255, a: 255 },
         isSecondary: false,

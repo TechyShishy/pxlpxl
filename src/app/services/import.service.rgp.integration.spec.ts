@@ -72,14 +72,14 @@ describe('ImportService – RGP import (integration)', () => {
     expect(canvasState.gridType()).toBe('peyote');
   });
 
-  it('should set visual canvas width to 2 × bufferWidth', async () => {
-    // 2 steps of count 2 each → bufferWidth = 2, visualWidth = 4
+  it('should set canvas width to the peyote column-pair count (= bufferWidth)', async () => {
+    // 1 step of count 2 per row → bufferWidth = 2, canvasWidth = 2 (column-pair count)
     const project = makeMinimalRgpProject();
     const buffer = await compressToGzip(JSON.stringify(project));
 
     await service.importFromBuffer(buffer, 'project.rgp');
 
-    expect(canvasState.canvasWidth()).toBe(4);
+    expect(canvasState.canvasWidth()).toBe(2);
   });
 
   it('should set canvas height to the number of rows', async () => {

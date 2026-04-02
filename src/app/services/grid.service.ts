@@ -4,14 +4,15 @@ import { BeadSize, GridType, PixelCoord, triangularRowWidth, resolveTriangularD 
 /**
  * Utility service for grid-type-aware coordinate mapping and neighbor lookups.
  *
- * In peyote mode, the data buffer uses a dense row-based layout:
- *   - Buffer width  = ceil(visualColumns / 2)
- *   - Buffer height = beadsPerColumn * 2
- *   - Even buffer rows (0, 2, 4…) hold beads from even visual columns (0, 2, 4…)
- *   - Odd  buffer rows (1, 3, 5…) hold beads from odd  visual columns (1, 3, 5…)
+ * In peyote mode, the data buffer stores one cell per peyote column-pair per row:
+ *   - Buffer width  = canvasWidth (peyote column-pair count, not visual sub-column count)
+ *   - Buffer height = canvasHeight
+ *   - Even buffer rows (0, 2, 4…) hold beads from even visual sub-columns (0, 2, 4…)
+ *   - Odd  buffer rows (1, 3, 5…) hold beads from odd  visual sub-columns (1, 3, 5…)
  *
+ * Visual sub-column count = bufferWidth * 2.
  * Visual column parity determines the half-bead offset:
- *   odd visual columns are shifted down by half a bead on screen.
+ *   odd visual sub-columns are shifted down by half a bead on screen.
  *
  * In triangular mode, the buffer is packed. Row r has (a + d·r) pixels.
  * The buffer offset for pixel (x, y) is (a·y + d·y·(y−1)/2 + x) × 4.
@@ -59,7 +60,6 @@ export class GridService {
     bufferWidth: number,
     bufferHeight: number,
     gridType: GridType,
-    visualColumns?: number,
     triangularA?: number,
     triangularD?: number,
     triangularDNum?: number,
@@ -75,10 +75,6 @@ export class GridService {
     }
 
     if (bx < 0 || bx >= bufferWidth) return false;
-    if (gridType === 'peyote' && visualColumns !== undefined) {
-      const { col } = this.bufferToVisual(bx, by);
-      if (col >= visualColumns) return false;
-    }
     return true;
   }
 
@@ -158,7 +154,6 @@ export class GridService {
     bufferWidth: number,
     bufferHeight: number,
     gridType: GridType,
-    visualColumns?: number,
     triangularA?: number,
     triangularD?: number,
     triangularDNum?: number,
@@ -179,7 +174,7 @@ export class GridService {
       return { x, y };
     }
 
-    const visCols = visualColumns ?? bufferWidth * 2;
+    const visCols = bufferWidth * 2;
     const col = Math.floor(localX / beadSize.width);
     if (col < 0 || col >= visCols) return null;
 
@@ -193,7 +188,7 @@ export class GridService {
     if (beadRow < 0 || beadRow >= beadsPerCol) return null;
 
     const { bx, by } = this.visualToBuffer(col, beadRow);
-    if (!this.isValidPixel(bx, by, bufferWidth, bufferHeight, gridType, visCols)) return null;
+    if (!this.isValidPixel(bx, by, bufferWidth, bufferHeight, gridType)) return null;
     return { x: bx, y: by };
   }
 
@@ -267,7 +262,6 @@ export class GridService {
     gridType: GridType,
     bufferWidth: number,
     bufferHeight: number,
-    visualColumns?: number,
     triangularA?: number,
     triangularD?: number,
     triangularDNum?: number,
@@ -298,7 +292,7 @@ export class GridService {
     }
 
     // Peyote grid: work in visual space
-    const visCols = visualColumns ?? bufferWidth * 2;
+    const visCols = bufferWidth * 2;
     const { col, beadRow } = this.bufferToVisual(bx, by);
     const isOddCol = col % 2 === 1;
 
@@ -327,7 +321,7 @@ export class GridService {
       if (vc.col < 0 || vc.col >= visCols) continue;
       if (vc.beadRow < 0 || vc.beadRow >= beadsPerCol) continue;
       const { bx: nbx, by: nby } = this.visualToBuffer(vc.col, vc.beadRow);
-      if (this.isValidPixel(nbx, nby, bufferWidth, bufferHeight, gridType, visCols)) {
+      if (this.isValidPixel(nbx, nby, bufferWidth, bufferHeight, gridType)) {
         neighbors.push({ x: nbx, y: nby });
       }
     }

@@ -5,6 +5,7 @@ import { Project } from '../models';
 /** Shape used by migration callbacks — only the fields accessed during upgrades. */
 interface ProjectMigrationRecord {
   gridType?: string;
+  width?: number;
   triangularD?: number;
   triangularDNum?: number;
   triangularDDen?: number;
@@ -95,6 +96,25 @@ export class PxlpxlDatabase extends Dexie {
                 project.triangularDNum = project.triangularD;
                 project.triangularDDen = 1;
               }
+            }
+          }),
+      );
+    this.version(7)
+      .stores({
+        projects: '++id, name, createdAt, updatedAt',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('projects')
+          .toCollection()
+          .modify((project: ProjectMigrationRecord) => {
+            // Prior to v7, peyote bufferWidth = ceil(width / 2).
+            // From v7, bufferWidth = width (peyote column-pair count).
+            // Halve the stored width so existing projects display the same
+            // number of peyote column-pairs as before.
+            // Buffer byte layouts are unchanged — only the width metadata changes.
+            if (project.gridType === 'peyote' && project.width !== undefined) {
+              project.width = Math.ceil(project.width / 2);
             }
           }),
       );

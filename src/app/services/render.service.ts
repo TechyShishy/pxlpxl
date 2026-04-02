@@ -48,7 +48,7 @@ export class RenderService {
       this.drawCheckerboard(ctx, visualWidth, visualHeight, bufWidth, bufHeight, transform, gridType);
     }
     if (this.gridService.isPeyote(gridType)) {
-      this.renderPeyoteLayers(ctx, visualWidth, bufWidth, bufHeight, transform, gridType, layers);
+      this.renderPeyoteLayers(ctx, bufWidth, bufHeight, transform, gridType, layers);
     } else if (this.gridService.isAnyTriangular(gridType) && showClones && sideCount >= 3) {
       this.renderTriangularClones(ctx, bufHeight, transform, gridType, layers, sideCount);
     } else if (this.gridService.isAnyTriangular(gridType)) {
@@ -152,7 +152,7 @@ export class RenderService {
       // Canvas needs extra half-bead height for odd-column offset in peyote
       const beadsPerCol = gridType === 'peyote' ? Math.ceil(bufHeight / 2) : bufHeight;
       const extraY = gridType === 'peyote' ? Math.ceil(beadSize.height / 2) : 0;
-      canvasW = visualWidth * beadSize.width;
+      canvasW = bufWidth * 2 * beadSize.width;
       canvasH = beadsPerCol * beadSize.height + extraY;
     }
 
@@ -188,7 +188,6 @@ export class RenderService {
 
         for (let by = 0; by < bufHeight; by++) {
           for (let bx = 0; bx < bufWidth; bx++) {
-            if (!this.gridService.isValidPixel(bx, by, bufWidth, bufHeight, gridType, visualWidth)) continue;
             const offset = (by * bufWidth + bx) * 4;
             const a = layer.data[offset + 3];
             if (a === 0) continue;
@@ -451,7 +450,6 @@ export class RenderService {
   /** Render peyote layers bead-by-bead onto the viewport canvas. */
   private renderPeyoteLayers(
     ctx: CanvasRenderingContext2D,
-    visualWidth: number,
     bufWidth: number,
     bufHeight: number,
     transform: { scale: number; offsetX: number; offsetY: number },
@@ -468,7 +466,6 @@ export class RenderService {
 
       for (let by = 0; by < bufHeight; by++) {
         for (let bx = 0; bx < bufWidth; bx++) {
-          if (!this.gridService.isValidPixel(bx, by, bufWidth, bufHeight, gridType, visualWidth)) continue;
           const offset = (by * bufWidth + bx) * 4;
           const a = layer.data[offset + 3];
           if (a === 0) continue;
@@ -501,7 +498,6 @@ export class RenderService {
       // Draw checkerboard bead-by-bead for peyote
       for (let by = 0; by < bufHeight; by++) {
         for (let bx = 0; bx < bufWidth; bx++) {
-          if (!this.gridService.isValidPixel(bx, by, bufWidth, bufHeight, gridType, visualWidth)) continue;
           const { col } = this.gridService.bufferToVisual(bx, by);
           const isLight = col % 2 === 0;
           ctx.fillStyle = isLight ? '#3a3a3a' : '#2a2a2a';
@@ -561,8 +557,9 @@ export class RenderService {
       const beadsOdd = Math.floor(bufHeight / 2);
       const maxBeads = beadsEven; // height of tallest column
 
-      // Draw per-column grid for peyote using visual columns
-      for (let col = 0; col <= visualWidth; col++) {
+      // Draw per-column grid for peyote using visual sub-columns
+      const peyoteSubCols = bufWidth * 2;
+      for (let col = 0; col <= peyoteSubCols; col++) {
         ctx.beginPath();
         ctx.moveTo(col * beadSize.width, 0);
         ctx.lineTo(
@@ -572,8 +569,8 @@ export class RenderService {
         ctx.stroke();
       }
 
-      // Horizontal lines per visual column
-      for (let col = 0; col < visualWidth; col++) {
+      // Horizontal lines per visual sub-column
+      for (let col = 0; col < peyoteSubCols; col++) {
         const isOddCol = col % 2 === 1;
         const offsetY = isOddCol ? beadSize.height / 2 : 0;
         const colBeads = isOddCol ? beadsOdd : beadsEven;

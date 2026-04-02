@@ -24,7 +24,7 @@ export class FillTool implements Tool {
   onPointerDown(ctx: ToolContext, layerData: Uint8ClampedArray): ToolResult | null {
     const fillColor = ctx.isSecondary ? ctx.secondaryColor : ctx.primaryColor;
 
-    if (!gridService.isValidPixel(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.visualColumns, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift))
+    if (!gridService.isValidPixel(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.canvasHeight, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift))
       return null;
 
     const targetOffset = pixelOffset(ctx.coord.x, ctx.coord.y, ctx.canvasWidth, ctx.gridType, ctx.triangularA, ctx.triangularD, ctx.triangularDNum, ctx.triangularDDen, ctx.triangularShift);
@@ -46,7 +46,6 @@ export class FillTool implements Tool {
       targetColor,
       fillColor,
       ctx.gridType,
-      ctx.visualColumns,
       ctx.triangularA,
       ctx.triangularD,
       ctx.triangularDNum,
@@ -77,7 +76,6 @@ export class FillTool implements Tool {
     targetColor: Color,
     fillColor: Color,
     gridTypeValue: GridType,
-    visualColumns: number,
     triangularA?: number,
     triangularD?: number,
     triangularDNum?: number,
@@ -93,7 +91,7 @@ export class FillTool implements Tool {
       const key = `${x},${y}`;
 
       if (visited.has(key)) continue;
-      if (!gridService.isValidPixel(x, y, width, height, gridTypeValue, visualColumns, triangularA, triangularD, triangularDNum, triangularDDen, triangularShift)) continue;
+      if (!gridService.isValidPixel(x, y, width, height, gridTypeValue, triangularA, triangularD, triangularDNum, triangularDDen, triangularShift)) continue;
 
       const offset = pixelOffset(x, y, width, gridTypeValue, triangularA, triangularD, triangularDNum, triangularDDen, triangularShift);
       const pixelColor: Color = {
@@ -118,7 +116,7 @@ export class FillTool implements Tool {
       data[offset + 2] = fillColor.b;
       data[offset + 3] = fillColor.a;
 
-      const neighbors = gridService.getNeighbors(x, y, gridTypeValue, width, height, visualColumns, triangularA, triangularD, triangularDNum, triangularDDen, triangularShift);
+      const neighbors = gridService.getNeighbors(x, y, gridTypeValue, width, height, triangularA, triangularD, triangularDNum, triangularDDen, triangularShift);
       for (const n of neighbors) {
         stack.push([n.x, n.y]);
       }

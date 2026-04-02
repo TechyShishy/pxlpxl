@@ -207,9 +207,9 @@ export class ImportService {
   // ── PXL import ────────────────────────────────────────────────────────
 
   private hydrateFromPxlFile(pxl: PxlFile): void {
-    if (pxl.version !== PXL_FORMAT_VERSION) {
+    if (pxl.version < 1 || pxl.version > PXL_FORMAT_VERSION) {
       throw new Error(
-        `Unsupported .pxl version ${pxl.version}. Expected version ${PXL_FORMAT_VERSION}.`,
+        `Unsupported .pxl version ${pxl.version}. Expected version 1–${PXL_FORMAT_VERSION}.`,
       );
     }
 
@@ -231,8 +231,15 @@ export class ImportService {
       dDen = 1;
     }
 
+    // v1 peyote files stored width as the sub-column count (bufferWidth * 2 in the old model).
+    // v2+ stores it as the peyote column-pair count (= bufferWidth).
+    let width = pxl.width;
+    if (pxl.version === 1 && gridType === 'peyote') {
+      width = Math.ceil(pxl.width / 2);
+    }
+
     // Hydrate canvas
-    this.canvasState.setCanvasSize(pxl.width, pxl.height);
+    this.canvasState.setCanvasSize(width, pxl.height);
     this.canvasState.setGridType(gridType);
     if (gridType === 'triangular' && pxl.triangularA !== undefined) {
       this.canvasState.setTriangularParams(pxl.triangularA, pxl.triangularD ?? 1, dNum, dDen, pxl.triangularShift);
@@ -241,7 +248,7 @@ export class ImportService {
 
     // Hydrate layers
     const expectedBytes = computeBufferPixelCount(
-      pxl.width, pxl.height, gridType,
+      width, pxl.height, gridType,
       pxl.triangularA, pxl.triangularD, dNum, dDen, pxl.triangularShift,
     ) * 4;
     const layers = pxl.layers.map((l) => {
@@ -293,9 +300,9 @@ export class ImportService {
       throw new Error('RGP project contains no bead data.');
     }
 
-    // Visual canvas width for peyote: bufferWidth = ceil(visualCols / 2),
-    // so visualCols = bufferWidth * 2.
-    const visualWidth = bufferWidth * 2;
+    // Visual canvas width for peyote: canvasWidth = bufferWidth (peyote column-pair count).
+    // bufferWidth columns × bufferHeight rows encodes the full interleaved bead grid.
+    const visualWidth = bufferWidth;
     const visualHeight = bufferHeight;
 
     const colorMapping: Record<string, string> = project.colorMapping ?? {};

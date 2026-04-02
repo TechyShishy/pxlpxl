@@ -26,18 +26,19 @@ export interface TriangularParams {
  * Compute the buffer dimensions for a given set of visual dimensions and grid type.
  *
  * For square grids, the buffer dimensions match the visual dimensions.
- * For peyote grids, width (visual columns) and height (visible bead rows) are
- * re-packed into a dense row-based layout:
- *   bufferWidth  = ceil(visualColumns / 2)
- *   bufferHeight = height (= number of visible bead rows)
+ * For peyote grids, `width` is the number of peyote column-pairs and `height`
+ * is the number of bead rows per column:
+ *   bufferWidth  = width   (one buffer column per peyote column-pair)
+ *   bufferHeight = height  (= number of bead rows)
  *
- * In the buffer, even rows hold even-visual-column beads and odd rows hold odd-
- * visual-column beads.  beadsPerColumn = ceil(height / 2) for even columns and
- * floor(height / 2) for odd columns.
+ * In the buffer, even rows of each buffer column hold even-sub-column beads
+ * and odd rows hold odd-sub-column beads.  Visual sub-columns = bufferWidth * 2.
+ * beadsPerColumn = height / 2 for both even and odd sub-columns (when height is
+ * even); floor/ceil applies when height is odd.
  *
- * The user-facing "height" value corresponds to the number of visible horizontal
- * bead rows (counting both even-column and odd-column rows), so entering 32×32
- * in the new-project dialog produces a 32-column × 32-visible-row peyote grid.
+ * The user-facing "columns" value corresponds to the number of peyote column-pairs,
+ * so entering 8 columns × 8 rows produces 8 column-pairs (16 sub-columns) with
+ * 4 bead rows per sub-column = 64 total beads. bufferWidth = 8, bufferHeight = 8.
  */
 export function computeBufferDimensions(
   width: number,
@@ -51,7 +52,7 @@ export function computeBufferDimensions(
 ): { bufferWidth: number; bufferHeight: number } {
   if (gridType === 'peyote') {
     return {
-      bufferWidth: Math.ceil(width / 2),
+      bufferWidth: width,
       bufferHeight: height,
     };
   }

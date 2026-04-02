@@ -7,7 +7,6 @@ function makeContext(overrides: Partial<ToolContext> = {}): ToolContext {
     layerIndex: 0,
     canvasWidth: 4,
     canvasHeight: 4,
-    visualColumns: 4,
     primaryColor: { r: 0, g: 0, b: 0, a: 255 },
     secondaryColor: { r: 255, g: 255, b: 255, a: 255 },
     isSecondary: false,
@@ -235,6 +234,41 @@ describe('MoveTool', () => {
       );
       tool.resetSnapshot();
       expect(tool.getOriginalData()).toBeNull();
+    });
+  });
+
+  describe('peyote grid — parity-aware move', () => {
+    // 2 column-pairs × 4 buffer rows → visCols=4, beadsPerCol=2
+    // bufferToVisual(bx, by) = {col: bx*2 + (by%2), beadRow: floor(by/2)}
+    const PEY_W = 2;
+    const PEY_H = 4;
+
+    it('should correctly shift a bead starting on an odd buffer row (parity-sensitive case)', () => {
+      // Regression target: old code used bufferToVisual(0, 0) as reference, which
+      // produced the wrong visual delta when startCoord.y is odd.
+      // Correct: derive the delta from the actual start position.
+      const data = makeLayerData(PEY_W, PEY_H);
+      // Red bead at buffer (0, 1) — odd row → visual col=1, beadRow=0
+      setPixel(data, 0, 1, PEY_W, 255, 0, 0, 255);
+
+      tool.onPointerDown(
+        makeContext({ coord: { x: 0, y: 1 }, canvasWidth: PEY_W, canvasHeight: PEY_H, gridType: 'peyote' }),
+        data,
+      );
+
+      // Drag from (0,1) to (0,2): dx=0, dy=1.
+      // Correct visual delta: visualDx = -1, visualDy = 1
+      // (startVisual={col:1,beadRow:0}, endVisual={col:0,beadRow:1})
+      // Destination: visualToBuffer(col=0, beadRow=1) = buffer (0, 2)
+      tool.onPointerMove(
+        makeContext({ coord: { x: 0, y: 2 }, canvasWidth: PEY_W, canvasHeight: PEY_H, gridType: 'peyote' }),
+        data,
+      );
+
+      // Bead should land at buffer (0, 2)
+      expect(getPixel(data, 0, 2, PEY_W)).toEqual([255, 0, 0, 255]);
+      // Original position must be cleared
+      expect(getPixel(data, 0, 1, PEY_W)[3]).toBe(0);
     });
   });
 });

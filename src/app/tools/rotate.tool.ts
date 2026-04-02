@@ -113,12 +113,12 @@ export class RotateTool implements Tool {
       canvasWidth: width,
       canvasHeight: height,
       gridType,
-      visualColumns,
       triangularA,
       triangularDNum,
       triangularDDen,
       triangularShift,
     } = ctx;
+    const visualColumns = ctx.canvasWidth * 2;
     const src = this.originalData;
     const cosT = Math.cos(theta);
     const sinT = Math.sin(theta);
@@ -219,7 +219,7 @@ export class RotateTool implements Tool {
       // Peyote: buffer row by maps to visual bead row floor(by/2).
       // numBeadRows = ceil(bufferHeight / 2); centre index = (numBeadRows - 1) / 2.
       return {
-        vcx: (ctx.visualColumns - 1) / 2,
+        vcx: (ctx.canvasWidth * 2 - 1) / 2,
         vcy: (Math.ceil(ctx.canvasHeight / 2) - 1) / 2,
       };
     }

@@ -59,7 +59,7 @@ export abstract class ShapeTool implements Tool {
         !gridService.isValidPixel(
           coord.x, coord.y,
           ctx.canvasWidth, ctx.canvasHeight,
-          ctx.gridType, ctx.visualColumns,
+          ctx.gridType,
           ctx.triangularA, ctx.triangularD,
           ctx.triangularDNum, ctx.triangularDDen,
           ctx.triangularShift,
@@ -136,7 +136,7 @@ export abstract class ShapeTool implements Tool {
       const lp = gridService.screenToPixel(
         vp.x, vp.y, beadSize,
         ctx.canvasWidth, ctx.canvasHeight,
-        ctx.gridType, ctx.visualColumns,
+        ctx.gridType,
         ctx.triangularA, ctx.triangularD,
         ctx.triangularDNum, ctx.triangularDDen,
         ctx.triangularShift,

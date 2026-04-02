@@ -129,19 +129,21 @@ export class MoveTool implements Tool {
       return;
     }
 
-    // Peyote grid: shift in visual space
-    // Convert buffer delta to visual delta
-    const startVisual = gridService.bufferToVisual(0, 0);
-    const endVisual = gridService.bufferToVisual(dx, dy);
+    // Peyote grid: shift in visual space.
+    // Compute visual delta from the actual start buffer position rather than
+    // using (0,0) as the reference — the visual mapping is parity-dependent,
+    // so the delta must account for the start position's row parity.
+    const startVisual = gridService.bufferToVisual(this.startCoord!.x, this.startCoord!.y);
+    const endVisual = gridService.bufferToVisual(this.startCoord!.x + dx, this.startCoord!.y + dy);
     const visualDx = endVisual.col - startVisual.col;
     const visualDy = endVisual.beadRow - startVisual.beadRow;
 
-    const visCols = ctx.visualColumns;
+    const visCols = ctx.canvasWidth * 2;
     const beadsPerCol = height / 2;
 
     for (let by = 0; by < height; by++) {
       for (let bx = 0; bx < width; bx++) {
-        if (!gridService.isValidPixel(bx, by, width, height, ctx.gridType, visCols)) continue;
+        if (!gridService.isValidPixel(bx, by, width, height, ctx.gridType)) continue;
 
         // Convert destination buffer pos to visual
         const dstVisual = gridService.bufferToVisual(bx, by);
@@ -155,7 +157,7 @@ export class MoveTool implements Tool {
 
         // Convert source visual back to buffer
         const srcBuf = gridService.visualToBuffer(srcCol, srcBeadRow);
-        if (!gridService.isValidPixel(srcBuf.bx, srcBuf.by, width, height, ctx.gridType, visCols)) continue;
+        if (!gridService.isValidPixel(srcBuf.bx, srcBuf.by, width, height, ctx.gridType)) continue;
 
         const srcOff = pixelOffset(srcBuf.bx, srcBuf.by, width);
         const dstOff = pixelOffset(bx, by, width);
