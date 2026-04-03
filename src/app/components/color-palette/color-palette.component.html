@@ -31,30 +31,21 @@
     >
       <mat-icon>sort</mat-icon>
     </button>
-    <button
-      mat-icon-button
-      [matTooltip]="orphanMode() ? 'Exit orphan mode' : 'Show orphan colors'"
-      (click)="toggleOrphanMode()"
-      [class.orphan-mode-active]="orphanMode()"
-      aria-label="Toggle orphan mode"
-    >
-      <mat-icon>filter_2</mat-icon>
-    </button>
   </div>
 
-  @if (orphanMode() && !isAbsorbing()) {
+  @if (colorService.orphanMode() && !isAbsorbing()) {
     <div class="orphan-controls" role="group" aria-label="Orphan threshold controls">
       <span class="orphan-label">Orphan ≤</span>
       <button
         mat-icon-button
         class="orphan-stepper"
         (click)="decreaseThreshold()"
-        [disabled]="orphanThreshold() === 0"
+        [disabled]="colorService.orphanThreshold() === 0"
         aria-label="Decrease orphan threshold"
       >
         <mat-icon>remove</mat-icon>
       </button>
-      <span class="orphan-threshold-value" aria-live="polite">{{ orphanThreshold() }}</span>
+      <span class="orphan-threshold-value" aria-live="polite">{{ colorService.orphanThreshold() }}</span>
       <button
         mat-icon-button
         class="orphan-stepper"

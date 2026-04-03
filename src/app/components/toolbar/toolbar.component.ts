@@ -23,6 +23,7 @@ import { CanvasStateService } from '../../services/canvas-state.service';
 import { ProjectService } from '../../services/project.service';
 import { ExportService } from '../../services/export.service';
 import { ImportService } from '../../services/import.service';
+import { ColorService } from '../../services/color.service';
 import {
   NewProjectDialogComponent,
   NewProjectDialogResult,
@@ -48,6 +49,7 @@ export class ToolbarComponent implements OnDestroy {
   protected readonly layout = inject(LayoutService);
   protected readonly canvasState = inject(CanvasStateService);
   protected readonly projectService = inject(ProjectService);
+  protected readonly colorService = inject(ColorService);
   private readonly exportService = inject(ExportService);
   private readonly importService = inject(ImportService);
   private readonly dialog = inject(MatDialog);

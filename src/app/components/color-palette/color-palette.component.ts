@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, computed } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -25,7 +25,6 @@ import { byteOffsetToPixelCoord } from '../../utils/buffer-coords';
 
 const LONG_PRESS_DELAY = 500;
 const MOVE_THRESHOLD = 5;
-const DEFAULT_ORPHAN_THRESHOLD = 5;
 
 @Component({
   selector: 'app-color-palette',
@@ -46,21 +45,18 @@ export class ColorPaletteComponent {
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
   private dragStartPos: { x: number; y: number } | null = null;
 
-  protected readonly orphanMode = signal<boolean>(false);
-  protected readonly orphanThreshold = signal<number>(DEFAULT_ORPHAN_THRESHOLD);
-
   protected readonly isAbsorbing = computed(() => this.canvasState.absorptionState() !== null);
 
   /** True when orphan mode is active and not in mid-absorb preview. */
   protected readonly showOrphanBadges = computed(
-    () => this.orphanMode() && !this.isAbsorbing(),
+    () => this.colorService.orphanMode() && !this.isAbsorbing(),
   );
 
   /** Maps palette index → pixel count. Reactive via ColorService.palettePixelCounts. */
   protected readonly pixelCounts = this.colorService.palettePixelCounts;
 
   protected isOrphan(index: number): boolean {
-    return (this.pixelCounts().get(index) ?? 0) <= this.orphanThreshold();
+    return (this.pixelCounts().get(index) ?? 0) <= this.colorService.orphanThreshold();
   }
 
   protected pixelCountLabel(index: number): string {
@@ -145,24 +141,19 @@ export class ColorPaletteComponent {
     this.colorService.addToPalette(this.colorService.primaryColor());
   }
 
-  protected toggleOrphanMode(): void {
-    if (this.isAbsorbing()) return; // don't toggle while previewing
-    this.orphanMode.update((v) => !v);
-  }
-
   protected increaseThreshold(): void {
-    this.orphanThreshold.update((v) => v + 1);
+    this.colorService.increaseOrphanThreshold();
   }
 
   protected decreaseThreshold(): void {
-    this.orphanThreshold.update((v) => Math.max(0, v - 1));
+    this.colorService.decreaseOrphanThreshold();
   }
 
   /** Begin the absorb preview for palette entry at `paletteIndex`. */
   protected initiateAbsorb(paletteIndex: number): void {
     const palette = this.colorService.palette();
     const sourceColor = palette[paletteIndex];
-    const threshold = this.orphanThreshold();
+    const threshold = this.colorService.orphanThreshold();
     const counts = this.pixelCounts();
 
     // Candidates: palette entries with pixel count > threshold, sorted by distance.

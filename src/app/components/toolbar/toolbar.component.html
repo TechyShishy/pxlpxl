@@ -138,6 +138,18 @@
 
   <button
     mat-icon-button
+    [matTooltip]="colorService.orphanMode() ? 'Exit orphan mode' : 'Show orphan colors'"
+    (click)="colorService.toggleOrphanMode()"
+    [class.active]="colorService.orphanMode()"
+    [disabled]="canvasState.absorptionState() !== null"
+    aria-label="Toggle orphan mode"
+    [attr.aria-pressed]="colorService.orphanMode()"
+  >
+    <mat-icon>filter_2</mat-icon>
+  </button>
+
+  <button
+    mat-icon-button
     matTooltip="Toggle panels"
     (click)="layout.toggleRightSidebar()"
     aria-label="Toggle panels"

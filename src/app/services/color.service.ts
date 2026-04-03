@@ -18,6 +18,27 @@ export class ColorService {
   readonly secondaryColor = this._secondaryColor.asReadonly();
   readonly palette = this._palette.asReadonly();
 
+  private readonly _orphanMode = signal<boolean>(false);
+  private readonly _orphanThreshold = signal<number>(5);
+  readonly orphanMode = this._orphanMode.asReadonly();
+  readonly orphanThreshold = this._orphanThreshold.asReadonly();
+
+  toggleOrphanMode(): void {
+    this._orphanMode.update((v) => !v);
+  }
+
+  setOrphanMode(value: boolean): void {
+    this._orphanMode.set(value);
+  }
+
+  increaseOrphanThreshold(): void {
+    this._orphanThreshold.update((v) => v + 1);
+  }
+
+  decreaseOrphanThreshold(): void {
+    this._orphanThreshold.update((v) => Math.max(0, v - 1));
+  }
+
   /**
    * Pixel count per palette index across all layers.
    * Recomputes lazily when the palette or any layer changes.

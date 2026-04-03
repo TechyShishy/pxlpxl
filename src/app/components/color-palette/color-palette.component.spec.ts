@@ -18,12 +18,18 @@ function makeColorService() {
     palette,
     primaryColor: signal<Color>(RED),
     secondaryColor: signal<Color>(BLUE),
+    orphanMode: signal<boolean>(false),
+    orphanThreshold: signal<number>(5),
+    palettePixelCounts: signal<Map<number, number>>(new Map()),
     swapColors: vi.fn(),
     addToPalette: vi.fn(),
     removeFromPalette: vi.fn(),
     updatePaletteColor: vi.fn(),
     setPrimaryColor: vi.fn(),
     setSecondaryColor: vi.fn(),
+    toggleOrphanMode: vi.fn(),
+    increaseOrphanThreshold: vi.fn(),
+    decreaseOrphanThreshold: vi.fn(),
   };
 }
 
