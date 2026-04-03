@@ -96,6 +96,13 @@ export class RenderService {
     if (this.canvasState.showGrid() && !clonesActive) {
       this.drawGrid(ctx, visualWidth, visualHeight, bufWidth, bufHeight, transform, gridType);
     }
+
+    // Draw highlight rings around all absorption-mode pixels so they're easy
+    // to locate and tap-cycle. Rendered after the grid so rings are on top.
+    if (overlays && overlays.length > 0) {
+      const allPixels = overlays.flatMap((o) => o.pixels);
+      this.drawHighlightRings(ctx, allPixels, transform, gridType, bufHeight);
+    }
   }
 
   /**
@@ -243,6 +250,61 @@ export class RenderService {
     }
 
     ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  /**
+   * Draw a two-tone selection ring (black outer, white inner) around each pixel
+   * in the list. Used to mark absorption-mode pixels so they are easy to locate
+   * and tap-cycle regardless of the surrounding canvas colors.
+   */
+  private drawHighlightRings(
+    ctx: CanvasRenderingContext2D,
+    pixels: PixelCoord[],
+    transform: { scale: number; offsetX: number; offsetY: number },
+    gridType: GridType,
+    totalRows?: number,
+  ): void {
+    if (pixels.length === 0) return;
+
+    const a = this.canvasState.triangularA();
+    const d = this.canvasState.triangularD();
+    const dNum = this.canvasState.triangularDNum();
+    const dDen = this.canvasState.triangularDDen();
+    const shift = this.canvasState.triangularShift();
+    const beadSize = this.canvasState.beadSize();
+    const w = beadSize.width;
+    const h = beadSize.height;
+
+    // Pre-compute screen positions (reused for both stroke passes).
+    const screenPositions: { sx: number; sy: number }[] = pixels.map(({ x, y }) =>
+      this.gridService.pixelToScreen(x, y, beadSize, gridType, a, d, totalRows, dNum, dDen, shift),
+    );
+
+    ctx.save();
+    ctx.translate(transform.offsetX, transform.offsetY);
+
+    // Outer 2px black ring — sits on the pixel boundary.
+    ctx.beginPath();
+    for (const { sx, sy } of screenPositions) {
+      ctx.rect(sx, sy, w, h);
+    }
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+    ctx.stroke();
+
+    // Inner 1px white ring — 1.5px inset so it's fully inside the pixel.
+    // Skipped for very small beads where there's no room.
+    if (w > 4 && h > 4) {
+      ctx.beginPath();
+      for (const { sx, sy } of screenPositions) {
+        ctx.rect(sx + 1.5, sy + 1.5, w - 3, h - 3);
+      }
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.stroke();
+    }
+
     ctx.restore();
   }
 
