@@ -18,7 +18,7 @@ import { GestureService } from '../../services/gesture.service';
 import { RenderService } from '../../services/render.service';
 import { LayoutService } from '../../services/layout.service';
 import { GridService } from '../../services/grid.service';
-import { Color, ToolContext, GestureState, PixelCoord, colorInPalette, TriangularParams } from '../../models';
+import { Color, ToolContext, GestureState, PixelCoord, colorInPalette, TriangularParams, pixelOffset } from '../../models';
 import { renderColumnRuler, renderRowRuler, RulerParams } from './ruler-renderer';
 import { DrawCommand } from '../../commands/draw.command';
 import { FillCommand } from '../../commands/fill.command';
@@ -126,6 +126,7 @@ export class CanvasViewportComponent implements OnDestroy {
       this.canvasState.triangularDDen();
       this.canvasState.triangularShift();
       this.canvasState.showClones();
+      this.canvasState.absorptionState();
       this.layerService.layers();
       this.requestRender();
     });
@@ -248,12 +249,28 @@ export class CanvasViewportComponent implements OnDestroy {
   private render(): void {
     if (!this.ctx) return;
     const canvas = this.canvasRef().nativeElement;
+
+    // Build per-candidate overlay groups from the current absorption state.
+    let overlays: { pixels: PixelCoord[]; color: Color }[] | undefined;
+    const absorption = this.canvasState.absorptionState();
+    if (absorption) {
+      const grouped = new Map<string, { pixels: PixelCoord[]; color: Color }>();
+      for (const a of absorption.assignments) {
+        const candidate = absorption.candidates[a.candidateIndex];
+        const key = `${candidate.r},${candidate.g},${candidate.b},${candidate.a}`;
+        if (!grouped.has(key)) grouped.set(key, { pixels: [], color: candidate });
+        grouped.get(key)!.pixels.push({ x: a.bufX, y: a.bufY });
+      }
+      overlays = Array.from(grouped.values());
+    }
+
     this.renderService.render(
       this.ctx,
       canvas.width,
       canvas.height,
       this.previewPixels,
       this.previewColor,
+      overlays,
     );
   }
 
@@ -439,6 +456,35 @@ export class CanvasViewportComponent implements OnDestroy {
   }
 
   private handleDraw(screenX: number, screenY: number, phase: 'start' | 'move' | 'end' | 'cancel', shiftKey = false): void {
+    // When an absorption preview is active, taps cycle the pixel's candidate
+    // assignment rather than dispatching to the active draw tool.
+    const absorption = this.canvasState.absorptionState();
+    if (absorption !== null) {
+      if (phase === 'start') {
+        const canvas = this.canvasRef().nativeElement;
+        const rect = canvas.getBoundingClientRect();
+        const pixel = this.canvasState.screenToPixel(screenX, screenY, rect);
+        if (pixel) {
+          const gridType = this.canvasState.gridType();
+          const isTriangular = this.gridService.isAnyTriangular(gridType);
+          const byteOff = pixelOffset(
+            pixel.x,
+            pixel.y,
+            this.canvasState.bufferWidth(),
+            gridType,
+            isTriangular ? this.canvasState.triangularA() : undefined,
+            isTriangular ? this.canvasState.triangularD() : undefined,
+            isTriangular ? this.canvasState.triangularDNum() : undefined,
+            isTriangular ? this.canvasState.triangularDDen() : undefined,
+            isTriangular ? this.canvasState.triangularShift() : undefined,
+          );
+          this.canvasState.cycleAssignment(byteOff);
+          this.requestRender();
+        }
+      }
+      return; // swallow all draw events while absorption preview is active
+    }
+
     const tool = this.toolService.activeTool;
     if (!tool) return;
 

@@ -1,29 +1,36 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatBadgeModule } from '@angular/material/badge';
 import { MatDialog } from '@angular/material/dialog';
 import { CdkDragDrop, CdkDropList, CdkDrag } from '@angular/cdk/drag-drop';
 import { ColorService } from '../../services/color.service';
 import { LayerService } from '../../services/layer.service';
 import { HistoryService } from '../../services/history.service';
 import { BackButtonService } from '../../services/back-button.service';
-import { Color, colorToRgba } from '../../models';
+import { CanvasStateService, AbsorptionState, PixelAbsorptionAssignment } from '../../services/canvas-state.service';
+import { Color, colorToRgba, PixelCoord, pixelOffset } from '../../models';
+import { GridService } from '../../services/grid.service';
 import {
   EditSwatchDialogComponent,
   EditSwatchDialogResult,
 } from '../edit-swatch-dialog/edit-swatch-dialog.component';
 import { ReplaceColorCommand } from '../../commands/replace-color.command';
 import { MovePaletteCommand } from '../../commands/move-palette.command';
+import { AbsorbColorCommand } from '../../commands/absorb-color.command';
+import { colorDistance, nearestColor } from '../../utils/color-quantize';
+import { byteOffsetToPixelCoord } from '../../utils/buffer-coords';
 
 const LONG_PRESS_DELAY = 500;
 const MOVE_THRESHOLD = 5;
+const DEFAULT_ORPHAN_THRESHOLD = 5;
 
 @Component({
   selector: 'app-color-palette',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, MatIconModule, MatTooltipModule, MatMenuModule, CdkDropList, CdkDrag],
+  imports: [MatButtonModule, MatIconModule, MatTooltipModule, MatMenuModule, MatBadgeModule, CdkDropList, CdkDrag],
   templateUrl: './color-palette.component.html',
   styleUrl: './color-palette.component.scss',
 })
@@ -33,9 +40,32 @@ export class ColorPaletteComponent {
   private readonly historyService = inject(HistoryService);
   private readonly dialog = inject(MatDialog);
   private readonly backButtonService = inject(BackButtonService);
+  private readonly canvasState = inject(CanvasStateService);
+  private readonly gridService = inject(GridService);
 
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
   private dragStartPos: { x: number; y: number } | null = null;
+
+  protected readonly orphanMode = signal<boolean>(false);
+  protected readonly orphanThreshold = signal<number>(DEFAULT_ORPHAN_THRESHOLD);
+
+  protected readonly isAbsorbing = computed(() => this.canvasState.absorptionState() !== null);
+
+  /** True when orphan mode is active and not in mid-absorb preview. */
+  protected readonly showOrphanBadges = computed(
+    () => this.orphanMode() && !this.isAbsorbing(),
+  );
+
+  /** Maps palette index → pixel count. Reactive via ColorService.palettePixelCounts. */
+  protected readonly pixelCounts = this.colorService.palettePixelCounts;
+
+  protected isOrphan(index: number): boolean {
+    return (this.pixelCounts().get(index) ?? 0) <= this.orphanThreshold();
+  }
+
+  protected pixelCountLabel(index: number): string {
+    return String(this.pixelCounts().get(index) ?? 0);
+  }
 
   protected primaryColorRgba = () => colorToRgba(this.colorService.primaryColor());
 
@@ -113,6 +143,118 @@ export class ColorPaletteComponent {
 
   protected addSwatch(): void {
     this.colorService.addToPalette(this.colorService.primaryColor());
+  }
+
+  protected toggleOrphanMode(): void {
+    if (this.isAbsorbing()) return; // don't toggle while previewing
+    this.orphanMode.update((v) => !v);
+  }
+
+  protected increaseThreshold(): void {
+    this.orphanThreshold.update((v) => v + 1);
+  }
+
+  protected decreaseThreshold(): void {
+    this.orphanThreshold.update((v) => Math.max(0, v - 1));
+  }
+
+  /** Begin the absorb preview for palette entry at `paletteIndex`. */
+  protected initiateAbsorb(paletteIndex: number): void {
+    const palette = this.colorService.palette();
+    const sourceColor = palette[paletteIndex];
+    const threshold = this.orphanThreshold();
+    const counts = this.pixelCounts();
+
+    // Candidates: palette entries with pixel count > threshold, sorted by distance.
+    const candidates: Color[] = palette
+      .map((c, i) => ({ color: c, index: i, count: counts.get(i) ?? 0 }))
+      .filter(({ index, count }) => index !== paletteIndex && count > threshold)
+      .sort((a, b) => colorDistance(sourceColor, a.color) - colorDistance(sourceColor, b.color))
+      .map(({ color }) => color);
+
+    if (candidates.length === 0) return; // nothing to absorb into
+
+    // Scan all layers for pixels matching sourceColor and build assignments.
+    const gridType = this.canvasState.gridType();
+    const bufferWidth = this.canvasState.bufferWidth();
+    const bufferHeight = this.canvasState.bufferHeight();
+    const isTriangular = this.gridService.isAnyTriangular(gridType);
+    const triangularA = this.canvasState.triangularA();
+    const triangularD = this.canvasState.triangularD();
+    const triangularDNum = this.canvasState.triangularDNum();
+    const triangularDDen = this.canvasState.triangularDDen();
+    const triangularShift = this.canvasState.triangularShift();
+
+    const assignments: PixelAbsorptionAssignment[] = [];
+    const layers = this.layerService.layers();
+
+    for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
+      const data = layers[layerIndex].data;
+      for (let i = 0; i < data.length; i += 4) {
+        if (
+          data[i]     === sourceColor.r &&
+          data[i + 1] === sourceColor.g &&
+          data[i + 2] === sourceColor.b &&
+          data[i + 3] === sourceColor.a
+        ) {
+          const { x, y } = byteOffsetToPixelCoord(
+            i,
+            bufferWidth,
+            gridType,
+            bufferHeight,
+            isTriangular ? triangularA : undefined,
+            isTriangular ? triangularD : undefined,
+            isTriangular ? triangularDNum : undefined,
+            isTriangular ? triangularDDen : undefined,
+            isTriangular ? triangularShift : undefined,
+          );
+          assignments.push({
+            layerIndex,
+            byteOffset: i,
+            bufX: x,
+            bufY: y,
+            candidateIndex: 0, // default to nearest neighbor
+          });
+        }
+      }
+    }
+
+    const state: AbsorptionState = {
+      paletteIndex,
+      sourceColor,
+      candidates,
+      assignments,
+    };
+    this.canvasState.enterAbsorptionMode(state);
+  }
+
+  /** Commit the current absorption preview — fires the undoable command. */
+  protected commitAbsorb(): void {
+    const state = this.canvasState.absorptionState();
+    if (!state) return;
+
+    const pixelAbsorptions = state.assignments.map((a) => ({
+      layerIndex: a.layerIndex,
+      byteOffset: a.byteOffset,
+      targetColor: state.candidates[a.candidateIndex],
+    }));
+
+    this.historyService.execute(
+      new AbsorbColorCommand(
+        this.layerService,
+        this.colorService,
+        state.paletteIndex,
+        state.sourceColor,
+        pixelAbsorptions,
+      ),
+    );
+
+    this.canvasState.exitAbsorptionMode();
+  }
+
+  /** Cancel the absorption preview without making any changes. */
+  protected cancelAbsorb(): void {
+    this.canvasState.exitAbsorptionMode();
   }
 
   private openEditDialog(index: number): void {

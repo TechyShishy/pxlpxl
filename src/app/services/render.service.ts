@@ -17,6 +17,7 @@ export class RenderService {
    *
    * @param previewPixels Optional pixels to render as a preview overlay (e.g. line/rect preview).
    * @param previewColor  Color to use for the preview pixels.
+   * @param overlays      Additional multi-color overlays (e.g. absorption-mode assignments).
    */
   render(
     ctx: CanvasRenderingContext2D,
@@ -24,6 +25,7 @@ export class RenderService {
     viewportHeight: number,
     previewPixels?: PixelCoord[],
     previewColor?: Color,
+    overlays?: readonly { pixels: PixelCoord[]; color: Color }[],
   ): void {
     const visualWidth = this.canvasState.canvasWidth();
     const visualHeight = this.canvasState.canvasHeight();
@@ -78,6 +80,15 @@ export class RenderService {
     // Draw preview overlay (e.g. line/rect preview while dragging)
     if (previewPixels && previewPixels.length > 0 && previewColor) {
       this.drawPreview(ctx, previewPixels, previewColor, transform, gridType, bufHeight);
+    }
+
+    // Draw additional multi-color overlays (e.g. absorption-mode pixel assignments)
+    if (overlays) {
+      for (const { pixels, color } of overlays) {
+        if (pixels.length > 0) {
+          this.drawPreview(ctx, pixels, color, transform, gridType, bufHeight);
+        }
+      }
     }
 
     // Draw pixel grid.

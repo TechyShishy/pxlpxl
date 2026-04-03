@@ -8,6 +8,7 @@ import { MoveLayerCommand } from './move-layer.command';
 import { MovePaletteCommand } from './move-palette.command';
 import { ReplaceColorCommand } from './replace-color.command';
 import { FlattenLayerCommand } from './flatten-layer.command';
+import { AbsorbColorCommand } from './absorb-color.command';
 import { LayerService } from '../services/layer.service';
 import { ColorService } from '../services/color.service';
 import {
@@ -368,6 +369,65 @@ describe('Command Serialization', () => {
       const bad = { type: 'move-palette' as const, description: 'x', layerIndex: 0, canvasWidth: 0 };
       expect(() => deserializeCommand(bad, layerService, colorService)).toThrow(
         'move-palette entry is missing fromIndex or toIndex',
+      );
+    });
+  });
+
+  describe('AbsorbColorCommand round-trip', () => {
+    const SOURCE: Color = { r: 200, g: 100, b: 50, a: 255 };
+    const TARGET_A: Color = { r: 210, g: 90, b: 40, a: 255 };
+    const TARGET_B: Color = { r: 180, g: 120, b: 60, a: 255 };
+
+    beforeEach(() => {
+      colorService.setPalette([SOURCE, TARGET_A, TARGET_B]);
+      // Paint source color pixels at buffer offsets 0 and 4 (pixels (0,0) and (1,0))
+      const data = layerService.layers()[0].data;
+      data[0] = SOURCE.r; data[1] = SOURCE.g; data[2] = SOURCE.b; data[3] = SOURCE.a;
+      data[4] = SOURCE.r; data[5] = SOURCE.g; data[6] = SOURCE.b; data[7] = SOURCE.a;
+    });
+
+    it('should serialize and deserialize an absorb-color command', () => {
+      const pixelAbsorptions = [
+        { layerIndex: 0, byteOffset: 0, targetColor: TARGET_A },
+        { layerIndex: 0, byteOffset: 4, targetColor: TARGET_B },
+      ];
+      const cmd = new AbsorbColorCommand(layerService, colorService, 0, SOURCE, pixelAbsorptions);
+      const serialized = serializeCommand(cmd)!;
+
+      expect(serialized.type).toBe('absorb-color');
+      expect(serialized.description).toBe('Absorb orphan color');
+    });
+
+    it('should produce a working execute/undo after deserialization', () => {
+      const pixelAbsorptions = [
+        { layerIndex: 0, byteOffset: 0, targetColor: TARGET_A },
+        { layerIndex: 0, byteOffset: 4, targetColor: TARGET_B },
+      ];
+      const cmd = new AbsorbColorCommand(layerService, colorService, 0, SOURCE, pixelAbsorptions);
+      const serialized = serializeCommand(cmd)!;
+      const restored = deserializeCommand(serialized, layerService, colorService);
+
+      restored.execute();
+      const data = layerService.layers()[0].data;
+      // offset 0 → TARGET_A
+      expect([data[0], data[1], data[2], data[3]]).toEqual([TARGET_A.r, TARGET_A.g, TARGET_A.b, TARGET_A.a]);
+      // offset 4 → TARGET_B
+      expect([data[4], data[5], data[6], data[7]]).toEqual([TARGET_B.r, TARGET_B.g, TARGET_B.b, TARGET_B.a]);
+      // SOURCE removed from palette (was at index 0, now palette has 2 entries)
+      expect(colorService.palette().length).toBe(2);
+
+      restored.undo();
+      // pixels restored to SOURCE
+      expect([data[0], data[1], data[2], data[3]]).toEqual([SOURCE.r, SOURCE.g, SOURCE.b, SOURCE.a]);
+      expect([data[4], data[5], data[6], data[7]]).toEqual([SOURCE.r, SOURCE.g, SOURCE.b, SOURCE.a]);
+      // SOURCE re-inserted at index 0
+      expect(colorsEqual(colorService.palette()[0], SOURCE)).toBe(true);
+    });
+
+    it('should throw on deserialization if required fields are missing', () => {
+      const bad = { type: 'absorb-color', description: 'x', layerIndex: 0, canvasWidth: 0 } as SerializedHistoryEntry;
+      expect(() => deserializeCommand(bad, layerService, colorService)).toThrow(
+        'absorb-color entry is missing paletteIndex, sourceColor, or pixelAbsorptions',
       );
     });
   });

@@ -31,7 +31,62 @@
     >
       <mat-icon>sort</mat-icon>
     </button>
+    <button
+      mat-icon-button
+      [matTooltip]="orphanMode() ? 'Exit orphan mode' : 'Show orphan colors'"
+      (click)="toggleOrphanMode()"
+      [class.orphan-mode-active]="orphanMode()"
+      aria-label="Toggle orphan mode"
+    >
+      <mat-icon>filter_2</mat-icon>
+    </button>
   </div>
+
+  @if (orphanMode() && !isAbsorbing()) {
+    <div class="orphan-controls" role="group" aria-label="Orphan threshold controls">
+      <span class="orphan-label">Orphan ≤</span>
+      <button
+        mat-icon-button
+        class="orphan-stepper"
+        (click)="decreaseThreshold()"
+        [disabled]="orphanThreshold() === 0"
+        aria-label="Decrease orphan threshold"
+      >
+        <mat-icon>remove</mat-icon>
+      </button>
+      <span class="orphan-threshold-value" aria-live="polite">{{ orphanThreshold() }}</span>
+      <button
+        mat-icon-button
+        class="orphan-stepper"
+        (click)="increaseThreshold()"
+        aria-label="Increase orphan threshold"
+      >
+        <mat-icon>add</mat-icon>
+      </button>
+      <span class="orphan-hint">pixels</span>
+    </div>
+  }
+
+  @if (isAbsorbing()) {
+    <div class="absorb-controls" role="group" aria-label="Absorption preview controls">
+      <span class="absorb-label">Tap pixels to cycle assignment</span>
+      <button
+        mat-button
+        color="primary"
+        (click)="commitAbsorb()"
+        aria-label="Commit absorption"
+      >
+        Commit
+      </button>
+      <button
+        mat-button
+        (click)="cancelAbsorb()"
+        aria-label="Cancel absorption"
+      >
+        Cancel
+      </button>
+    </div>
+  }
 
   <mat-menu #sortMenu>
     <button mat-menu-item (click)="colorService.sortPaletteByPixelCount()">
@@ -57,23 +112,42 @@
     (cdkDropListDropped)="onSwatchDrop($event)"
   >
     @for (color of colorService.palette(); track $index) {
-      <button
-        class="swatch"
-        [style.background]="toRgba(color)"
-        [class.selected]="isSelected(color)"
-        (click)="colorService.setPrimaryColor(color)"
-        (pointerdown)="onSwatchPointerDown($event, $index)"
-        (pointermove)="onSwatchPointerMove($event)"
-        (pointerup)="onSwatchPointerUp()"
-        (pointercancel)="onSwatchPointerCancel()"
-        (keydown)="onSwatchKeyDown($event, $index)"
-        [attr.aria-label]="'Color ' + ($index + 1) + ' — long press or Enter to edit'"
-        role="option"
-        [attr.aria-selected]="isSelected(color)"
+      <div
+        class="swatch-wrapper"
         cdkDrag
         [cdkDragStartDelay]="{ touch: 150, mouse: 0 }"
         (cdkDragStarted)="onSwatchDragStarted()"
-      ></button>
+      >
+        <button
+          class="swatch"
+          [style.background]="toRgba(color)"
+          [class.selected]="isSelected(color)"
+          [class.orphan]="showOrphanBadges() && isOrphan($index)"
+          (click)="colorService.setPrimaryColor(color)"
+          (pointerdown)="onSwatchPointerDown($event, $index)"
+          (pointermove)="onSwatchPointerMove($event)"
+          (pointerup)="onSwatchPointerUp()"
+          (pointercancel)="onSwatchPointerCancel()"
+          (keydown)="onSwatchKeyDown($event, $index)"
+          [attr.aria-label]="'Color ' + ($index + 1) + (showOrphanBadges() ? ' — ' + pixelCountLabel($index) + ' pixels' : '') + ' — long press or Enter to edit'"
+          role="option"
+          [attr.aria-selected]="isSelected(color)"
+        ></button>
+        @if (showOrphanBadges() && isOrphan($index)) {
+          <span class="pixel-count-badge" aria-hidden="true">{{ pixelCountLabel($index) }}</span>
+        }
+        @if (showOrphanBadges() && isOrphan($index) && !isAbsorbing()) {
+          <button
+            class="absorb-btn"
+            mat-icon-button
+            matTooltip="Absorb into nearest color"
+            (click)="initiateAbsorb($index)"
+            [attr.aria-label]="'Absorb color ' + ($index + 1) + ' into nearest neighbor'"
+          >
+            <mat-icon>merge_type</mat-icon>
+          </button>
+        }
+      </div>
     }
   </div>
 </div>

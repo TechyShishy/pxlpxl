@@ -8,6 +8,7 @@ import { MovePaletteCommand } from './move-palette.command';
 import { SortPaletteCommand } from './sort-palette.command';
 import { ReplaceColorCommand } from './replace-color.command';
 import { FlattenLayerCommand } from './flatten-layer.command';
+import { AbsorbColorCommand } from './absorb-color.command';
 import { LayerService } from '../services/layer.service';
 import { ColorService } from '../services/color.service';
 
@@ -169,6 +170,22 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
     };
   }
 
+  if (command instanceof AbsorbColorCommand) {
+    return {
+      type: 'absorb-color',
+      description: command.description,
+      layerIndex: 0,
+      canvasWidth: 0,
+      paletteIndex: command.paletteIndex,
+      sourceColor: { ...command.sourceColor },
+      pixelAbsorptions: command.pixelAbsorptions.map((a) => ({
+        layerIndex: a.layerIndex,
+        byteOffset: a.byteOffset,
+        targetColor: { ...a.targetColor },
+      })),
+    };
+  }
+
   return null;
 }
 
@@ -300,6 +317,21 @@ export function deserializeCommand(
         base64ToUint8Array(entry.previousAboveData),
         entry.previousAboveOpacity ?? 1,
         base64ToUint8Array(entry.mergedData),
+      );
+    }
+
+    case 'absorb-color': {
+      if (entry.paletteIndex == null || !entry.sourceColor || !entry.pixelAbsorptions) {
+        throw new Error('absorb-color entry is missing paletteIndex, sourceColor, or pixelAbsorptions');
+      }
+      return new AbsorbColorCommand(
+        layerService,
+        colorService,
+        entry.paletteIndex,
+        { ...entry.sourceColor },
+        (entry.pixelAbsorptions as Array<{ layerIndex: number; byteOffset: number; targetColor: { r: number; g: number; b: number; a: number } }>).map(
+          (a) => ({ layerIndex: a.layerIndex, byteOffset: a.byteOffset, targetColor: { ...a.targetColor } }),
+        ),
       );
     }
 

@@ -18,6 +18,32 @@ export class ColorService {
   readonly secondaryColor = this._secondaryColor.asReadonly();
   readonly palette = this._palette.asReadonly();
 
+  /**
+   * Pixel count per palette index across all layers.
+   * Recomputes lazily when the palette or any layer changes.
+   * Used by orphan-mode to flag low-usage palette entries.
+   */
+  readonly palettePixelCounts = computed<Map<number, number>>(() => {
+    const palette = this._palette();
+    const counts = new Map<number, number>();
+    for (let i = 0; i < palette.length; i++) counts.set(i, 0);
+    for (const layer of this.layerService.layers()) {
+      const data = layer.data;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] === 0) continue;
+        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+        for (let pi = 0; pi < palette.length; pi++) {
+          const c = palette[pi];
+          if (c.r === r && c.g === g && c.b === b && c.a === a) {
+            counts.set(pi, (counts.get(pi) ?? 0) + 1);
+            break;
+          }
+        }
+      }
+    }
+    return counts;
+  });
+
   readonly primaryColorHex = computed(() => {
     const c = this._primaryColor();
     return this.toHex(c);
@@ -55,6 +81,15 @@ export class ColorService {
 
   removeFromPalette(index: number): void {
     this._palette.update((p) => p.filter((_, i) => i !== index));
+  }
+
+  /** Re-insert `color` at `index`, shifting later entries right. Used by undo of AbsorbColorCommand. */
+  insertPaletteColorAt(index: number, color: Color): void {
+    this._palette.update((p) => {
+      const next = [...p];
+      next.splice(index, 0, { ...color });
+      return next;
+    });
   }
 
   updatePaletteColor(index: number, color: Color): void {
@@ -100,23 +135,9 @@ export class ColorService {
     const before = this._palette();
     if (before.length <= 1) return;
 
+    const pixelCountMap = this.palettePixelCounts();
     const counts = new Map<number, number>();
-    for (let i = 0; i < before.length; i++) counts.set(i, 0);
-
-    for (const layer of this.layerService.layers()) {
-      const data = layer.data;
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] === 0) continue;
-        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
-        for (let pi = 0; pi < before.length; pi++) {
-          const c = before[pi];
-          if (c.r === r && c.g === g && c.b === b && c.a === a) {
-            counts.set(pi, (counts.get(pi) ?? 0) + 1);
-            break;
-          }
-        }
-      }
-    }
+    for (let i = 0; i < before.length; i++) counts.set(i, pixelCountMap.get(i) ?? 0);
 
     const indices = Array.from({ length: before.length }, (_, i) => i);
     indices.sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0));

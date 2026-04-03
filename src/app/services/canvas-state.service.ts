@@ -1,8 +1,38 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { BeadSize, ViewTransform, GridType, computeBufferDimensions, computeBufferPixelCount } from '../models';
+import { BeadSize, Color, ViewTransform, GridType, computeBufferDimensions, computeBufferPixelCount } from '../models';
 import { GridService } from './grid.service';
 import { clonePivot } from './clone-geometry';
 import { SettingsService } from './settings.service';
+
+/**
+ * Represents one pixel that will be reassigned during an absorb operation.
+ * Coordinates are in buffer-space (the same space used by pixelOffset/pixelToScreen).
+ */
+export interface PixelAbsorptionAssignment {
+  layerIndex: number;
+  byteOffset: number;
+  /** Buffer-space x coordinate (used by RenderService preview overlay). */
+  bufX: number;
+  /** Buffer-space y coordinate. */
+  bufY: number;
+  /** Index into AbsorptionState.candidates for this pixel's current target. */
+  candidateIndex: number;
+}
+
+/**
+ * Transient state while the user is previewing an absorb operation.
+ * Cleared on commit or cancel.
+ */
+export interface AbsorptionState {
+  paletteIndex: number;
+  sourceColor: Color;
+  /**
+   * Non-orphan palette colors sorted by colorDistance from sourceColor ascending.
+   * candidates[0] is the Voronoi default for every pixel.
+   */
+  candidates: Color[];
+  assignments: PixelAbsorptionAssignment[];
+}
 
 @Injectable({ providedIn: 'root' })
 export class CanvasStateService {
@@ -369,5 +399,35 @@ export class CanvasStateService {
       this._triangularDDen(),
       this._triangularShift(),
     );
+  }
+
+  // ── Absorption mode ────────────────────────────────────────────────
+
+  private readonly _absorptionState = signal<AbsorptionState | null>(null);
+  readonly absorptionState = this._absorptionState.asReadonly();
+
+  enterAbsorptionMode(state: AbsorptionState): void {
+    this._absorptionState.set(state);
+  }
+
+  exitAbsorptionMode(): void {
+    this._absorptionState.set(null);
+  }
+
+  /**
+   * Cycle the target assignment for every pixel with the given byteOffset
+   * (all layers at the same logical position) to the next candidate.
+   */
+  cycleAssignment(byteOffset: number): void {
+    this._absorptionState.update((state) => {
+      if (!state) return state;
+      if (!state.assignments.some((a) => a.byteOffset === byteOffset)) return state;
+      const assignments = state.assignments.map((a) =>
+        a.byteOffset === byteOffset
+          ? { ...a, candidateIndex: (a.candidateIndex + 1) % state.candidates.length }
+          : a,
+      );
+      return { ...state, assignments };
+    });
   }
 }

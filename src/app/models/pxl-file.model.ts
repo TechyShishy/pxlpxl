@@ -51,7 +51,8 @@ export type HistoryEntryType =
   | 'replace-color'
   | 'move-palette'
   | 'sort-palette'
-  | 'flatten-layer';
+  | 'flatten-layer'
+  | 'absorb-color';
 
 /** Common fields shared by all serialized history entries. */
 interface SerializedHistoryEntryBase {
@@ -126,6 +127,13 @@ export interface SerializedFlattenLayerEntry extends SerializedHistoryEntryBase 
   canvasHeight?: number;
 }
 
+export interface SerializedAbsorbColorEntry extends SerializedHistoryEntryBase {
+  type: 'absorb-color';
+  paletteIndex: number;
+  sourceColor: Color;
+  pixelAbsorptions: Array<{ layerIndex: number; byteOffset: number; targetColor: Color }>;
+}
+
 /** Pixel-based commands that support triangular grid params. */
 export type SerializedPixelEntry = SerializedDrawEntry | SerializedFillEntry;
 
@@ -139,7 +147,8 @@ export type SerializedHistoryEntry =
   | SerializedMovePaletteEntry
   | SerializedSortPaletteEntry
   | SerializedReplaceColorEntry
-  | SerializedFlattenLayerEntry;
+  | SerializedFlattenLayerEntry
+  | SerializedAbsorbColorEntry;
 
 export interface SerializedModifiedPixel {
   coord: { x: number; y: number };
@@ -188,6 +197,7 @@ export const PxlFileSchema = z.object({
             'move-palette',
             'sort-palette',
             'flatten-layer',
+            'absorb-color',
           ]),
           description: z.string(),
           layerIndex: z.number().int(),
@@ -206,6 +216,7 @@ export const PxlFileSchema = z.object({
             'move-palette',
             'sort-palette',
             'flatten-layer',
+            'absorb-color',
           ]),
           description: z.string(),
           layerIndex: z.number().int(),
