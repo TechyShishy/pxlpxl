@@ -8,6 +8,7 @@ import { LayerService } from './layer.service';
 import { ColorService } from './color.service';
 import { HistoryService } from './history.service';
 import { ProjectService } from './project.service';
+import { SettingsService } from './settings.service';
 import { Capacitor } from '@capacitor/core';
 import { Directory } from '@capacitor/filesystem';
 import { PxlFile, base64ToUint8Array } from '../models';
@@ -104,6 +105,12 @@ describe('ExportService', () => {
           provide: ProjectService,
           useValue: {
             currentProjectName: vi.fn(() => 'test-project'),
+          },
+        },
+        {
+          provide: SettingsService,
+          useValue: {
+            defaultColorPool: vi.fn(() => 'any'),
           },
         },
       ],
@@ -581,6 +588,54 @@ describe('ExportService', () => {
 
       expect(parsed.colorMapping).toBeDefined();
       expect(parsed.colorMapping['A']).toBeDefined();
+    });
+
+    it('should use DB codes in colorMapping when defaultColorPool is delica', async () => {
+      const settingsServiceMock = TestBed.inject(SettingsService) as unknown as { defaultColorPool: ReturnType<typeof vi.fn> };
+      settingsServiceMock.defaultColorPool.mockReturnValue('delica');
+
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([]);
+
+      // DB0001 → #424145 per the Miyuki Delica catalog
+      const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
+      colorServiceMock.palette.mockReturnValue([{ r: 0x42, g: 0x41, b: 0x45, a: 255 }]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      expect(parsed.colorMapping['A']).toBe('DB0001');
+    });
+
+    it('should fall back to hex in colorMapping when delica mode but color is not in catalog', async () => {
+      const settingsServiceMock = TestBed.inject(SettingsService) as unknown as { defaultColorPool: ReturnType<typeof vi.fn> };
+      settingsServiceMock.defaultColorPool.mockReturnValue('delica');
+
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([]);
+
+      // This color is not in the Delica catalog
+      const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
+      colorServiceMock.palette.mockReturnValue([{ r: 1, g: 2, b: 3, a: 255 }]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      expect(parsed.colorMapping['A']).toBe('#010203ff');
+    });
+
+    it('should use hex codes in colorMapping when defaultColorPool is any', async () => {
+      const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
+      layerServiceMock.layers.mockReturnValue([]);
+
+      // DB0001 → #424145 — in non-delica mode this should still be a hex string
+      const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
+      colorServiceMock.palette.mockReturnValue([{ r: 0x42, g: 0x41, b: 0x45, a: 255 }]);
+
+      const blob = await service.exportAsRgp();
+      const parsed = JSON.parse(await decompressBlob(blob));
+
+      expect(parsed.colorMapping['A']).toBe('#424145ff');
     });
   });
 

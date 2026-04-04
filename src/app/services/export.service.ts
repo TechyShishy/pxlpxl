@@ -11,6 +11,7 @@ import { LayerService } from './layer.service';
 import { ColorService } from './color.service';
 import { HistoryService } from './history.service';
 import { ProjectService } from './project.service';
+import { SettingsService } from './settings.service';
 import {
   PxlFile,
   PXL_FORMAT_VERSION,
@@ -25,6 +26,7 @@ import {
   BeadSize,
 } from '../models';
 import { colorToHex } from '../models';
+import { colorToDbCode } from '../utils/color-pools';
 import { serializeCommand } from '../commands/command-serialization';
 
 export type ExportFormat = 'png' | 'gif' | 'spritesheet' | 'rgp';
@@ -44,6 +46,7 @@ export class ExportService {
   private readonly colorService = inject(ColorService);
   private readonly historyService = inject(HistoryService);
   private readonly projectService = inject(ProjectService);
+  private readonly settingsService = inject(SettingsService);
   private readonly snackBar = inject(MatSnackBar);
 
   /**
@@ -232,10 +235,16 @@ export class ExportService {
     const palette = this.colorService.palette();
     const hexToLetter = buildPaletteLetterMap(palette);
 
-    // Build letter→hex for the colorMapping field in the RGP payload
+    // Build letter→value for the colorMapping field in the RGP payload.
+    // In delica mode, values are DB codes (e.g. "DB0031"); otherwise hex.
+    // colorToDbCode matches on RGB only (alpha is irrelevant for physical beads).
+    const useDbCodes = this.settingsService.defaultColorPool() === 'delica';
     const colorMapping: Record<string, string> = {};
-    for (const [hex, letter] of hexToLetter) {
-      colorMapping[letter] = hex;
+    for (const color of palette) {
+      const hex = colorToHex(color);
+      // hexToLetter is built from the same palette array, so every entry has a letter.
+      const letter = hexToLetter.get(hex)!;
+      colorMapping[letter] = useDbCodes ? (colorToDbCode(color) ?? hex) : hex;
     }
 
     // Run-length encode each buffer row into RgpRow
