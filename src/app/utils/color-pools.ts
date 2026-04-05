@@ -1,6 +1,6 @@
 import type { Color } from '../models/color.model';
 import { hexToColor } from '../models/color.model';
-import delicaColors from '../../assets/data/delica-colors.json';
+import delicaBeads from '../../assets/data/delica-beads.json';
 
 // ── Color pool types ──────────────────────────────────────────────────────────
 
@@ -9,7 +9,9 @@ export type ColorPoolId = 'any' | 'delica';
 
 // ── Delica pool ───────────────────────────────────────────────────────────────
 
-const DELICA_MAP: Record<string, string> = delicaColors as Record<string, string>;
+const DELICA_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(delicaBeads).map(([code, bead]) => [code, bead.hex]),
+);
 
 /** Lazily converted + cached Delica Color[]. */
 let delicaCache: Color[] | null = null;

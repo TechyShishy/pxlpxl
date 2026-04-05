@@ -85,11 +85,11 @@ describe('letterToColor', () => {
   });
 
   it('resolves a known Delica DB code to the catalog hex color', () => {
-    // DB0001 maps to #424145 (fully opaque)
+    // DB0001 maps to #23242d (fully opaque)
     const result = letterToColor('A', { A: 'DB0001' });
-    expect(result.r).toBe(0x42);
-    expect(result.g).toBe(0x41);
-    expect(result.b).toBe(0x45);
+    expect(result.r).toBe(0x23);
+    expect(result.g).toBe(0x24);
+    expect(result.b).toBe(0x2d);
     expect(result.a).toBe(255);
   });
 

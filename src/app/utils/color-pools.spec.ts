@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { getDelicaColorPool, getColorPool } from './color-pools';
 
 describe('getDelicaColorPool', () => {
-  it('returns 1202 Delica bead colors', () => {
+  it('returns 1285 Delica bead colors', () => {
     const pool = getDelicaColorPool();
-    expect(pool).toHaveLength(1202);
+    expect(pool).toHaveLength(1285);
   });
 
   it('returns colors with a = 255 (fully opaque)', () => {
@@ -41,6 +41,6 @@ describe('getColorPool', () => {
   it('returns the Delica pool for "delica"', () => {
     const pool = getColorPool('delica');
     expect(pool).toBeDefined();
-    expect(pool!.length).toBe(1202);
+    expect(pool!.length).toBe(1285);
   });
 });

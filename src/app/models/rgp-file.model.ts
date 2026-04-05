@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import type { Color } from './color.model';
 import { colorToHex, hexToColor, TRANSPARENT } from './color.model';
-import delicaColors from '../../assets/data/delica-colors.json';
+import delicaBeads from '../../assets/data/delica-beads.json';
 
-const DELICA_COLORS: Record<string, string> = delicaColors as Record<string, string>;
+const DELICA_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(delicaBeads).map(([code, bead]) => [code, bead.hex]),
+);
 
 // ── RGP zod schemas ───────────────────────────────────────────────────
 
