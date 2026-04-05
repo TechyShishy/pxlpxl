@@ -266,7 +266,7 @@ describe('ImportService – RGP import (integration)', () => {
   });
 
   it('should resolve a Delica DB code in colorMapping to the catalog hex color', async () => {
-    // DB0001 → #424145 (fully opaque)
+    // DB0001 → #23242d (fully opaque)
     const project: RgpProject = {
       id: 0,
       name: 'DB code test',
@@ -282,9 +282,9 @@ describe('ImportService – RGP import (integration)', () => {
     const bufferWidth = canvasState.bufferWidth();
     const offset = (0 * bufferWidth + 0) * 4;
     const layerData = layerService.getLayerData(0)!;
-    expect(layerData[offset]).toBe(0x42);      // r
-    expect(layerData[offset + 1]).toBe(0x41);  // g
-    expect(layerData[offset + 2]).toBe(0x45);  // b
+    expect(layerData[offset]).toBe(0x23);      // r
+    expect(layerData[offset + 1]).toBe(0x24);  // g
+    expect(layerData[offset + 2]).toBe(0x2d);  // b
     expect(layerData[offset + 3]).toBe(255);   // a
   });
 });

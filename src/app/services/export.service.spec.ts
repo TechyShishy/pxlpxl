@@ -597,9 +597,9 @@ describe('ExportService', () => {
       const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
       layerServiceMock.layers.mockReturnValue([]);
 
-      // DB0001 → #424145 per the Miyuki Delica catalog
+      // DB0001 → #23242d per the Miyuki Delica catalog
       const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
-      colorServiceMock.palette.mockReturnValue([{ r: 0x42, g: 0x41, b: 0x45, a: 255 }]);
+      colorServiceMock.palette.mockReturnValue([{ r: 0x23, g: 0x24, b: 0x2d, a: 255 }]);
 
       const blob = await service.exportAsRgp();
       const parsed = JSON.parse(await decompressBlob(blob));
@@ -628,14 +628,14 @@ describe('ExportService', () => {
       const layerServiceMock = TestBed.inject(LayerService) as unknown as { layers: ReturnType<typeof vi.fn> };
       layerServiceMock.layers.mockReturnValue([]);
 
-      // DB0001 → #424145 — in non-delica mode this should still be a hex string
+      // DB0001 → #23242d — in non-delica mode this should still be a hex string
       const colorServiceMock = TestBed.inject(ColorService) as unknown as { palette: ReturnType<typeof vi.fn> };
-      colorServiceMock.palette.mockReturnValue([{ r: 0x42, g: 0x41, b: 0x45, a: 255 }]);
+      colorServiceMock.palette.mockReturnValue([{ r: 0x23, g: 0x24, b: 0x2d, a: 255 }]);
 
       const blob = await service.exportAsRgp();
       const parsed = JSON.parse(await decompressBlob(blob));
 
-      expect(parsed.colorMapping['A']).toBe('#424145ff');
+      expect(parsed.colorMapping['A']).toBe('#23242dff');
     });
   });
 
