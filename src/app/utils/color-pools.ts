@@ -57,34 +57,38 @@ export function getDelicaColorPool(): Color[] {
 
 // ── Default Delica palette ───────────────────────────────────────────────────
 
+/** Look up a DB code from the catalog and return a frozen Color. Throws at module load if the code is absent. */
+function catalogColor(code: string): Readonly<Color> {
+  const bead = (delicaBeads as Record<string, { hex: string }>)[code];
+  if (!bead) throw new Error(`DEFAULT_DELICA_PALETTE: DB code not found in catalog: ${code}`);
+  return Object.freeze(hexToColor(bead.hex));
+}
+
 /**
  * A curated 16-color starting palette drawn from the Miyuki Delica catalog.
  * Covers the full hue spectrum (black, grays, white + 12 vivid hues) and is
  * suitable as an initial project palette when working with Delica beads.
  *
- * Sources (DB code → hex):
- *   DB0010 #211d1e  DB1818 #424040  DB0168 #81807c  DB2204 #ffffff
- *   DB0757 #e41321  DB0744 #fa6a02  DB1583 #fc9902  DB2121 #6fbf0b
- *   DB2126 #328a31  DB0655 #1b7f36  DB2505 #0f8162  DB1304 #0bb6ab
- *   DB0787 #036dd0  DB0661 #5453c1  DB1315 #451576  DB1310 #d90988
+ * Hex values are resolved from the catalog at module load — the DB codes are
+ * the source of truth, not hardcoded hex constants.
  */
 export const DEFAULT_DELICA_PALETTE: readonly Readonly<Color>[] = Object.freeze([
-  Object.freeze(hexToColor('#211d1e')), // DB0010 — Black
-  Object.freeze(hexToColor('#424040')), // DB1818 — Dark Gray
-  Object.freeze(hexToColor('#81807c')), // DB0168 — Gray
-  Object.freeze(hexToColor('#ffffff')), // DB2204 — White
-  Object.freeze(hexToColor('#e41321')), // DB0757 — Red
-  Object.freeze(hexToColor('#fa6a02')), // DB0744 — Orange
-  Object.freeze(hexToColor('#fc9902')), // DB1583 — Yellow
-  Object.freeze(hexToColor('#6fbf0b')), // DB2121 — Yellow-Green
-  Object.freeze(hexToColor('#328a31')), // DB2126 — Green
-  Object.freeze(hexToColor('#1b7f36')), // DB0655 — Forest Green
-  Object.freeze(hexToColor('#0f8162')), // DB2505 — Teal
-  Object.freeze(hexToColor('#0bb6ab')), // DB1304 — Cyan
-  Object.freeze(hexToColor('#036dd0')), // DB0787 — Blue
-  Object.freeze(hexToColor('#5453c1')), // DB0661 — Indigo
-  Object.freeze(hexToColor('#451576')), // DB1315 — Violet
-  Object.freeze(hexToColor('#d90988')), // DB1310 — Magenta
+  catalogColor('DB0010'), // Black
+  catalogColor('DB1818'), // Dark Gray
+  catalogColor('DB0168'), // Gray
+  catalogColor('DB2204'), // White
+  catalogColor('DB0757'), // Red
+  catalogColor('DB0744'), // Orange
+  catalogColor('DB1583'), // Yellow
+  catalogColor('DB2121'), // Yellow-Green
+  catalogColor('DB2126'), // Green
+  catalogColor('DB0655'), // Forest Green
+  catalogColor('DB2505'), // Teal
+  catalogColor('DB1304'), // Cyan
+  catalogColor('DB0787'), // Blue
+  catalogColor('DB0661'), // Indigo
+  catalogColor('DB1315'), // Violet
+  catalogColor('DB1310'), // Magenta
 ]);
 
 // ── Pool dispatcher ───────────────────────────────────────────────────────────
