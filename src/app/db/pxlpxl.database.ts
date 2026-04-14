@@ -6,6 +6,9 @@ import { Project } from '../models';
 interface ProjectMigrationRecord {
   gridType?: string;
   width?: number;
+  height?: number;
+  layers?: Array<{ data: number[] }>;
+  history?: unknown;
   triangularD?: number;
   triangularDNum?: number;
   triangularDDen?: number;
@@ -116,6 +119,78 @@ export class PxlpxlDatabase extends Dexie {
             if (project.gridType === 'peyote' && project.width !== undefined) {
               project.width = Math.ceil(project.width / 2);
             }
+          }),
+      );
+    this.version(8)
+      .stores({
+        projects: '++id, name, createdAt, updatedAt',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('projects')
+          .toCollection()
+          .modify((project: ProjectMigrationRecord) => {
+            if (project.gridType !== 'peyote') return;
+            const bufferWidth = project.width;
+            const bufferHeight = project.height;
+            if (!bufferWidth || !bufferHeight || !project.layers) return;
+
+            const rowByteCount = bufferWidth * 4;
+            for (const layer of project.layers) {
+              const data = layer.data;
+              // Swap even and odd buffer rows pairwise so that even visual
+              // sub-columns become the shifted/down ones (fix for inverted
+              // peyote column orientation).
+              for (let beadRow = 0; beadRow < Math.floor(bufferHeight / 2); beadRow++) {
+                const evenStart = beadRow * 2 * rowByteCount;
+                const oddStart = (beadRow * 2 + 1) * rowByteCount;
+                for (let i = 0; i < rowByteCount; i++) {
+                  const tmp = data[evenStart + i];
+                  data[evenStart + i] = data[oddStart + i];
+                  data[oddStart + i] = tmp;
+                }
+              }
+            }
+
+            // History contains buffer-space coordinates that are now stale
+            // after the row swap; clear it rather than attempt coord remapping.
+            project.history = undefined;
+          }),
+      );
+    this.version(9)
+      .stores({
+        projects: '++id, name, createdAt, updatedAt',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('projects')
+          .toCollection()
+          .modify((project: ProjectMigrationRecord) => {
+            if (project.gridType !== 'peyote') return;
+            const bufferWidth = project.width;
+            const bufferHeight = project.height;
+            if (!bufferWidth || !bufferHeight || !project.layers) return;
+
+            const rowByteCount = bufferWidth * 4;
+            for (const layer of project.layers) {
+              const data = layer.data;
+              // Re-swap even and odd buffer rows pairwise to align with the
+              // updated bufferToVisual convention: even buffer rows now hold
+              // odd visual sub-columns (UP/unshifted), odd buffer rows hold
+              // even visual sub-columns (DOWN/shifted). V8 swapped for the
+              // old convention; v9 swaps once more to reach the new one.
+              for (let beadRow = 0; beadRow < Math.floor(bufferHeight / 2); beadRow++) {
+                const evenStart = beadRow * 2 * rowByteCount;
+                const oddStart = (beadRow * 2 + 1) * rowByteCount;
+                for (let i = 0; i < rowByteCount; i++) {
+                  const tmp = data[evenStart + i];
+                  data[evenStart + i] = data[oddStart + i];
+                  data[oddStart + i] = tmp;
+                }
+              }
+            }
+
+            project.history = undefined;
           }),
       );
   }

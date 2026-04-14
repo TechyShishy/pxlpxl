@@ -146,7 +146,8 @@ export class RotateTool implements Tool {
 
         if (isPeyote) {
           // Convert destination buffer coordinate to visual (col, beadRow).
-          const vDstX = dstX * 2 + (dstY & 1);
+          // New convention: even buf row → odd visual col; odd buf row → even visual col.
+          const vDstX = dstX * 2 + 1 - (dstY & 1);
           const vDstY = Math.floor(dstY / 2);
 
           // Translate to visual centre, apply inverse rotation, translate back.
@@ -160,8 +161,9 @@ export class RotateTool implements Tool {
           const vSrcY = Math.round(vSrcYf);
 
           // Convert visual source position back to buffer coordinates.
+          // New convention: odd visual col → even buf row; even visual col → odd buf row.
           srcX = Math.floor(vSrcX / 2);
-          srcY = vSrcY * 2 + (vSrcX & 1);
+          srcY = vSrcY * 2 + 1 - (vSrcX & 1);
 
           // Bounds check in visual and buffer space.
           if (vSrcX < 0 || vSrcX >= visualColumns || vSrcY < 0 || srcY < 0 || srcY >= height) continue;
@@ -199,12 +201,13 @@ export class RotateTool implements Tool {
 
   /**
    * Convert a buffer coordinate (bx, by) to visual space.
-   * For peyote: visual col = bx*2 + (by&1), visual bead row = floor(by/2).
+   * For peyote: visual col = bx*2 + 1 - (by&1), visual bead row = floor(by/2).
+   * (Even buf row → odd visual col = UP; odd buf row → even visual col = DOWN.)
    * For other grid types: identity.
    */
   private toVisual(bx: number, by: number, ctx: ToolContext): { vx: number; vy: number } {
     if (ctx.gridType === 'peyote') {
-      return { vx: bx * 2 + (by & 1), vy: Math.floor(by / 2) };
+      return { vx: bx * 2 + 1 - (by & 1), vy: Math.floor(by / 2) };
     }
     return { vx: bx, vy: by };
   }

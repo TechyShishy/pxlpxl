@@ -239,7 +239,7 @@ describe('MoveTool', () => {
 
   describe('peyote grid — parity-aware move', () => {
     // 2 column-pairs × 4 buffer rows → visCols=4, beadsPerCol=2
-    // bufferToVisual(bx, by) = {col: bx*2 + (by%2), beadRow: floor(by/2)}
+    // bufferToVisual(bx, by) = {col: bx*2 + 1 - (by%2), beadRow: floor(by/2)}
     const PEY_W = 2;
     const PEY_H = 4;
 
@@ -248,7 +248,7 @@ describe('MoveTool', () => {
       // produced the wrong visual delta when startCoord.y is odd.
       // Correct: derive the delta from the actual start position.
       const data = makeLayerData(PEY_W, PEY_H);
-      // Red bead at buffer (0, 1) — odd row → visual col=1, beadRow=0
+      // Red bead at buffer (0, 1) — odd row → visual col=0 (DOWN), beadRow=0
       setPixel(data, 0, 1, PEY_W, 255, 0, 0, 255);
 
       tool.onPointerDown(
@@ -257,9 +257,9 @@ describe('MoveTool', () => {
       );
 
       // Drag from (0,1) to (0,2): dx=0, dy=1.
-      // Correct visual delta: visualDx = -1, visualDy = 1
-      // (startVisual={col:1,beadRow:0}, endVisual={col:0,beadRow:1})
-      // Destination: visualToBuffer(col=0, beadRow=1) = buffer (0, 2)
+      // Visual delta: visualDx = +1, visualDy = +1
+      // (startVisual={col:0,beadRow:0}, endVisual={col:1,beadRow:1})
+      // Destination: visualToBuffer(col=1, beadRow=1) = buffer (0, 2)
       tool.onPointerMove(
         makeContext({ coord: { x: 0, y: 2 }, canvasWidth: PEY_W, canvasHeight: PEY_H, gridType: 'peyote' }),
         data,

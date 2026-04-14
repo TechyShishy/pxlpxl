@@ -544,7 +544,7 @@ export class ImportPngDialogComponent {
         if (col >= this.data.bufferWidth * 2) continue; // unreachable for valid buffer coords
         const isOddCol = col % 2 === 1;
         const vx = col;
-        const vy = beadRow + (isOddCol ? 0.5 : 0);
+        const vy = beadRow + (isOddCol ? 0 : 0.5);
         ctx.fillStyle = `rgba(${buffer[off]},${buffer[off + 1]},${buffer[off + 2]},${a / 255})`;
         ctx.fillRect(
           this.cropBoxX + vx * cs,
@@ -716,7 +716,7 @@ export class ImportPngDialogComponent {
           if (col >= bufferWidth * 2) continue; // unreachable for valid buffer coords
           const isOddCol = col % 2 === 1;
           const vx = col;
-          const vy = beadRow + (isOddCol ? 0.5 : 0);
+          const vy = beadRow + (isOddCol ? 0 : 0.5);
           writePixel(bx, by, vx, vy, bufferWidth);
         }
       }

@@ -225,14 +225,16 @@ export function renderRowRuler(
     const beadsOdd = isPeyote ? Math.floor(canvasHeight / 2) : canvasHeight;
 
     for (let r = 0; r < beadsEven; r++) {
-      // Even-column bead centre (all grid types).
-      positions.push(r * beadSize.height + offsetY + beadSize.height / 2);
+      // For peyote: even cols are the shifted/down cols, centre = r*scale + scale.
+      // For square/triangular: standard half-bead centre = r*scale + scale/2.
+      const centre = isPeyote ? beadSize.height : beadSize.height / 2;
+      positions.push(r * beadSize.height + offsetY + centre);
     }
 
     if (isPeyote) {
       for (let r = 0; r < beadsOdd; r++) {
-        // Odd-column bead centre: shifted down by beadSize.height/2 relative to even columns.
-        positions.push(r * beadSize.height + offsetY + beadSize.height);
+        // Odd-column bead centre: not shifted (odd cols are the up cols).
+        positions.push(r * beadSize.height + offsetY + beadSize.height / 2);
       }
     }
 

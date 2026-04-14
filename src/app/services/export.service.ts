@@ -265,7 +265,7 @@ export class ExportService {
         ? triangularCumPixels(by, triangularA, triDNum, triDDen, triShift)
         : by * bufferWidth;
 
-      // 1-indexed odd rows correspond to by % 2 === 0.
+      // 1-indexed odd rows correspond to by % 2 === 0 (RGP row index, not buffer index).
       // The oddRowDirection option controls only these rows; even rows always go LTR.
       const isRtl = by % 2 === 0 && oddRowDirection === 'rtl';
       const bxStart = isRtl ? rowWidth - 1 : 0;

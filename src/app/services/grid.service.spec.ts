@@ -9,36 +9,36 @@ describe('GridService', () => {
   });
 
   describe('bufferToVisual', () => {
-    it('should map even buffer row to even visual column', () => {
-      // bx=0, by=0 → col=0, beadRow=0
-      expect(service.bufferToVisual(0, 0)).toEqual({ col: 0, beadRow: 0 });
+    it('should map even buffer row to odd visual column (UP)', () => {
+      // bx=0, by=0 → col=1, beadRow=0
+      expect(service.bufferToVisual(0, 0)).toEqual({ col: 1, beadRow: 0 });
     });
 
-    it('should map odd buffer row to odd visual column', () => {
-      // bx=0, by=1 → col=1, beadRow=0
-      expect(service.bufferToVisual(0, 1)).toEqual({ col: 1, beadRow: 0 });
+    it('should map odd buffer row to even visual column (DOWN)', () => {
+      // bx=0, by=1 → col=0, beadRow=0
+      expect(service.bufferToVisual(0, 1)).toEqual({ col: 0, beadRow: 0 });
     });
 
     it('should compute beadRow as floor(by/2)', () => {
-      expect(service.bufferToVisual(2, 4)).toEqual({ col: 4, beadRow: 2 });
-      expect(service.bufferToVisual(2, 5)).toEqual({ col: 5, beadRow: 2 });
+      expect(service.bufferToVisual(2, 4)).toEqual({ col: 5, beadRow: 2 });
+      expect(service.bufferToVisual(2, 5)).toEqual({ col: 4, beadRow: 2 });
     });
 
     it('should handle higher bx values', () => {
-      expect(service.bufferToVisual(3, 0)).toEqual({ col: 6, beadRow: 0 });
-      expect(service.bufferToVisual(3, 1)).toEqual({ col: 7, beadRow: 0 });
+      expect(service.bufferToVisual(3, 0)).toEqual({ col: 7, beadRow: 0 });
+      expect(service.bufferToVisual(3, 1)).toEqual({ col: 6, beadRow: 0 });
     });
   });
 
   describe('visualToBuffer', () => {
-    it('should map even visual column to even buffer row', () => {
-      expect(service.visualToBuffer(0, 0)).toEqual({ bx: 0, by: 0 });
-      expect(service.visualToBuffer(2, 3)).toEqual({ bx: 1, by: 6 });
+    it('should map even visual column (DOWN) to odd buffer row', () => {
+      expect(service.visualToBuffer(0, 0)).toEqual({ bx: 0, by: 1 });
+      expect(service.visualToBuffer(2, 3)).toEqual({ bx: 1, by: 7 });
     });
 
-    it('should map odd visual column to odd buffer row', () => {
-      expect(service.visualToBuffer(1, 0)).toEqual({ bx: 0, by: 1 });
-      expect(service.visualToBuffer(3, 2)).toEqual({ bx: 1, by: 5 });
+    it('should map odd visual column (UP) to even buffer row', () => {
+      expect(service.visualToBuffer(1, 0)).toEqual({ bx: 0, by: 0 });
+      expect(service.visualToBuffer(3, 2)).toEqual({ bx: 1, by: 4 });
     });
 
     it('should round-trip with bufferToVisual', () => {
@@ -92,34 +92,34 @@ describe('GridService', () => {
       expect(result).toEqual({ sx: 30, sy: 50 });
     });
 
-    it('should map peyote even buffer row to even visual column', () => {
-      // bx=0, by=0 → col=0, beadRow=0 → no offset
+    it('should map peyote even buffer row to odd visual column without offset', () => {
+      // bx=0, by=0 → col=1 (odd/UP), beadRow=0 → offsetY = 0
       const result = service.pixelToScreen(0, 0, { width: 10, height: 10 }, 'peyote');
-      expect(result).toEqual({ sx: 0, sy: 0 });
+      expect(result).toEqual({ sx: 10, sy: 0 });
     });
 
-    it('should map peyote odd buffer row to odd visual column with half-bead offset', () => {
-      // bx=0, by=1 → col=1, beadRow=0 → offsetY = 5
+    it('should map peyote odd buffer row to even visual column with half-bead offset', () => {
+      // bx=0, by=1 → col=0 (even/DOWN), beadRow=0 → offsetY = 5
       const result = service.pixelToScreen(0, 1, { width: 10, height: 10 }, 'peyote');
-      expect(result).toEqual({ sx: 10, sy: 5 });
+      expect(result).toEqual({ sx: 0, sy: 5 });
     });
 
     it('should compute correct screen position for higher buffer coords', () => {
-      // bx=2, by=4 → col=4, beadRow=2 → even col, no offset
+      // bx=2, by=4 → col=5 (odd/UP), beadRow=2 → offsetY = 0, sy = 2*10+0 = 20
       const result = service.pixelToScreen(2, 4, { width: 10, height: 10 }, 'peyote');
-      expect(result).toEqual({ sx: 40, sy: 20 });
+      expect(result).toEqual({ sx: 50, sy: 20 });
     });
 
-    it('should add half-scale offset for odd column', () => {
-      // bx=1, by=3 → col=3, beadRow=1 → odd col
+    it('should apply offset for even-column bead', () => {
+      // bx=1, by=3 → col=2 (even/DOWN), beadRow=1 → offsetY=5, sy = 1*10+5 = 15
       const result = service.pixelToScreen(1, 3, { width: 10, height: 10 }, 'peyote');
-      expect(result).toEqual({ sx: 30, sy: 15 });
+      expect(result).toEqual({ sx: 20, sy: 15 });
     });
 
     it('should handle scale of 1', () => {
-      // bx=1, by=1 → col=3, beadRow=0 → odd col, offsetY = 0.5
+      // bx=1, by=1 → col=2 (even/DOWN), beadRow=0 → offsetY=0.5, sy=0.5
       const result = service.pixelToScreen(1, 1, { width: 1, height: 1 }, 'peyote');
-      expect(result).toEqual({ sx: 3, sy: 0.5 });
+      expect(result).toEqual({ sx: 2, sy: 0.5 });
     });
   });
 
@@ -137,27 +137,28 @@ describe('GridService', () => {
     });
 
     it('should map peyote screen position on even column to buffer coords', () => {
-      // screen (0, 15) with scale=10 → col=0, beadRow=1 → bx=0, by=2
+      // screen (0, 15) with scale=10 → col=0 (even/DOWN), effectiveY=15-5=10, beadRow=1
+      // visualToBuffer(0, 1) → bx=0, by=3
       const result = service.screenToPixel(0, 15, { width: 10, height: 10 }, 4, 8, 'peyote', 8);
-      expect(result).toEqual({ x: 0, y: 2 });
-    });
-
-    it('should account for peyote odd-column half-bead offset', () => {
-      // screen (10, 15) with scale=10 → col=1 (odd), effectiveY=15-5=10, beadRow=1
-      // visualToBuffer(1, 1) → bx=0, by=3
-      const result = service.screenToPixel(10, 15, { width: 10, height: 10 }, 4, 8, 'peyote', 8);
       expect(result).toEqual({ x: 0, y: 3 });
     });
 
-    it('should return null for peyote click above the odd column', () => {
-      // screen (10, 2) with scale=10 → col=1 (odd), effectiveY=2-5=-3, beadRow=-1
-      const result = service.screenToPixel(10, 2, { width: 10, height: 10 }, 4, 8, 'peyote', 8);
+    it('should account for peyote even-column half-bead offset', () => {
+      // screen (10, 15) with scale=10 → col=1 (odd/UP), effectiveY=15 (no adjustment), beadRow=1
+      // visualToBuffer(1, 1) → bx=0, by=2
+      const result = service.screenToPixel(10, 15, { width: 10, height: 10 }, 4, 8, 'peyote', 8);
+      expect(result).toEqual({ x: 0, y: 2 });
+    });
+
+    it('should return null for peyote click above the even column', () => {
+      // screen (0, 2) with scale=10 → col=0 (even), effectiveY=2-5=-3, beadRow=-1
+      const result = service.screenToPixel(0, 2, { width: 10, height: 10 }, 4, 8, 'peyote', 8);
       expect(result).toBeNull();
     });
 
     it('should return null for peyote click beyond visual columns', () => {
-      // 7 visual columns, click at col=7 which is out of range
-      const result = service.screenToPixel(70, 0, { width: 10, height: 10 }, 4, 8, 'peyote', 7);
+      // bufferWidth=4 → visCols=8, click at x=80 → col=8 which is out of range
+      const result = service.screenToPixel(80, 0, { width: 10, height: 10 }, 4, 8, 'peyote');
       expect(result).toBeNull();
     });
 
@@ -205,50 +206,53 @@ describe('GridService', () => {
 
     describe('peyote grid', () => {
       // Using 8 visual columns, 4 beads/col → bufferWidth=4, bufferHeight=8
+      // Convention: even buf rows → odd visual cols (UP/unshifted);
+      //             odd  buf rows → even visual cols (DOWN/shifted)
 
-      it('should return 6 neighbors for center even-column bead', () => {
-        // bx=1, by=2 → col=2 (even), beadRow=1 (center-ish)
-        const neighbors = service.getNeighbors(1, 2, 'peyote', 4, 8, 8);
+      it('should return 6 neighbors for center even-column (DOWN) bead', () => {
+        // bx=1, by=3 → col=2 (even/DOWN), beadRow=1
+        const neighbors = service.getNeighbors(1, 3, 'peyote', 4, 8, 8);
         expect(neighbors.length).toBe(6);
-        // same column up/down: beadRow-1 / beadRow+1 → by=0 / by=4
-        expect(neighbors).toContainEqual({ x: 1, y: 0 }); // col=2,beadRow=0
-        expect(neighbors).toContainEqual({ x: 1, y: 4 }); // col=2,beadRow=2
-        // left odd col (col=1): upper-left (beadRow-1) and lower-left (beadRow)
-        // visualToBuffer(1, 0) → bx=0, by=1; visualToBuffer(1, 1) → bx=0, by=3
-        expect(neighbors).toContainEqual({ x: 0, y: 1 }); // col=1,beadRow=0
-        expect(neighbors).toContainEqual({ x: 0, y: 3 }); // col=1,beadRow=1
-        // right odd col (col=3): upper-right (beadRow-1) and lower-right (beadRow)
-        // visualToBuffer(3, 0) → bx=1, by=1; visualToBuffer(3, 1) → bx=1, by=3
-        expect(neighbors).toContainEqual({ x: 1, y: 1 }); // col=3,beadRow=0
-        expect(neighbors).toContainEqual({ x: 1, y: 3 }); // col=3,beadRow=1
+        // same column up/down:
+        // visualToBuffer(2, 0) → bx=1, by=1; visualToBuffer(2, 2) → bx=1, by=5
+        expect(neighbors).toContainEqual({ x: 1, y: 1 }); // col=2,beadRow=0
+        expect(neighbors).toContainEqual({ x: 1, y: 5 }); // col=2,beadRow=2
+        // left odd col (col=1, UP): upper-left (beadRow) and lower-left (beadRow+1)
+        // visualToBuffer(1, 1) → bx=0, by=2; visualToBuffer(1, 2) → bx=0, by=4
+        expect(neighbors).toContainEqual({ x: 0, y: 2 }); // col=1,beadRow=1 (upper-left)
+        expect(neighbors).toContainEqual({ x: 0, y: 4 }); // col=1,beadRow=2 (lower-left)
+        // right odd col (col=3, UP): upper-right (beadRow) and lower-right (beadRow+1)
+        // visualToBuffer(3, 1) → bx=1, by=2; visualToBuffer(3, 2) → bx=1, by=4
+        expect(neighbors).toContainEqual({ x: 1, y: 2 }); // col=3,beadRow=1 (upper-right)
+        expect(neighbors).toContainEqual({ x: 1, y: 4 }); // col=3,beadRow=2 (lower-right)
       });
 
-      it('should return 6 neighbors for center odd-column bead', () => {
-        // bx=0, by=3 → col=1 (odd), beadRow=1
-        const neighbors = service.getNeighbors(0, 3, 'peyote', 4, 8, 8);
+      it('should return 6 neighbors for center odd-column (UP) bead', () => {
+        // bx=1, by=2 → col=3 (odd/UP), beadRow=1
+        const neighbors = service.getNeighbors(1, 2, 'peyote', 4, 8, 8);
         expect(neighbors.length).toBe(6);
-        // same column up/down: beadRow-1 / beadRow+1
-        // visualToBuffer(1, 0) → bx=0, by=1; visualToBuffer(1, 2) → bx=0, by=5
-        expect(neighbors).toContainEqual({ x: 0, y: 1 }); // col=1,beadRow=0
-        expect(neighbors).toContainEqual({ x: 0, y: 5 }); // col=1,beadRow=2
-        // left even col (col=0): upper-left (beadRow) and lower-left (beadRow+1)
-        // visualToBuffer(0, 1) → bx=0, by=2; visualToBuffer(0, 2) → bx=0, by=4
-        expect(neighbors).toContainEqual({ x: 0, y: 2 }); // col=0,beadRow=1
-        expect(neighbors).toContainEqual({ x: 0, y: 4 }); // col=0,beadRow=2
-        // right even col (col=2): upper-right (beadRow) and lower-right (beadRow+1)
-        // visualToBuffer(2, 1) → bx=1, by=2; visualToBuffer(2, 2) → bx=1, by=4
-        expect(neighbors).toContainEqual({ x: 1, y: 2 }); // col=2,beadRow=1
-        expect(neighbors).toContainEqual({ x: 1, y: 4 }); // col=2,beadRow=2
+        // same column up/down:
+        // visualToBuffer(3, 0) → bx=1, by=0; visualToBuffer(3, 2) → bx=1, by=4
+        expect(neighbors).toContainEqual({ x: 1, y: 0 }); // col=3,beadRow=0
+        expect(neighbors).toContainEqual({ x: 1, y: 4 }); // col=3,beadRow=2
+        // left even col (col=2, DOWN): upper-left (beadRow-1) and lower-left (beadRow)
+        // visualToBuffer(2, 0) → bx=1, by=1; visualToBuffer(2, 1) → bx=1, by=3
+        expect(neighbors).toContainEqual({ x: 1, y: 1 }); // col=2,beadRow=0 (upper-left)
+        expect(neighbors).toContainEqual({ x: 1, y: 3 }); // col=2,beadRow=1 (lower-left)
+        // right even col (col=4, DOWN): upper-right (beadRow-1) and lower-right (beadRow)
+        // visualToBuffer(4, 0) → bx=2, by=1; visualToBuffer(4, 1) → bx=2, by=3
+        expect(neighbors).toContainEqual({ x: 2, y: 1 }); // col=4,beadRow=0 (upper-right)
+        expect(neighbors).toContainEqual({ x: 2, y: 3 }); // col=4,beadRow=1 (lower-right)
       });
 
       it('should filter invalid neighbors at peyote corner (0,0)', () => {
-        // bx=0, by=0 → col=0, beadRow=0
+        // bx=0, by=0 → col=1 (odd/UP), beadRow=0
         const neighbors = service.getNeighbors(0, 0, 'peyote', 4, 8);
         // all neighbors should be valid
         for (const n of neighbors) {
           expect(service.isValidPixel(n.x, n.y, 4, 8, 'peyote')).toBe(true);
         }
-        // up (beadRow=-1) and upper-left/upper-right (beadRow=-1) are invalid
+        // same-col up, upper-left/upper-right at beadRow=-1 are all invalid
         expect(neighbors.length).toBeLessThan(6);
       });
     });

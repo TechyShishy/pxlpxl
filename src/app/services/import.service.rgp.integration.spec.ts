@@ -219,6 +219,7 @@ describe('ImportService – RGP import (integration)', () => {
     const bufferWidth = canvasState.bufferWidth();
     const layerData = layerService.getLayerData(0)!;
 
+    // RGP row 0 (even, up-col) is reversed and written to buffer row 0.
     // After reversing, bx=0 should hold the last RGP step (B = blue)
     const offsetBx0 = (0 * bufferWidth + 0) * 4;
     expect(layerData[offsetBx0]).toBe(0);     // r
@@ -255,7 +256,8 @@ describe('ImportService – RGP import (integration)', () => {
     const bufferWidth = canvasState.bufferWidth();
     const layerData = layerService.getLayerData(0)!;
 
-    // Odd row, no reversal: bx=0 = A (red), bx=1 = B (blue)
+    // RGP row 1 (odd, down-col) is not reversed and written to buffer row 1.
+    // No reversal: bx=0 = A (red), bx=1 = B (blue)
     const offsetBx0 = (1 * bufferWidth + 0) * 4;
     expect(layerData[offsetBx0]).toBe(255);    // r (red)
     expect(layerData[offsetBx0 + 2]).toBe(0);  // b
@@ -280,6 +282,7 @@ describe('ImportService – RGP import (integration)', () => {
     await service.importFromBuffer(buffer, 'project.rgp');
 
     const bufferWidth = canvasState.bufferWidth();
+    // RGP row 0 → buffer row 0.
     const offset = (0 * bufferWidth + 0) * 4;
     const layerData = layerService.getLayerData(0)!;
     expect(layerData[offset]).toBe(0x23);      // r

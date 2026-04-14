@@ -7,12 +7,12 @@ import { BeadSize, GridType, PixelCoord, triangularRowWidth, resolveTriangularD 
  * In peyote mode, the data buffer stores one cell per peyote column-pair per row:
  *   - Buffer width  = canvasWidth (peyote column-pair count, not visual sub-column count)
  *   - Buffer height = canvasHeight
- *   - Even buffer rows (0, 2, 4…) hold beads from even visual sub-columns (0, 2, 4…)
- *   - Odd  buffer rows (1, 3, 5…) hold beads from odd  visual sub-columns (1, 3, 5…)
+ *   - Even buffer rows (0, 2, 4…) hold beads from ODD  visual sub-columns (1, 3, 5…) — UP/unshifted
+ *   - Odd  buffer rows (1, 3, 5…) hold beads from EVEN visual sub-columns (0, 2, 4…) — DOWN/shifted
  *
  * Visual sub-column count = bufferWidth * 2.
  * Visual column parity determines the half-bead offset:
- *   odd visual sub-columns are shifted down by half a bead on screen.
+ *   even visual sub-columns are shifted down by half a bead on screen.
  *
  * In triangular mode, the buffer is packed. Row r has (a + d·r) pixels.
  * The buffer offset for pixel (x, y) is (a·y + d·y·(y−1)/2 + x) × 4.
@@ -26,24 +26,27 @@ export class GridService {
 
   /**
    * Convert a buffer coordinate (bx, by) to the visual column and bead-row index.
-   * Even buffer rows → even visual columns; odd buffer rows → odd visual columns.
+   * Even buffer rows → odd visual columns (UP/unshifted);
+   * Odd  buffer rows → even visual columns (DOWN/shifted).
    */
   bufferToVisual(bx: number, by: number): { col: number; beadRow: number } {
     const isOddRow = by % 2 === 1;
     return {
-      col: isOddRow ? bx * 2 + 1 : bx * 2,
+      col: isOddRow ? bx * 2 : bx * 2 + 1,
       beadRow: Math.floor(by / 2),
     };
   }
 
   /**
    * Convert a visual column and bead-row index to buffer coordinates.
+   * Odd visual columns (UP)  → even buffer rows;
+   * Even visual columns (DOWN) → odd buffer rows.
    */
   visualToBuffer(col: number, beadRow: number): { bx: number; by: number } {
     const isOddCol = col % 2 === 1;
     return {
       bx: Math.floor(col / 2),
-      by: beadRow * 2 + (isOddCol ? 1 : 0),
+      by: beadRow * 2 + (isOddCol ? 0 : 1),
     };
   }
 
@@ -127,8 +130,8 @@ export class GridService {
       return { sx: bx * beadSize.width, sy: by * beadSize.height };
     }
     const { col, beadRow } = this.bufferToVisual(bx, by);
-    const isOddCol = col % 2 === 1;
-    const offsetY = isOddCol ? beadSize.height / 2 : 0;
+    const isEvenCol = col % 2 === 0;
+    const offsetY = isEvenCol ? beadSize.height / 2 : 0;
     return {
       sx: col * beadSize.width,
       sy: beadRow * beadSize.height + offsetY,
@@ -180,7 +183,7 @@ export class GridService {
 
     const isOddCol = col % 2 === 1;
     let effectiveY = localY;
-    if (isOddCol) {
+    if (!isOddCol) {
       effectiveY -= beadSize.height / 2;
     }
     const beadRow = Math.floor(effectiveY / beadSize.height);
@@ -303,17 +306,17 @@ export class GridService {
     ];
 
     if (isOddCol) {
-      // Odd column (shifted down): neighbors in adjacent even columns
-      visualCandidates.push({ col: col - 1, beadRow }); // upper-left
-      visualCandidates.push({ col: col - 1, beadRow: beadRow + 1 }); // lower-left
-      visualCandidates.push({ col: col + 1, beadRow }); // upper-right
-      visualCandidates.push({ col: col + 1, beadRow: beadRow + 1 }); // lower-right
-    } else {
-      // Even column (not shifted): neighbors in adjacent odd columns
+      // Odd column (not shifted / up): neighbors in adjacent even columns
       visualCandidates.push({ col: col - 1, beadRow: beadRow - 1 }); // upper-left
       visualCandidates.push({ col: col - 1, beadRow }); // lower-left
       visualCandidates.push({ col: col + 1, beadRow: beadRow - 1 }); // upper-right
       visualCandidates.push({ col: col + 1, beadRow }); // lower-right
+    } else {
+      // Even column (shifted down): neighbors in adjacent odd columns
+      visualCandidates.push({ col: col - 1, beadRow }); // upper-left
+      visualCandidates.push({ col: col - 1, beadRow: beadRow + 1 }); // lower-left
+      visualCandidates.push({ col: col + 1, beadRow }); // upper-right
+      visualCandidates.push({ col: col + 1, beadRow: beadRow + 1 }); // lower-right
     }
 
     const beadsPerCol = bufferHeight / 2;

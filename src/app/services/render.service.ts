@@ -645,8 +645,10 @@ export class RenderService {
       // Horizontal lines per visual sub-column
       for (let col = 0; col < peyoteSubCols; col++) {
         const isOddCol = col % 2 === 1;
-        const offsetY = isOddCol ? beadSize.height / 2 : 0;
-        const colBeads = isOddCol ? beadsOdd : beadsEven;
+        const offsetY = isOddCol ? 0 : beadSize.height / 2;
+        // Odd visual cols (UP) are fed by even buffer rows → Math.ceil(bufHeight/2) beads.
+        // Even visual cols (DOWN) are fed by odd buffer rows → Math.floor(bufHeight/2) beads.
+        const colBeads = isOddCol ? beadsEven : beadsOdd;
 
         for (let beadRow = 0; beadRow <= colBeads; beadRow++) {
           const sy = beadRow * beadSize.height + offsetY;
