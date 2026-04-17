@@ -33,6 +33,13 @@ import {
   ExportDialogResult,
 } from '../export-dialog/export-dialog.component';
 import { ExportFormat } from '../../services/export.service';
+import {
+  ResizeCanvasDialogComponent,
+  type ResizeCanvasDialogResult,
+} from '../resize-canvas-dialog/resize-canvas-dialog.component';
+import { ResizeCanvasCommand } from '../../commands/resize-canvas.command';
+import type { ResizeDimensions } from '../../commands/resize-canvas.command';
+import { LayerService } from '../../services/layer.service';
 
 const LONG_PRESS_DELAY = 500;
 const MOVE_THRESHOLD = 5;
@@ -55,6 +62,7 @@ export class ToolbarComponent implements OnDestroy {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
+  private readonly layerService = inject(LayerService);
 
   readonly editingTitle = signal(false);
   readonly editControl = new FormControl('', { nonNullable: true });
@@ -206,5 +214,54 @@ export class ToolbarComponent implements OnDestroy {
 
   navigateToSettings(): void {
     this.router.navigate(['/settings']);
+  }
+
+  onResizeCanvas(): void {
+    const cs = this.canvasState;
+    const dialogRef = this.dialog.open(ResizeCanvasDialogComponent, {
+      data: {
+        width: cs.canvasWidth(),
+        height: cs.canvasHeight(),
+        gridType: cs.gridType(),
+        triangularA: cs.gridType() === 'triangular' ? cs.triangularA() : undefined,
+        triangularDNum: cs.gridType() === 'triangular' ? cs.triangularDNum() : undefined,
+        triangularDDen: cs.gridType() === 'triangular' ? cs.triangularDDen() : undefined,
+        triangularShift: cs.gridType() === 'triangular' ? cs.triangularShift() : undefined,
+      },
+    });
+    dialogRef.afterClosed().subscribe((result: ResizeCanvasDialogResult | undefined) => {
+      if (!result) return;
+
+      const oldDim: ResizeDimensions = {
+        width: cs.canvasWidth(),
+        height: cs.canvasHeight(),
+        gridType: cs.gridType(),
+        triangularA: cs.gridType() === 'triangular' ? cs.triangularA() : undefined,
+        triangularD: cs.gridType() === 'triangular' ? cs.triangularD() : undefined,
+        triangularDNum: cs.gridType() === 'triangular' ? cs.triangularDNum() : undefined,
+        triangularDDen: cs.gridType() === 'triangular' ? cs.triangularDDen() : undefined,
+        triangularShift: cs.gridType() === 'triangular' ? cs.triangularShift() : undefined,
+      };
+
+      const newDim: ResizeDimensions = {
+        width: result.newWidth,
+        height: result.newHeight,
+        gridType: cs.gridType(),
+        triangularA: cs.gridType() === 'triangular' ? (result.newTriangularA ?? cs.triangularA()) : undefined,
+        triangularD: cs.gridType() === 'triangular' ? cs.triangularD() : undefined,
+        triangularDNum: cs.gridType() === 'triangular' ? cs.triangularDNum() : undefined,
+        triangularDDen: cs.gridType() === 'triangular' ? cs.triangularDDen() : undefined,
+        triangularShift: cs.gridType() === 'triangular' ? cs.triangularShift() : undefined,
+      };
+
+      const command = new ResizeCanvasCommand(
+        this.canvasState,
+        this.layerService,
+        oldDim,
+        newDim,
+        result.anchor,
+      );
+      this.history.execute(command);
+    });
   }
 }

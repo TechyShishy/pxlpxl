@@ -1,0 +1,82 @@
+<h2 mat-dialog-title>Resize Canvas</h2>
+
+<mat-dialog-content>
+  <div class="resize-form">
+    @if (data.gridType === 'square' || data.gridType === 'peyote') {
+      <div class="dimension-row">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ data.gridType === 'peyote' ? 'Columns' : 'Width' }}</mat-label>
+          <input
+            matInput
+            type="number"
+            [ngModel]="newWidth()" (ngModelChange)="newWidth.set(+$event)"
+            [min]="1"
+            [attr.aria-label]="data.gridType === 'peyote' ? 'New column count' : 'New canvas width'"
+          />
+          <span matSuffix>{{ data.gridType === 'peyote' ? 'cols' : 'px' }}</span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>{{ data.gridType === 'peyote' ? 'Rows' : 'Height' }}</mat-label>
+          <input
+            matInput
+            type="number"
+            [ngModel]="newHeight()" (ngModelChange)="newHeight.set(+$event)"
+            [min]="1"
+            [attr.aria-label]="data.gridType === 'peyote' ? 'New row count' : 'New canvas height'"
+          />
+          <span matSuffix>{{ data.gridType === 'peyote' ? 'rows' : 'px' }}</span>
+        </mat-form-field>
+      </div>
+    }
+
+    @if (data.gridType === 'triangular') {
+      <div class="dimension-row">
+        <mat-form-field appearance="outline">
+          <mat-label>First-row width</mat-label>
+          <input
+            matInput
+            type="number"
+            [ngModel]="newTriangularA()" (ngModelChange)="newTriangularA.set(+$event)"
+            [min]="1"
+            aria-label="New first-row width"
+          />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Rows</mat-label>
+          <input
+            matInput
+            type="number"
+            [ngModel]="newHeight()" (ngModelChange)="newHeight.set(+$event)"
+            [min]="1"
+            aria-label="New row count"
+          />
+        </mat-form-field>
+      </div>
+    }
+
+    <p class="anchor-label">Anchor existing content</p>
+    <div class="anchor-grid" role="group" aria-label="Anchor position">
+      @for (row of [0, 1, 2]; track row) {
+        @for (col of [0, 1, 2]; track col) {
+          <button
+            class="anchor-cell"
+            type="button"
+            [class.active]="isActiveAnchor(col, row)"
+            [attr.aria-pressed]="isActiveAnchor(col, row)"
+            [attr.aria-label]="anchorLabel(col, row)"
+            (click)="setAnchor(col, row)"
+          ></button>
+        }
+      }
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-flat-button color="primary" [disabled]="!isValid()" (click)="confirm()">
+    Resize
+  </button>
+</mat-dialog-actions>

@@ -274,10 +274,10 @@ export class ImportService {
     // Hydrate history
     if (pxl.history) {
       const undoStack = pxl.history.undoStack.map((e) =>
-        deserializeCommand(e, this.layerService, this.colorService),
+        deserializeCommand(e, this.layerService, this.colorService, this.canvasState),
       );
       const redoStack = pxl.history.redoStack.map((e) =>
-        deserializeCommand(e, this.layerService, this.colorService),
+        deserializeCommand(e, this.layerService, this.colorService, this.canvasState),
       );
       this.historyService.setStacks(undoStack, redoStack);
     } else {

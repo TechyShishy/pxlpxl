@@ -47,6 +47,7 @@ export type {
   SerializedReplaceColorEntry,
   SerializedFlattenLayerEntry,
   SerializedAbsorbColorEntry,
+  SerializedResizeCanvasEntry,
   SerializedPixelEntry,
   SerializedModifiedPixel,
 } from './pxl-file.model';

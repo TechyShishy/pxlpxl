@@ -52,7 +52,8 @@ export type HistoryEntryType =
   | 'move-palette'
   | 'sort-palette'
   | 'flatten-layer'
-  | 'absorb-color';
+  | 'absorb-color'
+  | 'resize-canvas';
 
 /** Common fields shared by all serialized history entries. */
 interface SerializedHistoryEntryBase {
@@ -134,6 +135,30 @@ export interface SerializedAbsorbColorEntry extends SerializedHistoryEntryBase {
   pixelAbsorptions: Array<{ layerIndex: number; byteOffset: number; targetColor: Color }>;
 }
 
+export interface SerializedResizeCanvasEntry extends SerializedHistoryEntryBase {
+  type: 'resize-canvas';
+  oldWidth: number;
+  oldHeight: number;
+  oldGridType: GridType;
+  oldTriangularA?: number;
+  oldTriangularD?: number;
+  oldTriangularDNum?: number;
+  oldTriangularDDen?: number;
+  oldTriangularShift?: number;
+  newWidth: number;
+  newHeight: number;
+  newGridType: GridType;
+  newTriangularA?: number;
+  newTriangularD?: number;
+  newTriangularDNum?: number;
+  newTriangularDDen?: number;
+  newTriangularShift?: number;
+  /** Base64-encoded RGBA buffers for every layer before resize. */
+  oldLayerSnapshots: string[];
+  /** Base64-encoded RGBA buffers for every layer after resize. */
+  newLayerSnapshots: string[];
+}
+
 /** Pixel-based commands that support triangular grid params. */
 export type SerializedPixelEntry = SerializedDrawEntry | SerializedFillEntry;
 
@@ -148,7 +173,8 @@ export type SerializedHistoryEntry =
   | SerializedSortPaletteEntry
   | SerializedReplaceColorEntry
   | SerializedFlattenLayerEntry
-  | SerializedAbsorbColorEntry;
+  | SerializedAbsorbColorEntry
+  | SerializedResizeCanvasEntry;
 
 export interface SerializedModifiedPixel {
   coord: { x: number; y: number };
@@ -198,6 +224,7 @@ export const PxlFileSchema = z.object({
             'sort-palette',
             'flatten-layer',
             'absorb-color',
+            'resize-canvas',
           ]),
           description: z.string(),
           layerIndex: z.number().int(),
@@ -217,6 +244,7 @@ export const PxlFileSchema = z.object({
             'sort-palette',
             'flatten-layer',
             'absorb-color',
+            'resize-canvas',
           ]),
           description: z.string(),
           layerIndex: z.number().int(),

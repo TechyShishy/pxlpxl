@@ -9,8 +9,11 @@ import { SortPaletteCommand } from './sort-palette.command';
 import { ReplaceColorCommand } from './replace-color.command';
 import { FlattenLayerCommand } from './flatten-layer.command';
 import { AbsorbColorCommand } from './absorb-color.command';
+import { ResizeCanvasCommand } from './resize-canvas.command';
+import type { ResizeDimensions } from './resize-canvas.command';
 import { LayerService } from '../services/layer.service';
 import { ColorService } from '../services/color.service';
+import { CanvasStateService } from '../services/canvas-state.service';
 
 /**
  * Remap legacy 'triangular-slow' gridType to unified 'triangular'
@@ -186,6 +189,35 @@ export function serializeCommand(command: Command): SerializedHistoryEntry | nul
     };
   }
 
+  if (command instanceof ResizeCanvasCommand) {
+    const old = command.oldDim;
+    const next = command.newDim;
+    return {
+      type: 'resize-canvas',
+      description: command.description,
+      layerIndex: 0,
+      canvasWidth: 0,
+      oldWidth: old.width,
+      oldHeight: old.height,
+      oldGridType: old.gridType,
+      oldTriangularA: old.triangularA,
+      oldTriangularD: old.triangularD,
+      oldTriangularDNum: old.triangularDNum,
+      oldTriangularDDen: old.triangularDDen,
+      oldTriangularShift: old.triangularShift,
+      newWidth: next.width,
+      newHeight: next.height,
+      newGridType: next.gridType,
+      newTriangularA: next.triangularA,
+      newTriangularD: next.triangularD,
+      newTriangularDNum: next.triangularDNum,
+      newTriangularDDen: next.triangularDDen,
+      newTriangularShift: next.triangularShift,
+      oldLayerSnapshots: command.getOldLayerSnapshots().map(uint8ArrayToBase64),
+      newLayerSnapshots: command.getNewLayerSnapshots().map(uint8ArrayToBase64),
+    };
+  }
+
   return null;
 }
 
@@ -197,6 +229,7 @@ export function deserializeCommand(
   entry: SerializedHistoryEntry,
   layerService: LayerService,
   colorService: ColorService,
+  canvasState?: CanvasStateService,
 ): Command {
   switch (entry.type) {
     case 'draw': {
@@ -332,6 +365,43 @@ export function deserializeCommand(
         (entry.pixelAbsorptions as Array<{ layerIndex: number; byteOffset: number; targetColor: { r: number; g: number; b: number; a: number } }>).map(
           (a) => ({ layerIndex: a.layerIndex, byteOffset: a.byteOffset, targetColor: { ...a.targetColor } }),
         ),
+      );
+    }
+
+    case 'resize-canvas': {
+      if (!canvasState) {
+        throw new Error('resize-canvas command requires canvasState for deserialization');
+      }
+      const oldDim: ResizeDimensions = {
+        width: entry.oldWidth,
+        height: entry.oldHeight,
+        gridType: entry.oldGridType,
+        triangularA: entry.oldTriangularA,
+        triangularD: entry.oldTriangularD,
+        triangularDNum: entry.oldTriangularDNum,
+        triangularDDen: entry.oldTriangularDDen,
+        triangularShift: entry.oldTriangularShift,
+      };
+      const newDim: ResizeDimensions = {
+        width: entry.newWidth,
+        height: entry.newHeight,
+        gridType: entry.newGridType,
+        triangularA: entry.newTriangularA,
+        triangularD: entry.newTriangularD,
+        triangularDNum: entry.newTriangularDNum,
+        triangularDDen: entry.newTriangularDDen,
+        triangularShift: entry.newTriangularShift,
+      };
+      const oldSnaps = (entry.oldLayerSnapshots ?? []).map(base64ToUint8Array);
+      const newSnaps = (entry.newLayerSnapshots ?? []).map(base64ToUint8Array);
+      return ResizeCanvasCommand.fromSerialized(
+        canvasState,
+        layerService,
+        oldDim,
+        newDim,
+        oldSnaps,
+        newSnaps,
+        entry.description,
       );
     }
 
