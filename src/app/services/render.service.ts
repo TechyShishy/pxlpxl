@@ -38,6 +38,16 @@ export class RenderService {
     // Clear the viewport
     ctx.clearRect(0, 0, viewportWidth, viewportHeight);
 
+    // Apply viewport rotation (0/90/180/270°) centered on the viewport midpoint.
+    // All subsequent drawing — layers, grid, overlays, rulers — rotates together.
+    const rotation = transform.rotation;
+    if (rotation !== 0) {
+      ctx.save();
+      ctx.translate(viewportWidth / 2, viewportHeight / 2);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.translate(-viewportWidth / 2, -viewportHeight / 2);
+    }
+
     // Composite visible layers
     const showClones = this.canvasState.showClones();
     const sideCount = this.canvasState.sideCount();
@@ -102,6 +112,11 @@ export class RenderService {
     if (overlays && overlays.length > 0) {
       const allPixels = overlays.flatMap((o) => o.pixels);
       this.drawHighlightRings(ctx, allPixels, transform, gridType, bufHeight);
+    }
+
+    // Close the viewport rotation transform opened above (if any).
+    if (rotation !== 0) {
+      ctx.restore();
     }
   }
 

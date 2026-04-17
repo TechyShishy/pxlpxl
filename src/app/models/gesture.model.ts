@@ -26,6 +26,8 @@ export interface ViewTransform {
   offsetX: number;
   /** Pan offset Y in screen pixels */
   offsetY: number;
+  /** Viewport rotation in degrees (0 | 90 | 180 | 270). View-only — never persisted. */
+  rotation: 0 | 90 | 180 | 270;
 }
 
 export interface GestureEvent {

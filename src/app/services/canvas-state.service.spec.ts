@@ -136,6 +136,12 @@ describe('CanvasStateService', () => {
       expect(t.offsetX).toBe(0);
       expect(t.offsetY).toBe(0);
     });
+
+    it('should reset rotation to 0 when resetZoom is called', () => {
+      service.rotateCW();
+      service.resetZoom();
+      expect(service.transform().rotation).toBe(0);
+    });
   });
 
   describe('pan', () => {
@@ -183,6 +189,57 @@ describe('CanvasStateService', () => {
       expect(service.showClones()).toBe(true);
       service.toggleClones();
       expect(service.showClones()).toBe(false);
+    });
+  });
+
+  describe('rotation', () => {
+    it('should default to 0°', () => {
+      expect(service.transform().rotation).toBe(0);
+    });
+
+    it('rotateCW should increment by 90', () => {
+      service.rotateCW();
+      expect(service.transform().rotation).toBe(90);
+      service.rotateCW();
+      expect(service.transform().rotation).toBe(180);
+    });
+
+    it('rotateCW should wrap 270° back to 0°', () => {
+      service.rotateCW();
+      service.rotateCW();
+      service.rotateCW();
+      expect(service.transform().rotation).toBe(270);
+      service.rotateCW();
+      expect(service.transform().rotation).toBe(0);
+    });
+
+    it('rotateCCW should decrement by 90', () => {
+      service.rotateCCW();
+      expect(service.transform().rotation).toBe(270);
+      service.rotateCCW();
+      expect(service.transform().rotation).toBe(180);
+    });
+
+    it('rotateCCW should wrap 0° to 270°', () => {
+      service.rotateCCW();
+      expect(service.transform().rotation).toBe(270);
+    });
+
+    it('rotate180 should add 180°', () => {
+      service.rotate180();
+      expect(service.transform().rotation).toBe(180);
+    });
+
+    it('rotate180 applied twice should return to 0°', () => {
+      service.rotate180();
+      service.rotate180();
+      expect(service.transform().rotation).toBe(0);
+    });
+
+    it('rotate180 from 90° should yield 270°', () => {
+      service.rotateCW();
+      service.rotate180();
+      expect(service.transform().rotation).toBe(270);
     });
   });
 
@@ -396,6 +453,65 @@ describe('CanvasStateService', () => {
         service.toggleClones();
         // A point far outside all wedges maps to null
         expect(service.screenToPixel(1e6, 1e6, makeDOMRect())).toBeNull();
+      });
+    });
+
+    describe('viewport rotation', () => {
+      function makeCenteredRect(w: number, h: number): DOMRect {
+        return {
+          left: 0, top: 0, right: w, bottom: h,
+          x: 0, y: 0, width: w, height: h,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+
+      it('should map the same pixel at 0° and 180° when the point is at the viewport center', () => {
+        service.setGridType('square');
+        service.setCanvasSize(20, 20);
+        service.setZoom(10);
+        // The viewport center (100,100) is the rotation pivot; a click there
+        // is invariant under any rotation and must map to the same pixel.
+        const rect = makeCenteredRect(200, 200);
+        const withoutRotation = service.screenToPixel(100, 100, rect);
+        service.rotate180();
+        const withRotation = service.screenToPixel(100, 100, rect);
+        expect(withRotation).toEqual(withoutRotation);
+      });
+
+      it('rotateCW maps a point correctly: top-left area goes to top-right after 90° CW', () => {
+        // At 90° CW rotation, the screen point that was at the top-left
+        // of the unrotated drawing now corresponds to the bottom-left in
+        // drawing space. We verify by checking the pixel hit is different
+        // from 0° but consistent with the rotation math.
+        service.setGridType('square');
+        service.setCanvasSize(10, 10);
+        service.setZoom(10);
+        service.rotateCW();
+        // viewport 100×100, center (50,50). Inverse-rotate (5,5) by -90°
+        // around (50,50): dx=-45, dy=-45 → rotX=-45*0+45=45... let's just
+        // verify a round-trip: pixel (0,9) in drawing space maps to a known
+        // screen position, and screenToPixel recovers it.
+        // pixel(0,9) screen center in drawing space: (5, 95)
+        const rect = makeCenteredRect(100, 100);
+        // Rotate drawing-space point (5,95) by +90° around (50,50):
+        // dx=-45, dy=45 → rotX=50+(-45)*0-45*1=5, rotY=50+(-45)*1+45*0=5
+        // So screenX=5, screenY=5 should map to pixel(0,9).
+        const hit = service.screenToPixel(5, 5, rect);
+        expect(hit).toEqual({ x: 0, y: 9 });
+      });
+
+      it('rotateCCW maps a point correctly', () => {
+        service.setGridType('square');
+        service.setCanvasSize(10, 10);
+        service.setZoom(10);
+        service.rotateCCW();
+        // pixel(9,0) drawing-space screen center: (95, 5)
+        // Rotate by -90° (CCW) around (50,50): dx=45, dy=-45
+        // →  rotX=50+45*0-(-45)*(-1)=50+0-45=5, rotY=50+45*(-1)+(-45)*0=50-45=5
+        // So screen (5,5) → pixel(9,0).
+        const rect = makeCenteredRect(100, 100);
+        const hit = service.screenToPixel(5, 5, rect);
+        expect(hit).toEqual({ x: 9, y: 0 });
       });
     });
   });

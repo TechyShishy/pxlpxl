@@ -112,6 +112,30 @@
   </button>
   <button
     mat-icon-button
+    matTooltip="Rotate 90° CCW"
+    (click)="canvasState.rotateCCW()"
+    aria-label="Rotate 90° counter-clockwise"
+  >
+    <mat-icon>rotate_left</mat-icon>
+  </button>
+  <button
+    mat-icon-button
+    matTooltip="Rotate 90° CW"
+    (click)="canvasState.rotateCW()"
+    aria-label="Rotate 90° clockwise"
+  >
+    <mat-icon>rotate_right</mat-icon>
+  </button>
+  <button
+    mat-icon-button
+    matTooltip="Rotate 180°"
+    (click)="canvasState.rotate180()"
+    aria-label="Rotate 180°"
+  >
+    <mat-icon>sync</mat-icon>
+  </button>
+  <button
+    mat-icon-button
     matTooltip="Toggle grid"
     (click)="canvasState.toggleGrid()"
     aria-label="Toggle pixel grid"

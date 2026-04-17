@@ -90,7 +90,19 @@ export class CanvasViewportComponent implements OnDestroy {
     // Set up gesture callbacks
     this.gestureService.onDraw = (x, y, phase, shiftKey) => this.handleDraw(x, y, phase, shiftKey);
     this.gestureService.onPinch = (scaleDelta, cx, cy) => this.handlePinch(scaleDelta);
-    this.gestureService.onPan = (dx, dy) => this.canvasState.pan(dx, dy);
+    this.gestureService.onPan = (dx, dy) => {
+      const rotation = this.canvasState.transform().rotation;
+      if (rotation === 0) {
+        this.canvasState.pan(dx, dy);
+      } else {
+        // Pan deltas arrive in screen space. The drawing offset is in pre-rotation
+        // drawing space, so we must rotate the deltas into drawing space first.
+        const a = (rotation * Math.PI) / 180;
+        const cos = Math.cos(a);
+        const sin = Math.sin(a);
+        this.canvasState.pan(dx * cos + dy * sin, -dx * sin + dy * cos);
+      }
+    };
     this.gestureService.onEdgeSwipe = (dir) => this.handleEdgeSwipe(dir);
     this.gestureService.onDoubleTap = () => this.handleTapRotate('cw');
     this.gestureService.onTripleTap = () => this.handleTapRotate('ccw');
@@ -288,8 +300,10 @@ export class CanvasViewportComponent implements OnDestroy {
     // rulers are hidden) and must be resized once the CSS reflows to 20px.
     this.resizeRulerCanvases();
 
-    if (!this.canvasState.showRulers()) {
-      // Clear all ruler canvases when hidden
+    if (!this.canvasState.showRulers() || this.canvasState.transform().rotation !== 0) {
+      // Clear all ruler canvases when hidden or when the viewport is rotated
+      // (rulers display drawing-space axis labels that become misleading when
+      // the canvas orientation no longer matches the screen axes).
       for (const ctx of [
         this.rulerTopCtx,
         this.rulerBottomCtx,

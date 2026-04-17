@@ -169,6 +169,7 @@ export class CanvasStateService {
     scale: 10,
     offsetX: 0,
     offsetY: 0,
+    rotation: 0,
   });
 
   readonly transform = this._transform.asReadonly();
@@ -212,7 +213,28 @@ export class CanvasStateService {
   }
 
   resetZoom(): void {
-    this._transform.set({ scale: 10, offsetX: 0, offsetY: 0 });
+    this._transform.set({ scale: 10, offsetX: 0, offsetY: 0, rotation: 0 });
+  }
+
+  rotateCW(): void {
+    this._transform.update((t) => ({
+      ...t,
+      rotation: ((t.rotation + 90) % 360) as 0 | 90 | 180 | 270,
+    }));
+  }
+
+  rotateCCW(): void {
+    this._transform.update((t) => ({
+      ...t,
+      rotation: ((t.rotation + 270) % 360) as 0 | 90 | 180 | 270,
+    }));
+  }
+
+  rotate180(): void {
+    this._transform.update((t) => ({
+      ...t,
+      rotation: ((t.rotation + 180) % 360) as 0 | 90 | 180 | 270,
+    }));
   }
 
   pan(deltaX: number, deltaY: number): void {
@@ -330,8 +352,33 @@ export class CanvasStateService {
     canvasRect: DOMRect,
   ): { x: number; y: number } | null {
     const t = this._transform();
-    const localX = screenX - canvasRect.left - t.offsetX;
-    const localY = screenY - canvasRect.top - t.offsetY;
+
+    // Element-local pointer position.
+    const elX = screenX - canvasRect.left;
+    const elY = screenY - canvasRect.top;
+
+    // Inverse the viewport rotation (drawn around the element center)
+    // so subsequent pixel math sees drawing-space coordinates.
+    const rotation = t.rotation;
+    let preOffsetX: number;
+    let preOffsetY: number;
+    if (rotation === 0) {
+      preOffsetX = elX;
+      preOffsetY = elY;
+    } else {
+      const cx = canvasRect.width / 2;
+      const cy = canvasRect.height / 2;
+      const angle = -(rotation * Math.PI) / 180;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const dx = elX - cx;
+      const dy = elY - cy;
+      preOffsetX = cx + dx * cos - dy * sin;
+      preOffsetY = cy + dx * sin + dy * cos;
+    }
+
+    const localX = preOffsetX - t.offsetX;
+    const localY = preOffsetY - t.offsetY;
 
     const gridType = this._gridType();
     const showClones = this._showClones();
