@@ -528,10 +528,10 @@ describe('ExportService', () => {
       const parsed = JSON.parse(await decompressBlob(blob));
 
       expect(parsed.rows[0].steps).toHaveLength(2);
-      // Row 0 is even-indexed, so it is encoded right-to-left (bx=1 first).
-      // bx=1 is white (B) and bx=0 is black (A).
-      expect(parsed.rows[0].steps[0]).toMatchObject({ count: 1, description: 'B' });
-      expect(parsed.rows[0].steps[1]).toMatchObject({ count: 1, description: 'A' });
+      // Row 0 is even-indexed, so it is encoded left-to-right (bx=0 first).
+      // bx=0 is black (A) and bx=1 is white (B).
+      expect(parsed.rows[0].steps[0]).toMatchObject({ count: 1, description: 'A' });
+      expect(parsed.rows[0].steps[1]).toMatchObject({ count: 1, description: 'B' });
     });
 
     it('should include 1-based row ids', async () => {
@@ -545,8 +545,8 @@ describe('ExportService', () => {
       expect(parsed.rows[1].id).toBe(2);
     });
 
-    it('should encode even rows (0-indexed) right-to-left and odd rows left-to-right', async () => {
-      // 2 rows, bufferWidth=2: row 0 (even) right-to-left, row 1 (odd) left-to-right
+    it('should encode odd rows (0-indexed) right-to-left and even rows left-to-right', async () => {
+      // 2 rows, bufferWidth=2: row 0 (even) left-to-right, row 1 (odd) right-to-left
       const bw = 2;
       const bh = 2;
       const data = new Uint8ClampedArray(bw * bh * 4);
@@ -567,13 +567,13 @@ describe('ExportService', () => {
       const blob = await service.exportAsRgp();
       const parsed = JSON.parse(await decompressBlob(blob));
 
-      // Row 0 (even): encoded right-to-left → bx1 (white=B) comes first, then bx0 (black=A)
-      expect(parsed.rows[0].steps[0]).toMatchObject({ count: 1, description: 'B' });
-      expect(parsed.rows[0].steps[1]).toMatchObject({ count: 1, description: 'A' });
+      // Row 0 (even): encoded left-to-right → bx0 (black=A) comes first, then bx1 (white=B)
+      expect(parsed.rows[0].steps[0]).toMatchObject({ count: 1, description: 'A' });
+      expect(parsed.rows[0].steps[1]).toMatchObject({ count: 1, description: 'B' });
 
-      // Row 1 (odd): encoded left-to-right → bx0 (black=A) comes first, then bx1 (white=B)
-      expect(parsed.rows[1].steps[0]).toMatchObject({ count: 1, description: 'A' });
-      expect(parsed.rows[1].steps[1]).toMatchObject({ count: 1, description: 'B' });
+      // Row 1 (odd): encoded right-to-left → bx1 (white=B) comes first, then bx0 (black=A)
+      expect(parsed.rows[1].steps[0]).toMatchObject({ count: 1, description: 'B' });
+      expect(parsed.rows[1].steps[1]).toMatchObject({ count: 1, description: 'A' });
     });
 
     it('should include colorMapping with letter keys', async () => {
@@ -737,9 +737,9 @@ describe('ExportService', () => {
       expect(sumCounts(parsed.rows[2])).toBe(3);
     });
 
-    it('should respect even-RTL / odd-LTR scan direction within each triangular row', async () => {
-      // Row 1 (odd, width 2, LTR): bx0=B, bx1=C → steps should be B then C
-      // Row 2 (even, width 3, RTL): bx0=A, bx1=B, bx2=C → read bx2..0 → C, B, A
+    it('should respect odd-RTL / even-LTR scan direction within each triangular row', async () => {
+      // Row 1 (odd, width 2, RTL): bx0=B, bx1=C → read bx1..0 → C, B
+      // Row 2 (even, width 3, LTR): bx0=A, bx1=B, bx2=C → read bx0..2 → A, B, C
       const data = new Uint8ClampedArray([
         ...A,              // row 0, bx 0
         ...B, ...C,        // row 1, bx 0..1
@@ -758,13 +758,13 @@ describe('ExportService', () => {
       const blob = await service.exportAsRgp();
       const parsed = JSON.parse(await decompressBlob(blob));
 
-      // Row 1 (odd, LTR): first step = B ('B'), second step = C ('C')
-      expect(parsed.rows[1].steps[0]).toMatchObject({ count: 1, description: 'B' });
-      expect(parsed.rows[1].steps[1]).toMatchObject({ count: 1, description: 'C' });
+      // Row 1 (odd, RTL): bx1=C first, then bx0=B
+      expect(parsed.rows[1].steps[0]).toMatchObject({ count: 1, description: 'C' });
+      expect(parsed.rows[1].steps[1]).toMatchObject({ count: 1, description: 'B' });
 
-      // Row 2 (even, RTL): bx2=C first, then bx1=B, then bx0=A
-      expect(parsed.rows[2].steps[0]).toMatchObject({ count: 1, description: 'C' });
-      expect(parsed.rows[2].steps[2]).toMatchObject({ count: 1, description: 'A' });
+      // Row 2 (even, LTR): bx0=A first, then bx1=B, then bx2=C
+      expect(parsed.rows[2].steps[0]).toMatchObject({ count: 1, description: 'A' });
+      expect(parsed.rows[2].steps[2]).toMatchObject({ count: 1, description: 'C' });
     });
 
     it('should use triangularShift in buffer size and row width calculations', async () => {

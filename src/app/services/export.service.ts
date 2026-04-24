@@ -265,9 +265,9 @@ export class ExportService {
         ? triangularCumPixels(by, triangularA, triDNum, triDDen, triShift)
         : by * bufferWidth;
 
-      // 1-indexed odd rows correspond to by % 2 === 0 (RGP row index, not buffer index).
+      // Odd buffer rows are stored right-to-left in the RGP format.
       // The oddRowDirection option controls only these rows; even rows always go LTR.
-      const isRtl = by % 2 === 0 && oddRowDirection === 'rtl';
+      const isRtl = by % 2 === 1 && oddRowDirection === 'rtl';
       const bxStart = isRtl ? rowWidth - 1 : 0;
       const bxEnd   = isRtl ? -1 : rowWidth;
       const bxStep  = isRtl ? -1 : 1;
