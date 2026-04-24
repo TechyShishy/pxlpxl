@@ -318,8 +318,8 @@ export class ImportService {
           rowColors.push(color);
         }
       }
-      // Even rows (0-indexed) are encoded right-to-left in the RGP format.
-      if (by % 2 === 0) rowColors.reverse();
+      // Odd rows (0-indexed) are encoded right-to-left in the RGP format.
+      if (by % 2 === 1) rowColors.reverse();
       for (let bx = 0; bx < bufferWidth && bx < rowColors.length; bx++) {
         const offset = (by * bufferWidth + bx) * 4;
         const color = rowColors[bx];
