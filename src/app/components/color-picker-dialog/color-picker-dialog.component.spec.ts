@@ -1,0 +1,126 @@
+import { TestBed } from '@angular/core/testing';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import {
+  ColorPickerDialogComponent,
+  IRO_TOKEN,
+} from './color-picker-dialog.component';
+import { Color } from '../../models';
+
+/** Callbacks registered via picker.on(), keyed by event name. Reset before each test. */
+let capturedCallbacks: Map<string, (arg: { hexString: string }) => void>;
+
+/** Minimal iro.js stub that captures event callbacks for inspection in tests. */
+const mockIro = {
+  ColorPicker: (_el: unknown, _opts: unknown) => ({
+    color: { hexString: '#000000' },
+    on: (event: string, cb: unknown) => {
+      capturedCallbacks.set(event, cb as (arg: { hexString: string }) => void);
+    },
+  }),
+} as never;
+
+describe('ColorPickerDialogComponent', () => {
+  const RED: Color = { r: 255, g: 0, b: 0, a: 255 };
+  const SEMI: Color = { r: 0, g: 0, b: 255, a: 128 };
+
+  beforeEach(() => {
+    capturedCallbacks = new Map();
+  });
+
+  function setup(color: Color) {
+    const closeSpy = vi.fn();
+    TestBed.configureTestingModule({
+      imports: [ColorPickerDialogComponent, NoopAnimationsModule],
+      providers: [
+        { provide: MAT_DIALOG_DATA, useValue: { color } },
+        { provide: MatDialogRef, useValue: { close: closeSpy } },
+        { provide: IRO_TOKEN, useValue: mockIro },
+      ],
+    });
+    const fixture = TestBed.createComponent(ColorPickerDialogComponent);
+    fixture.detectChanges();
+    return { fixture, component: fixture.componentInstance, closeSpy };
+  }
+
+  type Comp = {
+    hexInput: () => string;
+    hexValue: () => string;
+    alphaValue: () => number;
+    previewColor: () => Color;
+    alphaPercent: () => number;
+    onHexInputChange: (v: string) => void;
+    onAlphaChange: (v: number) => void;
+    onConfirm: () => void;
+  };
+
+  it('initializes hexInput from the provided color', () => {
+    const { component } = setup(RED);
+    expect((component as unknown as Comp).hexInput()).toBe('#ff0000');
+  });
+
+  it('initializes alphaValue from the provided color', () => {
+    const { component } = setup(RED);
+    expect((component as unknown as Comp).alphaValue()).toBe(255);
+  });
+
+  it('initializes alphaValue from a semi-transparent color', () => {
+    const { component } = setup(SEMI);
+    expect((component as unknown as Comp).alphaValue()).toBe(128);
+  });
+
+  it('onHexInputChange updates hexValue for a valid 6-digit hex', () => {
+    const { component } = setup(RED);
+    (component as unknown as Comp).onHexInputChange('#0000ff');
+    expect((component as unknown as Comp).hexValue()).toBe('#0000ff');
+  });
+
+  it('onHexInputChange does not update hexValue for a partial/invalid hex', () => {
+    const { component } = setup(RED);
+    (component as unknown as Comp).onHexInputChange('#ff');
+    expect((component as unknown as Comp).hexValue()).toBe('#ff0000');
+  });
+
+  it('onAlphaChange updates alphaValue', () => {
+    const { component } = setup(RED);
+    (component as unknown as Comp).onAlphaChange(100);
+    expect((component as unknown as Comp).alphaValue()).toBe(100);
+  });
+
+  it('previewColor reflects hexValue and alphaValue', () => {
+    const { component } = setup(RED);
+    (component as unknown as Comp).onHexInputChange('#00ff00');
+    (component as unknown as Comp).onAlphaChange(64);
+    const c = (component as unknown as Comp).previewColor();
+    expect(c.r).toBe(0);
+    expect(c.g).toBe(255);
+    expect(c.b).toBe(0);
+    expect(c.a).toBe(64);
+  });
+
+  it('alphaPercent computes correctly for semi-transparent', () => {
+    const { component } = setup(SEMI);
+    // 128/255 * 100 ≈ 50
+    expect((component as unknown as Comp).alphaPercent()).toBe(50);
+  });
+
+  it('onConfirm closes the dialog with the current previewColor', () => {
+    const { component, closeSpy } = setup(RED);
+    (component as unknown as Comp).onAlphaChange(200);
+    (component as unknown as Comp).onConfirm();
+    expect(closeSpy).toHaveBeenCalledWith({
+      r: 255,
+      g: 0,
+      b: 0,
+      a: 200,
+    });
+  });
+
+  it('color:change event from the iro wheel updates hexValue and hexInput', async () => {
+    const { component, fixture } = setup(RED);
+    await fixture.whenStable();
+    capturedCallbacks.get('color:change')?.({ hexString: '#0000ff' });
+    expect((component as unknown as Comp).hexValue()).toBe('#0000ff');
+    expect((component as unknown as Comp).hexInput()).toBe('#0000ff');
+  });
+});

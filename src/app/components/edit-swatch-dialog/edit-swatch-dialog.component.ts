@@ -6,16 +6,17 @@ import {
   computed,
 } from '@angular/core';
 import {
+  MatDialog,
   MatDialogModule,
   MatDialogRef,
   MAT_DIALOG_DATA,
 } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSliderModule } from '@angular/material/slider';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { FormsModule } from '@angular/forms';
-import { Color, colorToRgba, hexToColor } from '../../models';
+import { Color, colorToRgba } from '../../models';
+import {
+  ColorPickerDialogComponent,
+  ColorPickerDialogData,
+} from '../color-picker-dialog/color-picker-dialog.component';
 
 export interface EditSwatchDialogData {
   index: number;
@@ -31,48 +32,23 @@ export interface EditSwatchDialogResult {
   deleted?: true;
 }
 
-/** Converts a Color to a 6-char #rrggbb hex string (drops alpha). */
-function colorToHex6(color: Color): string {
-  const hex = (n: number) => n.toString(16).padStart(2, '0');
-  return `#${hex(color.r)}${hex(color.g)}${hex(color.b)}`;
-}
-
 @Component({
   selector: 'app-edit-swatch-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    MatDialogModule,
-    MatButtonModule,
-    MatSliderModule,
-    MatFormFieldModule,
-    MatInputModule,
-    FormsModule,
-  ],
+  imports: [MatDialogModule, MatButtonModule],
   templateUrl: './edit-swatch-dialog.component.html',
   styleUrl: './edit-swatch-dialog.component.scss',
 })
 export class EditSwatchDialogComponent {
   private readonly dialogRef = inject(MatDialogRef<EditSwatchDialogComponent>);
+  private readonly dialog = inject(MatDialog);
   protected readonly data = inject<EditSwatchDialogData>(MAT_DIALOG_DATA);
 
-  /** 6-char #rrggbb string driving the native color input */
-  protected readonly hexValue = signal<string>(colorToHex6(this.data.color));
-
-  /** Alpha channel 0–255 */
-  protected readonly alphaValue = signal<number>(this.data.color.a);
-
-  /** Live preview — updates as the user moves either control */
-  protected readonly previewColor = computed<Color>(() => {
-    const base = hexToColor(this.hexValue());
-    return { ...base, a: this.alphaValue() };
-  });
+  /** Currently selected color; updated when the nested color picker dialog closes. */
+  protected readonly color = signal<Color>(this.data.color);
 
   protected readonly previewRgba = computed<string>(() =>
-    colorToRgba(this.previewColor()),
-  );
-
-  protected readonly alphaPercent = computed<number>(() =>
-    Math.round((this.alphaValue() / 255) * 100),
+    colorToRgba(this.color()),
   );
 
   protected readonly canRemove = computed<boolean>(
@@ -81,18 +57,24 @@ export class EditSwatchDialogComponent {
 
   protected readonly inUse = this.data.isInUse;
 
-  onHexChange(value: string): void {
-    this.hexValue.set(value);
-  }
-
-  onAlphaChange(value: number): void {
-    this.alphaValue.set(value);
+  openColorPicker(): void {
+    this.dialog
+      .open<ColorPickerDialogComponent, ColorPickerDialogData, Color>(
+        ColorPickerDialogComponent,
+        { data: { color: this.color() } },
+      )
+      .afterClosed()
+      .subscribe((result: Color | undefined) => {
+        if (result !== undefined) {
+          this.color.set(result);
+        }
+      });
   }
 
   onConfirm(): void {
     const result: EditSwatchDialogResult = {
       index: this.data.index,
-      color: this.previewColor(),
+      color: this.color(),
     };
     this.dialogRef.close(result);
   }
@@ -100,7 +82,7 @@ export class EditSwatchDialogComponent {
   onRemove(): void {
     const result: EditSwatchDialogResult = {
       index: this.data.index,
-      color: this.previewColor(),
+      color: this.color(),
       deleted: true,
     };
     this.dialogRef.close(result);

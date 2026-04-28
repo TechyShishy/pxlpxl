@@ -1,0 +1,38 @@
+<h2 mat-dialog-title>Pick Color</h2>
+
+<mat-dialog-content>
+  <div class="preview-swatch">
+    <div class="preview-swatch-color" [style.background-color]="previewRgba()"></div>
+  </div>
+
+  <div #pickerContainer class="picker-container"></div>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Hex</mat-label>
+    <input
+      matInput
+      [value]="hexInput()"
+      (input)="onHexInputChange(inputValue($event))"
+      placeholder="#rrggbb"
+      maxlength="7"
+      aria-label="Hex color value"
+    />
+  </mat-form-field>
+
+  <div class="alpha-row">
+    <span class="alpha-label">Opacity</span>
+    <span class="alpha-value" aria-live="polite">{{ alphaPercent() }}%</span>
+  </div>
+  <mat-slider class="alpha-slider" min="0" max="255" step="1" aria-label="Opacity">
+    <input
+      matSliderThumb
+      [value]="alphaValue()"
+      (valueChange)="onAlphaChange($event)"
+    />
+  </mat-slider>
+</mat-dialog-content>
+
+<mat-dialog-actions>
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button mat-flat-button (click)="onConfirm()">OK</button>
+</mat-dialog-actions>

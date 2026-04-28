@@ -2,15 +2,6 @@
   display: block;
 }
 
-mat-dialog-actions {
-  display: flex;
-  align-items: center;
-
-  .spacer {
-    flex: 1;
-  }
-}
-
 mat-dialog-content {
   display: flex;
   flex-direction: column;
@@ -19,16 +10,20 @@ mat-dialog-content {
   padding-top: 8px;
 }
 
-.color-swatch-button {
+mat-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.preview-swatch {
   position: relative;
   width: 100%;
-  min-height: 80px;
+  height: 56px;
   border-radius: 8px;
   border: 1px solid var(--mat-sys-outline);
-  cursor: pointer;
-  padding: 0;
   overflow: hidden;
-  /* Checkerboard background to visualize transparency */
+  /* Checkerboard to show transparency */
   background-image:
     linear-gradient(45deg, #888 25%, transparent 25%),
     linear-gradient(-45deg, #888 25%, transparent 25%),
@@ -43,13 +38,39 @@ mat-dialog-content {
   background-color: #444;
 }
 
-.color-swatch-overlay {
+.preview-swatch-color {
   position: absolute;
   inset: 0;
 }
 
-.in-use-hint {
-  font-size: 0.75rem;
+.picker-container {
+  display: flex;
+  justify-content: center;
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+.alpha-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.alpha-label {
+  font-size: 0.875rem;
   color: var(--mat-sys-on-surface-variant, var(--mat-sys-on-surface));
-  font-style: italic;
+  font-weight: 500;
+}
+
+.alpha-value {
+  font-size: 0.875rem;
+  color: var(--mat-sys-on-surface);
+  min-width: 3ch;
+  text-align: right;
+}
+
+.alpha-slider {
+  width: 100%;
 }

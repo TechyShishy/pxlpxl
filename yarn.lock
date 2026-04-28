@@ -1476,6 +1476,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@irojs/iro-core@npm:^1.2.1":
+  version: 1.2.1
+  resolution: "@irojs/iro-core@npm:1.2.1"
+  checksum: 10c0/62a33b302686e392e7404689da5c9850c9e15adfd69990eba0f07024d30b0c1b10348c1bbfe1eea28fa0db3683223030130fa06da8237e031bff9e22ca37ea7d
+  languageName: node
+  linkType: hard
+
 "@isaacs/cliui@npm:^9.0.0":
   version: 9.0.0
   resolution: "@isaacs/cliui@npm:9.0.0"
@@ -1496,6 +1503,16 @@ __metadata:
   version: 0.1.3
   resolution: "@istanbuljs/schema@npm:0.1.3"
   checksum: 10c0/61c5286771676c9ca3eb2bd8a7310a9c063fb6e0e9712225c8471c582d157392c88f5353581c8c9adbe0dff98892317d2fdfc56c3499aa42e0194405206a963a
+  languageName: node
+  linkType: hard
+
+"@jaames/iro@npm:^5.5.2":
+  version: 5.5.2
+  resolution: "@jaames/iro@npm:5.5.2"
+  dependencies:
+    "@irojs/iro-core": "npm:^1.2.1"
+    preact: "npm:^10.0.0"
+  checksum: 10c0/d81a089c4ff3a517d567183e6f460ecebbd01743daa65f3db255fe3701573b48d5fb1a9e646778312c7e4cf51edaacb9bfb247614794426ca7f110526a6a58d8
   languageName: node
   linkType: hard
 
@@ -5095,6 +5112,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"preact@npm:^10.0.0":
+  version: 10.29.1
+  resolution: "preact@npm:10.29.1"
+  checksum: 10c0/55da3994d0d9ebcc26476552c6571f8be1150cccdafe842aad40eff9abc84c867555f6d01db386fc63ac4cbe9f9da245002468bb24df0642365162d8f1b545e2
+  languageName: node
+  linkType: hard
+
 "proc-log@npm:^6.0.0, proc-log@npm:^6.1.0":
   version: 6.1.0
   resolution: "proc-log@npm:6.1.0"
@@ -5164,6 +5188,7 @@ __metadata:
     "@capacitor/keyboard": "npm:^8.0.0"
     "@capacitor/share": "npm:^8.0.1"
     "@capacitor/status-bar": "npm:^8.0.1"
+    "@jaames/iro": "npm:^5.5.2"
     "@playwright/test": "npm:^1.58.2"
     dexie: "npm:^4.3.0"
     jsdom: "npm:^28.1.0"
