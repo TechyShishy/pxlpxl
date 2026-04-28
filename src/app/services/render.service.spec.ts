@@ -298,4 +298,114 @@ describe('RenderService', () => {
       expect(result.data[3]).toBe(128);
     });
   });
+
+  describe('drawGrid peyote offset parity', () => {
+    let peyoteService: RenderService;
+
+    beforeEach(() => {
+      TestBed.resetTestingModule();
+
+      // Real bufferToVisual convention: even buffer rows → even visual cols (UP),
+      // odd buffer rows → odd visual cols (DOWN).
+      const mockGridServicePeyote = {
+        isPeyote: vi.fn(() => true),
+        isAnyTriangular: vi.fn(() => false),
+        bufferToVisual: vi.fn((bx: number, by: number) => ({
+          col: by % 2 === 1 ? bx * 2 + 1 : bx * 2,
+          beadRow: Math.floor(by / 2),
+        })),
+        pixelToScreen: vi.fn((bx: number, by: number, beadSize: { width: number; height: number }) => ({
+          sx: bx * beadSize.width,
+          sy: by * beadSize.height,
+        })),
+        // Note: pixelToScreen is only called from drawCheckerboard (fillRect, no moveTo),
+        // so this simplified formula does not affect the moveTo assertions below.
+        getAnyTriangularRowWidth: vi.fn(() => 1),
+        getAnyTriangularMaxWidth: vi.fn(() => 1),
+        usesPeyoteStagger: vi.fn(() => false),
+        isValidPixel: vi.fn(() => true),
+      };
+
+      TestBed.configureTestingModule({
+        providers: [
+          RenderService,
+          {
+            provide: LayerService,
+            useValue: { layers: vi.fn(() => []) },
+          },
+          {
+            provide: CanvasStateService,
+            useValue: {
+              canvasWidth: vi.fn(() => 2),
+              canvasHeight: vi.fn(() => 3),
+              bufferWidth: vi.fn(() => 1),
+              bufferHeight: vi.fn(() => 3),
+              gridType: vi.fn(() => 'peyote'),
+              showGrid: vi.fn(() => true),
+              showClones: vi.fn(() => false),
+              sideCount: vi.fn(() => 1),
+              transform: vi.fn(() => ({ scale: 1, offsetX: 0, offsetY: 0, rotation: 0 as const })),
+              beadSize: vi.fn(() => ({ width: 10, height: 10 })),
+              triangularA: vi.fn(() => 1),
+              triangularD: vi.fn(() => 1),
+              triangularDNum: vi.fn(() => 1),
+              triangularDDen: vi.fn(() => 1),
+              triangularShift: vi.fn(() => 0),
+            },
+          },
+          { provide: GridService, useValue: mockGridServicePeyote },
+        ],
+      });
+
+      peyoteService = TestBed.inject(RenderService);
+    });
+
+    it('should apply half-bead Y offset to odd visual sub-columns and zero offset to even sub-columns', () => {
+      // bufWidth=1, bufHeight=3:
+      //   beadsEven = Math.ceil(3/2) = 2  → for even visual cols (up/unshifted)
+      //   beadsOdd  = Math.floor(3/2) = 1 → for odd  visual cols (down/shifted)
+      //
+      // Expected horizontal line moveTo Y values:
+      //   col 0 (even): offsetY=0,  colBeads=2 → y = 0, 10, 20
+      //   col 1 (odd):  offsetY=5,  colBeads=1 → y = 5, 15
+      const ctx = {
+        clearRect: vi.fn(),
+        save: vi.fn(),
+        restore: vi.fn(),
+        translate: vi.fn(),
+        scale: vi.fn(),
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        stroke: vi.fn(),
+        fillRect: vi.fn(),
+        fillStyle: '' as string | CanvasGradient | CanvasPattern,
+        strokeStyle: '' as string | CanvasGradient | CanvasPattern,
+        lineWidth: 0,
+        imageSmoothingEnabled: false,
+        globalAlpha: 1,
+      } as unknown as CanvasRenderingContext2D;
+
+      peyoteService.render(ctx, 200, 200);
+
+      // Only drawGrid uses moveTo — drawCheckerboard (fillRect only) and
+      // renderPeyoteLayers (empty layers) do not emit moveTo calls.
+      const moveArgs = (ctx.moveTo as ReturnType<typeof vi.fn>).mock.calls as [number, number][];
+      const lineArgs = (ctx.lineTo as ReturnType<typeof vi.fn>).mock.calls as [number, number][];
+
+      // Horizontal lines: paired lineTo has same y and x = moveTo.x + beadSize.width (10).
+      const horizontalMoves = moveArgs.filter((mv, i) => {
+        const ln = lineArgs[i];
+        return ln !== undefined && ln[1] === mv[1] && ln[0] === mv[0] + 10;
+      });
+
+      // Even visual col (col=0, x=0): zero Y offset, 3 horizontal lines
+      const col0 = horizontalMoves.filter(([x]) => x === 0).map(([, y]) => y);
+      expect(col0).toEqual([0, 10, 20]);
+
+      // Odd visual col (col=1, x=10): half-bead Y offset (5), 2 horizontal lines
+      const col1 = horizontalMoves.filter(([x]) => x === 10).map(([, y]) => y);
+      expect(col1).toEqual([5, 15]);
+    });
+  });
 });
