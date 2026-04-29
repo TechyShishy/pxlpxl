@@ -4,6 +4,7 @@ Pxlpxl is a pixel-art editor built with Angular 21+, Angular Material, and Capac
 ## Development
 
 - **Always use `yarn` scripts** — only invoke `ng`, `npx`, or other binaries directly if there's no corresponding `yarn` script.
+- **Always commit `yarn.lock` alongside `package.json`** — they are a pair; a dependency change without its lockfile update is an incomplete commit.
 - `yarn start` — dev server at `http://localhost:4200/`
 - `yarn test:unit` — unit tests (Vitest, not Jasmine/Karma)
 - `yarn test:e2e` — Playwright end-to-end tests
