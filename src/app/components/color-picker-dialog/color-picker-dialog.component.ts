@@ -29,6 +29,20 @@ export const IRO_TOKEN = new InjectionToken<typeof iro>('iro', {
 
 export interface ColorPickerDialogData {
   color: Color;
+  /** Palette index of the swatch being edited. Required to show the Remove button. */
+  index?: number;
+  /** Number of entries in the palette. Used to disable Remove when only one remains. */
+  paletteLength?: number;
+  /** True when the color is referenced by at least one pixel on the canvas. Disables Remove. */
+  isInUse?: boolean;
+}
+
+export interface ColorPickerDialogResult {
+  color: Color;
+  /** Palette index, echoed from the input data when provided. */
+  index?: number;
+  /** True when the user clicked Remove. */
+  deleted?: true;
 }
 
 function colorToHex6(color: Color): string {
@@ -87,6 +101,19 @@ export class ColorPickerDialogComponent {
   protected readonly alphaPercent = computed<number>(() =>
     Math.round((this.alphaValue() / 255) * 100),
   );
+
+  /** True when a palette index was provided — i.e., the Remove button should be rendered. */
+  protected readonly showRemoveButton = computed<boolean>(
+    () => this.data.index !== undefined,
+  );
+
+  /** True when Remove is enabled: palette has more than one entry and color is not in use. */
+  protected readonly canRemove = computed<boolean>(
+    () => (this.data.paletteLength ?? 1) > 1 && !(this.data.isInUse ?? false),
+  );
+
+  /** Mirrors the isInUse flag for template binding. */
+  protected readonly inUse = this.data.isInUse ?? false;
 
   constructor() {
     afterNextRender(() => {
@@ -152,6 +179,19 @@ export class ColorPickerDialogComponent {
   }
 
   protected onConfirm(): void {
-    this.dialogRef.close(this.previewColor());
+    const result: ColorPickerDialogResult = {
+      color: this.previewColor(),
+      index: this.data.index,
+    };
+    this.dialogRef.close(result);
+  }
+
+  protected onRemove(): void {
+    const result: ColorPickerDialogResult = {
+      color: this.previewColor(),
+      index: this.data.index,
+      deleted: true,
+    };
+    this.dialogRef.close(result);
   }
 }

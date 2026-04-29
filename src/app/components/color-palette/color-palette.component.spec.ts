@@ -7,7 +7,10 @@ import { ColorPaletteComponent } from './color-palette.component';
 import { ColorService } from '../../services/color.service';
 import { BackButtonService } from '../../services/back-button.service';
 import { Color } from '../../models';
-import { EditSwatchDialogResult } from '../edit-swatch-dialog/edit-swatch-dialog.component';
+import {
+  ColorPickerDialogComponent,
+  ColorPickerDialogResult,
+} from '../color-picker-dialog/color-picker-dialog.component';
 
 const RED: Color = { r: 255, g: 0, b: 0, a: 255 };
 const BLUE: Color = { r: 0, g: 0, b: 255, a: 255 };
@@ -37,7 +40,7 @@ function makeBackButtonService() {
   return { push: vi.fn(() => vi.fn()) };
 }
 
-function makeDialogRef(afterClosedSubject: Subject<EditSwatchDialogResult | undefined>) {
+function makeDialogRef(afterClosedSubject: Subject<ColorPickerDialogResult | undefined>) {
   return {
     close: vi.fn(),
     afterClosed: () => afterClosedSubject.asObservable(),
@@ -47,7 +50,7 @@ function makeDialogRef(afterClosedSubject: Subject<EditSwatchDialogResult | unde
 function setup() {
   const colorService = makeColorService();
   const backButtonService = makeBackButtonService();
-  const afterClosedSubject = new Subject<EditSwatchDialogResult | undefined>();
+  const afterClosedSubject = new Subject<ColorPickerDialogResult | undefined>();
   const dialogRef = makeDialogRef(afterClosedSubject);
 
   const dialog = {
@@ -76,13 +79,15 @@ describe('ColorPaletteComponent', () => {
     expect(colorService.addToPalette).toHaveBeenCalledWith(RED);
   });
 
-  it('opening the edit dialog passes paletteLength in dialog data', () => {
+  it('opening the edit dialog opens ColorPickerDialogComponent with correct data', () => {
     const { component, dialog, colorService } = setup();
     colorService.palette.set([RED, BLUE]);
     (component as unknown as { openEditDialog: (i: number) => void })['openEditDialog'](0);
     expect(dialog.open).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ data: expect.objectContaining({ paletteLength: 2 }) }),
+      ColorPickerDialogComponent,
+      expect.objectContaining({
+        data: expect.objectContaining({ paletteLength: 2, index: 0, color: RED }),
+      }),
     );
   });
 
@@ -90,7 +95,7 @@ describe('ColorPaletteComponent', () => {
     const { component, colorService, afterClosedSubject } = setup();
     (component as unknown as { openEditDialog: (i: number) => void })['openEditDialog'](0);
     const newColor: Color = { r: 100, g: 100, b: 100, a: 255 };
-    afterClosedSubject.next({ index: 0, color: newColor });
+    afterClosedSubject.next({ color: newColor });
     expect(colorService.updatePaletteColor).toHaveBeenCalledWith(0, newColor);
     expect(colorService.removeFromPalette).not.toHaveBeenCalled();
   });
@@ -98,7 +103,7 @@ describe('ColorPaletteComponent', () => {
   it('calls removeFromPalette when dialog closes with deleted: true', () => {
     const { component, colorService, afterClosedSubject } = setup();
     (component as unknown as { openEditDialog: (i: number) => void })['openEditDialog'](1);
-    afterClosedSubject.next({ index: 1, color: BLUE, deleted: true });
+    afterClosedSubject.next({ color: BLUE, deleted: true });
     expect(colorService.removeFromPalette).toHaveBeenCalledWith(1);
     expect(colorService.updatePaletteColor).not.toHaveBeenCalled();
   });

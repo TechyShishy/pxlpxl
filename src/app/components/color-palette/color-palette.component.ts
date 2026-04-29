@@ -14,9 +14,10 @@ import { CanvasStateService, AbsorptionState, PixelAbsorptionAssignment } from '
 import { Color, colorToRgba, PixelCoord, pixelOffset } from '../../models';
 import { GridService } from '../../services/grid.service';
 import {
-  EditSwatchDialogComponent,
-  EditSwatchDialogResult,
-} from '../edit-swatch-dialog/edit-swatch-dialog.component';
+  ColorPickerDialogComponent,
+  ColorPickerDialogData,
+  ColorPickerDialogResult,
+} from '../color-picker-dialog/color-picker-dialog.component';
 import { ReplaceColorCommand } from '../../commands/replace-color.command';
 import { MovePaletteCommand } from '../../commands/move-palette.command';
 import { AbsorbColorCommand } from '../../commands/absorb-color.command';
@@ -252,26 +253,34 @@ export class ColorPaletteComponent {
     const palette = this.colorService.palette();
     const color = palette[index];
     const isInUse = this.layerService.isColorInUse(color);
-    const ref = this.dialog.open(EditSwatchDialogComponent, {
-      data: { index, color, paletteLength: palette.length, isInUse },
-    });
+    const data: ColorPickerDialogData = {
+      color,
+      index,
+      paletteLength: palette.length,
+      isInUse,
+    };
+    const ref = this.dialog.open<
+      ColorPickerDialogComponent,
+      ColorPickerDialogData,
+      ColorPickerDialogResult
+    >(ColorPickerDialogComponent, { data });
 
     const deregister = this.backButtonService.push(() => {
       ref.close();
       return true;
     });
 
-    ref.afterClosed().subscribe((result: EditSwatchDialogResult | undefined) => {
+    ref.afterClosed().subscribe((result: ColorPickerDialogResult | undefined) => {
       deregister();
       if (result) {
         if (result.deleted) {
-          this.colorService.removeFromPalette(result.index);
+          this.colorService.removeFromPalette(index);
         } else {
           this.historyService.execute(
             new ReplaceColorCommand(
               this.layerService,
               this.colorService,
-              result.index,
+              index,
               color,
               result.color,
             ),

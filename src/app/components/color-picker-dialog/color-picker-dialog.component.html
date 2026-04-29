@@ -48,6 +48,22 @@
 </mat-dialog-content>
 
 <mat-dialog-actions>
+  @if (showRemoveButton()) {
+    <button
+      mat-button
+      color="warn"
+      [disabled]="!canRemove()"
+      (click)="onRemove()"
+      aria-label="Remove swatch from palette"
+      [attr.aria-describedby]="inUse ? 'in-use-hint' : null"
+    >
+      Remove
+    </button>
+    @if (inUse) {
+      <span id="in-use-hint" class="in-use-hint">Color is painted on the canvas and cannot be removed</span>
+    }
+  }
+  <span class="spacer"></span>
   <button mat-button mat-dialog-close>Cancel</button>
   <button mat-flat-button (click)="onConfirm()">OK</button>
 </mat-dialog-actions>

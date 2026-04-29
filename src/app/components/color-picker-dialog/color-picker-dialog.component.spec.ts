@@ -3,6 +3,8 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import {
   ColorPickerDialogComponent,
+  ColorPickerDialogData,
+  ColorPickerDialogResult,
   IRO_TOKEN,
 } from './color-picker-dialog.component';
 import { Color } from '../../models';
@@ -28,12 +30,12 @@ describe('ColorPickerDialogComponent', () => {
     capturedCallbacks = new Map();
   });
 
-  function setup(color: Color) {
+  function setup(color: Color, extraData: Partial<Omit<ColorPickerDialogData, 'color'>> = {}) {
     const closeSpy = vi.fn();
     TestBed.configureTestingModule({
       imports: [ColorPickerDialogComponent, NoopAnimationsModule],
       providers: [
-        { provide: MAT_DIALOG_DATA, useValue: { color } },
+        { provide: MAT_DIALOG_DATA, useValue: { color, ...extraData } },
         { provide: MatDialogRef, useValue: { close: closeSpy } },
         { provide: IRO_TOKEN, useValue: mockIro },
       ],
@@ -51,10 +53,14 @@ describe('ColorPickerDialogComponent', () => {
     alphaPercent: () => number;
     dbCodeInput: () => string;
     dbCodeError: () => boolean;
+    showRemoveButton: () => boolean;
+    canRemove: () => boolean;
+    inUse: boolean;
     onHexInputChange: (v: string) => void;
     onAlphaChange: (v: number) => void;
     onDbCodeInputChange: (v: string) => void;
     onConfirm: () => void;
+    onRemove: () => void;
   };
 
   it('initializes hexInput from the provided color', () => {
@@ -107,16 +113,61 @@ describe('ColorPickerDialogComponent', () => {
     expect((component as unknown as Comp).alphaPercent()).toBe(50);
   });
 
-  it('onConfirm closes the dialog with the current previewColor', () => {
+  it('onConfirm closes the dialog with the current previewColor wrapped in a result object', () => {
     const { component, closeSpy } = setup(RED);
     (component as unknown as Comp).onAlphaChange(200);
     (component as unknown as Comp).onConfirm();
-    expect(closeSpy).toHaveBeenCalledWith({
-      r: 255,
-      g: 0,
-      b: 0,
-      a: 200,
-    });
+    const result = closeSpy.mock.calls[0][0] as ColorPickerDialogResult;
+    expect(result.color).toEqual({ r: 255, g: 0, b: 0, a: 200 });
+    expect(result.deleted).toBeUndefined();
+  });
+
+  it('onConfirm echoes the palette index when provided', () => {
+    const { component, closeSpy } = setup(RED, { index: 3 });
+    (component as unknown as Comp).onConfirm();
+    const result = closeSpy.mock.calls[0][0] as ColorPickerDialogResult;
+    expect(result.index).toBe(3);
+  });
+
+  // ── Remove button ──────────────────────────────────────────────────────────
+
+  it('showRemoveButton is false when no index is provided', () => {
+    const { component } = setup(RED);
+    expect((component as unknown as Comp).showRemoveButton()).toBe(false);
+  });
+
+  it('showRemoveButton is true when an index is provided', () => {
+    const { component } = setup(RED, { index: 0, paletteLength: 2 });
+    expect((component as unknown as Comp).showRemoveButton()).toBe(true);
+  });
+
+  it('canRemove is true when paletteLength > 1 and color is not in use', () => {
+    const { component } = setup(RED, { index: 0, paletteLength: 2, isInUse: false });
+    expect((component as unknown as Comp).canRemove()).toBe(true);
+  });
+
+  it('canRemove is false when paletteLength is 1', () => {
+    const { component } = setup(RED, { index: 0, paletteLength: 1, isInUse: false });
+    expect((component as unknown as Comp).canRemove()).toBe(false);
+  });
+
+  it('canRemove is false when isInUse is true', () => {
+    const { component } = setup(RED, { index: 0, paletteLength: 3, isInUse: true });
+    expect((component as unknown as Comp).canRemove()).toBe(false);
+  });
+
+  it('inUse reflects the isInUse data field', () => {
+    const { component } = setup(RED, { index: 0, paletteLength: 2, isInUse: true });
+    expect((component as unknown as Comp).inUse).toBe(true);
+  });
+
+  it('onRemove closes the dialog with deleted: true and echoes index', () => {
+    const { component, closeSpy } = setup(RED, { index: 2, paletteLength: 3 });
+    (component as unknown as Comp).onRemove();
+    const result = closeSpy.mock.calls[0][0] as ColorPickerDialogResult;
+    expect(result.deleted).toBe(true);
+    expect(result.index).toBe(2);
+    expect(result.color).toEqual({ r: 255, g: 0, b: 0, a: 255 });
   });
 
   it('color:change event from the iro wheel updates hexValue and hexInput', async () => {
