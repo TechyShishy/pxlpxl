@@ -20,6 +20,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import iro from '@jaames/iro';
 import { Color, colorToRgba, hexToColor } from '../../models';
+import { colorToDbCode, dbCodeToHex } from '../../utils/color-pools';
 
 export const IRO_TOKEN = new InjectionToken<typeof iro>('iro', {
   providedIn: 'root',
@@ -68,6 +69,12 @@ export class ColorPickerDialogComponent {
   /** Alpha channel (0–255). */
   protected readonly alphaValue = signal<number>(this.data.color.a);
 
+  /** DB code field raw input value. Empty string when the current color has no catalog entry. */
+  protected readonly dbCodeInput = signal<string>(colorToDbCode(this.data.color) ?? '');
+
+  /** True while the DB code field contains a non-empty, unrecognized code. */
+  protected readonly dbCodeError = signal<boolean>(false);
+
   protected readonly previewColor = computed<Color>(() => ({
     ...hexToColor(this.hexValue()),
     a: this.alphaValue(),
@@ -94,6 +101,8 @@ export class ColorPickerDialogComponent {
           const hex = color.hexString;
           this.hexValue.set(hex);
           this.hexInput.set(hex);
+          this.dbCodeInput.set(colorToDbCode(hexToColor(hex)) ?? '');
+          this.dbCodeError.set(false);
         }
       });
     });
@@ -103,11 +112,34 @@ export class ColorPickerDialogComponent {
     this.hexInput.set(value);
     if (/^#[0-9a-fA-F]{6}$/.test(value)) {
       this.hexValue.set(value);
+      this.dbCodeInput.set(colorToDbCode(hexToColor(value)) ?? '');
+      this.dbCodeError.set(false);
       if (this.picker) {
         this.isProgrammaticUpdate = true;
         this.picker.color.hexString = value;
         this.isProgrammaticUpdate = false;
       }
+    }
+  }
+
+  protected onDbCodeInputChange(value: string): void {
+    this.dbCodeInput.set(value);
+    if (value === '') {
+      this.dbCodeError.set(false);
+      return;
+    }
+    const hex = dbCodeToHex(value);
+    if (hex !== null) {
+      this.hexValue.set(hex);
+      this.hexInput.set(hex);
+      this.dbCodeError.set(false);
+      if (this.picker) {
+        this.isProgrammaticUpdate = true;
+        this.picker.color.hexString = hex;
+        this.isProgrammaticUpdate = false;
+      }
+    } else {
+      this.dbCodeError.set(true);
     }
   }
 

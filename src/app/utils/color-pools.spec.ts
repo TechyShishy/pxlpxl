@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getDelicaColorPool, getColorPool } from './color-pools';
+import { getDelicaColorPool, getColorPool, dbCodeToHex } from './color-pools';
 
 describe('getDelicaColorPool', () => {
   it('returns 1285 Delica bead colors', () => {
@@ -42,5 +42,25 @@ describe('getColorPool', () => {
     const pool = getColorPool('delica');
     expect(pool).toBeDefined();
     expect(pool!.length).toBe(1285);
+  });
+});
+
+describe('dbCodeToHex', () => {
+  it('returns the catalog hex for a known DB code', () => {
+    // DB0001 → #23242d per the Miyuki Delica catalog
+    expect(dbCodeToHex('DB0001')).toBe('#23242d');
+  });
+
+  it('is case-insensitive', () => {
+    expect(dbCodeToHex('db0001')).toBe('#23242d');
+    expect(dbCodeToHex('Db0001')).toBe('#23242d');
+  });
+
+  it('returns null for an unknown DB code', () => {
+    expect(dbCodeToHex('DB9999')).toBeNull();
+  });
+
+  it('returns null for an empty string', () => {
+    expect(dbCodeToHex('')).toBeNull();
   });
 });

@@ -19,6 +19,21 @@
     />
   </mat-form-field>
 
+  <mat-form-field appearance="outline">
+    <mat-label>DB Code</mat-label>
+    <input
+      matInput
+      [value]="dbCodeInput()"
+      (input)="onDbCodeInputChange(inputValue($event))"
+      placeholder="DB0031"
+      maxlength="8"
+      aria-label="Miyuki Delica DB code"
+    />
+  </mat-form-field>
+  @if (dbCodeError()) {
+    <p class="db-code-error" role="alert">Unknown DB code</p>
+  }
+
   <div class="alpha-row">
     <span class="alpha-label">Opacity</span>
     <span class="alpha-value" aria-live="polite">{{ alphaPercent() }}%</span>

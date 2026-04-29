@@ -44,6 +44,16 @@ export function colorToDbCode(color: Color): string | null {
 }
 
 /**
+ * Return the hex string (e.g. `"#23242d"`) for a Miyuki Delica DB code, or
+ * `null` if the code is not in the catalog. The lookup is case-insensitive.
+ */
+export function dbCodeToHex(code: string): string | null {
+  const normalized = code.toUpperCase();
+  const hex = DELICA_MAP[normalized];
+  return hex ?? null;
+}
+
+/**
  * Return all Miyuki Delica bead colors as an RGBA `Color[]` (a = 255).
  *
  * The result is computed once and cached for subsequent calls.

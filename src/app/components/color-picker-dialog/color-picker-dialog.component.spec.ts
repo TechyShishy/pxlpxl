@@ -49,8 +49,11 @@ describe('ColorPickerDialogComponent', () => {
     alphaValue: () => number;
     previewColor: () => Color;
     alphaPercent: () => number;
+    dbCodeInput: () => string;
+    dbCodeError: () => boolean;
     onHexInputChange: (v: string) => void;
     onAlphaChange: (v: number) => void;
+    onDbCodeInputChange: (v: string) => void;
     onConfirm: () => void;
   };
 
@@ -122,5 +125,67 @@ describe('ColorPickerDialogComponent', () => {
     capturedCallbacks.get('color:change')?.({ hexString: '#0000ff' });
     expect((component as unknown as Comp).hexValue()).toBe('#0000ff');
     expect((component as unknown as Comp).hexInput()).toBe('#0000ff');
+  });
+
+  // ── DB code field ──────────────────────────────────────────────────────────
+
+  it('initializes dbCodeInput to the catalog code when the initial color is in the catalog', () => {
+    // DB0001 → #23242d
+    const DB0001_COLOR: Color = { r: 0x23, g: 0x24, b: 0x2d, a: 255 };
+    const { component } = setup(DB0001_COLOR);
+    expect((component as unknown as Comp).dbCodeInput()).toBe('DB0001');
+  });
+
+  it('initializes dbCodeInput to empty when the initial color is not in the catalog', () => {
+    const { component } = setup(RED);
+    // RED (#ff0000) is not in the Delica catalog
+    const code = (component as unknown as Comp).dbCodeInput();
+    expect(code).toBe('');
+    expect((component as unknown as Comp).dbCodeError()).toBe(false);
+  });
+
+  it('onDbCodeInputChange with a known code updates hexValue and clears dbCodeError', () => {
+    const { component } = setup(RED);
+    (component as unknown as Comp).onDbCodeInputChange('DB0001');
+    expect((component as unknown as Comp).hexValue()).toBe('#23242d');
+    expect((component as unknown as Comp).dbCodeError()).toBe(false);
+  });
+
+  it('onDbCodeInputChange is case-insensitive', () => {
+    const { component } = setup(RED);
+    (component as unknown as Comp).onDbCodeInputChange('db0001');
+    expect((component as unknown as Comp).hexValue()).toBe('#23242d');
+    expect((component as unknown as Comp).dbCodeError()).toBe(false);
+  });
+
+  it('onDbCodeInputChange with an unknown code sets dbCodeError and does not change hexValue', () => {
+    const { component } = setup(RED);
+    const hexBefore = (component as unknown as Comp).hexValue();
+    (component as unknown as Comp).onDbCodeInputChange('DB9999');
+    expect((component as unknown as Comp).dbCodeError()).toBe(true);
+    expect((component as unknown as Comp).hexValue()).toBe(hexBefore);
+  });
+
+  it('onDbCodeInputChange with empty string clears dbCodeError without changing hexValue', () => {
+    const { component } = setup(RED);
+    (component as unknown as Comp).onDbCodeInputChange('DB9999');
+    expect((component as unknown as Comp).dbCodeError()).toBe(true);
+    (component as unknown as Comp).onDbCodeInputChange('');
+    expect((component as unknown as Comp).dbCodeError()).toBe(false);
+  });
+
+  it('onHexInputChange with a catalog hex updates dbCodeInput', () => {
+    const { component } = setup(RED);
+    // DB0001 → #23242d
+    (component as unknown as Comp).onHexInputChange('#23242d');
+    expect((component as unknown as Comp).dbCodeInput()).toBe('DB0001');
+  });
+
+  it('color:change event with a catalog hex updates dbCodeInput', async () => {
+    const { component, fixture } = setup(RED);
+    await fixture.whenStable();
+    // DB0001 → #23242d
+    capturedCallbacks.get('color:change')?.({ hexString: '#23242d' });
+    expect((component as unknown as Comp).dbCodeInput()).toBe('DB0001');
   });
 });
